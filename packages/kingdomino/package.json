@@ -1,0 +1,23 @@
+{
+    "name": "kingdomino",
+    "version": "1.0.0",
+    "author": "Virgil King <virgilking@gmail.com>",
+    "type": "module",
+    "main": "out/kingdomino.js",
+    "scripts": {
+        "protoc": "protoc --plugin=node_modules/.bin/protoc-gen-ts_proto --ts_proto_out=out --ts_proto_opt=esModuleInterop=true --ts_proto_opt=importSuffix=.js --proto_path=. *.proto",
+        "build": "pnpm exec tsc",
+        "clean": "rm -rf out/*"
+    },
+    "dependencies": {
+        "game": "workspace:*",
+        "kingdomino-proto": "workspace:*"
+    },
+    "devDependencies": {
+        "protobufjs": "^7.2.6",
+        "ts-proto": "^1.170.0",
+        "tsconfig": "workspace:*",
+        "typescript": "^5.4.3",
+        "vitest": "^1.4.0"
+    }
+}

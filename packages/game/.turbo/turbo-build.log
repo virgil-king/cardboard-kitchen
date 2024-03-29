@@ -1,0 +1,4 @@
+
+> game@1.0.0 build /var/home/virgil/studio-turbo/packages/game
+> pnpm exec tsc
+

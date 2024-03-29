@@ -1,0 +1,4 @@
+
+> game@1.0.0 clean /var/home/virgil/studio-turbo/packages/game
+> rm -rf out/*
+

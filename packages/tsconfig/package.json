@@ -1,0 +1,7 @@
+{
+    "name": "tsconfig",
+    "version": "1.0.0",
+    "author": "Virgil King <virgilking@gmail.com>",
+    "type": "module",
+    "private": true
+}

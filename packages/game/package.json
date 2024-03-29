@@ -1,0 +1,15 @@
+{
+    "name": "game",
+    "version": "1.0.0",
+    "author": "Virgil King <virgilking@gmail.com>",
+    "type": "module",
+    "main": "out/game.js",
+    "scripts": {
+        "build": "pnpm exec tsc",
+        "clean": "rm -rf out/*"
+    },
+    "devDependencies": {
+        "tsconfig": "workspace:*",
+        "typescript": "^5.4.3"
+    }
+}
