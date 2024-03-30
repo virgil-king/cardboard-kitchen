@@ -28,7 +28,7 @@ importers:
         version: link:../game
       kingdomino-proto:
         specifier: workspace:*
-        version: link:../kingdomino-proto
+        version: link:proto
     devDependencies:
       protobufjs:
         specifier: ^7.2.6
@@ -57,6 +57,21 @@ importers:
       tsconfig:
         specifier: workspace:*
         version: link:../tsconfig
+      typescript:
+        specifier: ^5.4.3
+        version: 5.4.3
+
+  packages/kingdomino/proto:
+    devDependencies:
+      protobufjs:
+        specifier: ^7.2.6
+        version: 7.2.6
+      ts-proto:
+        specifier: ^1.170.0
+        version: 1.170.0
+      tsconfig:
+        specifier: workspace:*
+        version: link:../../tsconfig
       typescript:
         specifier: ^5.4.3
         version: 5.4.3

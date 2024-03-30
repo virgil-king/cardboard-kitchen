@@ -17,7 +17,7 @@
       "path": "../game",
     },
     {
-      "path": "../kingdomino-proto",
+      "path": "proto",
     }
   ]
 }
