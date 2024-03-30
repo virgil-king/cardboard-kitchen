@@ -2,12 +2,7 @@
   "extends": "tsconfig/tsconfig.base.json",
   "include": [
     "*.ts",
-    // "out/kingdomino-proto.ts"
   ],
-  // "files": [
-  //   "kingdomino.ts",
-  //   "out/kingdomino-proto.ts"
-  // ],
   "compilerOptions": {
     "outDir": "out",
     "composite": true,

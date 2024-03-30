@@ -6,7 +6,7 @@
     "main": "out/game.js",
     "scripts": {
         "build": "pnpm exec tsc",
-        "clean": "rm -rf out/*"
+        "clean": "rm -rf out/* tsconfig.tsbuildinfo"
     },
     "devDependencies": {
         "tsconfig": "workspace:*",

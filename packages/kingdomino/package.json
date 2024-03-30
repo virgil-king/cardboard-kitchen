@@ -6,7 +6,8 @@
     "main": "out/kingdomino.js",
     "scripts": {
         "build": "pnpm exec tsc",
-        "clean": "rm -rf out/*"
+        "clean": "rm -rf out/* tsconfig.tsbuildinfo",
+        "test": "pnpm exec vitest out/*.test.js"
     },
     "dependencies": {
         "game": "workspace:*",
