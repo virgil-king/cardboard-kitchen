@@ -1,18 +1,20 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "include": [
-    "*.ts",
-  ],
+  "include": ["*.ts"],
+  "exclude": ["*.test.ts"],
   "compilerOptions": {
     "outDir": "out",
-    "composite": true,
+    "composite": true
   },
   "references": [
     {
-      "path": "../game",
+      "path": "../game"
     },
     {
-      "path": "proto",
+      "path": "proto"
+    },
+    {
+      "path": "../util"
     }
   ]
 }

@@ -1,20 +1,16 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "include": [
-    // "*.ts",
-    "*.test.ts"
-  ],
-  // "files": [
-  //   "kingdomino.ts",
-  //   "out/kingdomino-proto.ts"
-  // ],
+  "include": ["*.test.ts"],
   "compilerOptions": {
     "outDir": "out",
-    "composite": true,
+    "composite": true
   },
   "references": [
     {
       "path": "./tsconfig.json"
+    },
+    {
+      "path": "../util"
     }
   ]
 }

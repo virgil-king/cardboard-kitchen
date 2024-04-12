@@ -7,17 +7,19 @@
     "scripts": {
         "build": "pnpm exec tsc",
         "clean": "rm -rf out/* tsconfig.tsbuildinfo",
-        "test": "pnpm exec vitest out/*.test.js"
+        "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run out/*.test.js"
     },
     "dependencies": {
         "game": "workspace:*",
-        "kingdomino-proto": "workspace:*"
+        "immutable": "5.0.0-beta.5",
+        "kingdomino-proto": "workspace:*",
+        "lodash": "^4.17.21"
     },
     "devDependencies": {
         "protobufjs": "^7.2.6",
-        "ts-proto": "^1.170.0",
+        "ts-proto": "^1.171.0",
         "tsconfig": "workspace:*",
-        "typescript": "^5.4.3",
-        "vitest": "^1.4.0"
+        "typescript": "^5.4.5",
+        "vitest": "^1.5.0"
     }
 }

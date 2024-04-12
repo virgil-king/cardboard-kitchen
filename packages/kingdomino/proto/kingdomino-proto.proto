@@ -9,34 +9,54 @@ message State {
   repeated PlayerState player_state = 5;
 }
 
-message TileOffer {
+message Tile {
   optional int32 tile_number = 1;
+}
+
+message TileOffer {
+  // Absent if the tile has been claimed and placed
+  optional Tile tile = 1;
   optional TileClaim claim = 2;
 }
 
-message TileClaim { optional int32 player_number = 1; }
+message TileClaim { optional string player_id = 1; }
 
 message TileOffers { repeated TileOffer offer = 1; }
 
 message PlayerState {
-  optional string name = 1;
+  // Unique ID within the game and optionally across all games
+  optional string id = 1;
+  // Display name
+  optional string name = 2;
   // Contains a LocationState (often the default instance) for every location
   // that can possibly be occupied during a game. The region is a square whose
   // sides have length 1 + 2 * (max kingdom size - 1) since the player could
   // build out to (max kingdom size - 1) from the center in any direction.
-  repeated LocationState location_state = 2;
+  //
+  // An alternative representation would be the history of select tiles and
+  // their placement position. That representation is expected to be more
+  // compact but less efficient to access by location.
+  repeated LocationState location_state = 3;
 }
 
 enum Terrain {
   TERRAIN_UNKNOWN = 0;
   TERRAIN_EMPTY = 1;
-  TERRAIN_FOREST = 2;
-  TERRAIN_WATER = 3;
+  TERRAIN_CENTER = 2;
+  TERRAIN_FOREST = 3;
+  TERRAIN_WATER = 4;
+  TERRAIN_PASTURE = 5;
+  TERRAIN_SWAMP = 6;
+  TERRAIN_MINE = 7;
+  TERRAIN_HAY = 8;
 }
 
 message LocationState {
-  optional Terrain terrain = 2;
-  optional int32 crowns = 3;
+  // Use tile number + tile location index as the representation of location
+  // state since it centralizes the knowledge of tile data in one place (code)
+  // and it retains the history of player tile selections
+  optional Tile tile = 1;
+  optional int32 tile_location_index = 2;
 }
 
 // The direction of a tile with respect to its zeroth square
@@ -52,7 +72,7 @@ message Action {
   message ClaimTile { optional int32 offer_number = 1; }
 
   message PlaceTile {
-    optional int32 tile_number = 1;
+    optional Tile tile = 1;
     optional int32 x = 2;
     optional int32 y = 3;
     optional TileOrientation orientation = 4;
