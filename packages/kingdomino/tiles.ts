@@ -22,46 +22,88 @@ export class Tile {
       { terrain: terrain1, crowns: crowns1 },
     ]);
   }
+
+  static withNumber(tileNumber: number) {
+    return tiles[tileNumber - 1];
+  }
 }
 
-/** The set of tiles in the base game (currently inaccurate) */
+/**
+ * The set of tiles in the base game.
+ *
+ * Each tile is at index (tile number - 1).
+ */
 export const tiles = [
+  Tile.create(1, Proto.Terrain.TERRAIN_HAY, 0, Proto.Terrain.TERRAIN_HAY, 0),
+  Tile.create(2, Proto.Terrain.TERRAIN_HAY, 0, Proto.Terrain.TERRAIN_HAY, 0),
   Tile.create(
-    1,
+    3,
     Proto.Terrain.TERRAIN_FOREST,
     0,
     Proto.Terrain.TERRAIN_FOREST,
-    1
+    0
   ),
-  Tile.create(
-    2,
-    Proto.Terrain.TERRAIN_PASTURE,
-    0,
-    Proto.Terrain.TERRAIN_PASTURE,
-    1
-  ),
-  Tile.create(3, Proto.Terrain.TERRAIN_MINE, 0, Proto.Terrain.TERRAIN_MINE, 1),
   Tile.create(
     4,
-    Proto.Terrain.TERRAIN_SWAMP,
+    Proto.Terrain.TERRAIN_FOREST,
     0,
-    Proto.Terrain.TERRAIN_SWAMP,
-    1
+    Proto.Terrain.TERRAIN_FOREST,
+    0
   ),
   Tile.create(
     5,
+    Proto.Terrain.TERRAIN_FOREST,
+    0,
+    Proto.Terrain.TERRAIN_FOREST,
+    0
+  ),
+  Tile.create(
+    6,
+    Proto.Terrain.TERRAIN_FOREST,
+    0,
+    Proto.Terrain.TERRAIN_FOREST,
+    0
+  ),
+  Tile.create(
+    7,
     Proto.Terrain.TERRAIN_WATER,
     0,
     Proto.Terrain.TERRAIN_WATER,
-    1
+    0
   ),
-  Tile.create(6, Proto.Terrain.TERRAIN_HAY, 0, Proto.Terrain.TERRAIN_HAY, 1),
-  Tile.create(7, Proto.Terrain.TERRAIN_HAY, 0, Proto.Terrain.TERRAIN_FOREST, 1),
+  Tile.create(
+    8,
+    Proto.Terrain.TERRAIN_WATER,
+    0,
+    Proto.Terrain.TERRAIN_WATER,
+    0
+  ),
+  Tile.create(
+    8,
+    Proto.Terrain.TERRAIN_WATER,
+    0,
+    Proto.Terrain.TERRAIN_WATER,
+    0
+  ),
   Tile.create(
     8,
     Proto.Terrain.TERRAIN_PASTURE,
     0,
-    Proto.Terrain.TERRAIN_WATER,
-    1
+    Proto.Terrain.TERRAIN_PASTURE,
+    0
+  ),
+  Tile.create(
+    8,
+    Proto.Terrain.TERRAIN_PASTURE,
+    0,
+    Proto.Terrain.TERRAIN_PASTURE,
+    0
+  ),
+  Tile.create(
+    8,
+    Proto.Terrain.TERRAIN_SWAMP,
+    0,
+    Proto.Terrain.TERRAIN_SWAMP,
+    0
   ),
 ];

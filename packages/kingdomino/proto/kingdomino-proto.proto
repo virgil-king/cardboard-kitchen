@@ -9,9 +9,7 @@ message State {
   repeated PlayerState player_state = 5;
 }
 
-message Tile {
-  optional int32 tile_number = 1;
-}
+message Tile { optional int32 tile_number = 1; }
 
 message TileOffer {
   // Absent if the tile has been claimed and placed
@@ -69,10 +67,10 @@ enum TileOrientation {
 }
 
 message Action {
-  message ClaimTile { optional int32 offer_number = 1; }
+  message ClaimTile { optional int32 offer_index = 1; }
 
+  // Remove and place the next unplaced tile in the previous offer
   message PlaceTile {
-    optional Tile tile = 1;
     optional int32 x = 2;
     optional int32 y = 3;
     optional TileOrientation orientation = 4;
@@ -81,6 +79,6 @@ message Action {
   // Either one or both of the following properties may be present. The first
   // turn of the game is only a claim; the last turn of the game is only a
   // place.
-  ClaimTile claim_tile = 1;
-  PlaceTile place_tile = 2;
+  optional ClaimTile claim_tile = 1;
+  optional PlaceTile place_tile = 2;
 }
