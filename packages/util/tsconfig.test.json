@@ -1,0 +1,15 @@
+{
+  "extends": "tsconfig/tsconfig.base.json",
+  "include": [
+    "*.test.ts"
+  ],
+  "compilerOptions": {
+    "outDir": "out",
+    "composite": true,
+  },
+  "references": [
+    {
+      "path": "./tsconfig.json"
+    }
+  ]
+}

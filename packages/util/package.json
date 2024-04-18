@@ -1,0 +1,17 @@
+{
+    "name": "studio-util",
+    "version": "1.0.0",
+    "author": "Virgil King <virgilking@gmail.com>",
+    "type": "module",
+    "main": "out/util.js",
+    "scripts": {
+        "build": "pnpm exec tsc",
+        "clean": "rm -rf out/* tsconfig.tsbuildinfo",
+        "test": "pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run out/*.test.js"
+    },
+    "devDependencies": {
+        "tsconfig": "workspace:*",
+        "typescript": "^5.4.3",
+        "vitest": "^1.4.0"
+    }
+}
