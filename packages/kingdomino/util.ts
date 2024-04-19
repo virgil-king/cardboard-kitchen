@@ -1,3 +1,4 @@
+
 import { Player } from "game";
 import * as Proto from "kingdomino-proto";
 
@@ -45,11 +46,4 @@ export class Rectangle {
   get width() {
     return this.right - this.left;
   }
-}
-
-export function playerToState(
-  player: Player,
-  gameState: Proto.State
-): Proto.PlayerState {
-  return gameState.playerState.find((p) => p.id == player.id);
 }
