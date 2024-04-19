@@ -11,7 +11,7 @@
     },
     "devDependencies": {
         "tsconfig": "workspace:*",
-        "typescript": "^5.4.3",
-        "vitest": "^1.4.0"
+        "typescript": "^5.4.5",
+        "vitest": "^1.5.0"
     }
 }

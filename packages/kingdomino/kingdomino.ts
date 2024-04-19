@@ -1,7 +1,7 @@
 import { Action, Game, GameState, Player, Players, PlayerResult } from "game";
 import * as Proto from "kingdomino-proto";
-import { LocationProperties, Tile, tiles } from "./tiles.js";
-import { Direction, Rectangle, Vector2 } from "./util.js";
+import { LocationProperties, Tile, tiles, tileWithNumber } from "./tiles.js";
+import { Direction, playerToState, Rectangle, Vector2 } from "./util.js";
 
 import { Range, Seq } from "immutable";
 import _ from "lodash";
@@ -34,15 +34,15 @@ const playerCountToConfiguration = new Map([
   [4, new Configuration(48, [0, 1, 2, 3])],
 ]);
 
-const defaultLocationProperties = new LocationProperties(
-  Proto.Terrain.TERRAIN_EMPTY,
-  0
-);
+const defaultLocationProperties: LocationProperties = {
+  terrain: Proto.Terrain.TERRAIN_EMPTY,
+  crowns: 0,
+};
 
-const centerLocationProperties = new LocationProperties(
-  Proto.Terrain.TERRAIN_CENTER,
-  0
-);
+const centerLocationProperties: LocationProperties = {
+  terrain: Proto.Terrain.TERRAIN_CENTER,
+  crowns: 0,
+};
 
 function orientationToDirection(orientation: Proto.TileOrientation) {
   switch (orientation) {
@@ -84,7 +84,6 @@ export class KingdominoAction implements Action<KingdominoState> {
             (offer) => offer.tile == undefined
           ))
       ) {
-        // console.log("dealing new offer");
         draft.previousOffers = draft.nextOffers;
         if (draft.remainingTiles.length == 0) {
           // Starting last round
@@ -93,7 +92,6 @@ export class KingdominoAction implements Action<KingdominoState> {
           draft.nextOffers = dealOffer(state.turnCount(), draft.remainingTiles);
         }
       }
-      // return draft;
     });
     return new KingdominoState(newProto, state.playerIdToPlayer);
   }
@@ -107,43 +105,79 @@ export class KingdominoAction implements Action<KingdominoState> {
       throw new Error("Invalid action: can't place a tile in the first round");
     }
 
-    // Remove the tile from the next unplaced offer
     const firstUnplacedOffer = draft.previousOffers.offer.find(
       (offer) => offer.tile != undefined
     );
     const tileNumber = firstUnplacedOffer.tile.tileNumber;
-    const tile = Tile.withNumber(tileNumber);
-    firstUnplacedOffer.tile = undefined;
+    const tile = tileWithNumber(tileNumber);
+    const currentPlayerBoardDraft = playerToState(currentPlayer, draft).locationState;
+    const tileLocation = new Vector2(placement.x, placement.y);
 
     // Check placement legality
-    if (!this.isPlacementAllowed(placement, tile, draft, currentPlayer)) {
-      throw Error(`Invalid placement: ${placement}`);
+    if (
+      !this.isPlacementAllowed(
+        tileLocation,
+        placement.orientation,
+        tile,
+        currentPlayerBoardDraft
+      )
+    ) {
+      throw Error(`Invalid placement: ${JSON.stringify(placement)}`);
     }
+
+    // Successful placement! Remove the tile from the next unplaced offer.
+    firstUnplacedOffer.tile = undefined;
+
+    // Update the two board locations
+    this.setLocationState(
+      currentPlayerBoardDraft,
+      tileLocation,
+      placement.orientation,
+      tile.number,
+      0
+    );
+    this.setLocationState(
+      currentPlayerBoardDraft,
+      tileLocation,
+      placement.orientation,
+      tile.number,
+      1
+    );
+  }
+
+  setLocationState(
+    currentPlayerBoardDraft: Proto.LocationState[],
+    tileLocation: Vector2,
+    orientation: Proto.TileOrientation,
+    tileNumber: number,
+    tileLocationIndex: number
+  ) {
+    const location = this.squareLocation(tileLocation, orientation, tileLocationIndex)
+    const state = { tile: { tileNumber: tileNumber }, tileLocationIndex: tileLocationIndex }
+    console.log(`Setting square ${JSON.stringify(location)} state to ${JSON.stringify(state)}`);
+    setLocationState(
+      currentPlayerBoardDraft,
+      location,
+      state
+    );
   }
 
   isPlacementAllowed(
-    placement: Proto.Action_PlaceTile,
+    tileLocation: Vector2,
+    orientation: Proto.TileOrientation,
     tile: Tile,
-    draft: Proto.State,
-    currentPlayer: Player
+    currentPlayerBoardDraft: Proto.LocationState[]
   ): boolean {
-    const firstSquareLocation = new Vector2(placement.x, placement.y);
-    const currentPlayerBoard = draft.playerState.find(
-      (player) => player.id == currentPlayer.id
-    ).locationState;
-    const occupiedRectangle = this.occupiedRectangle(currentPlayerBoard);
+    const occupiedRectangle = this.occupiedRectangle(currentPlayerBoardDraft);
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
-      const squareLocation = this.squareLocation(
-        firstSquareLocation,
-        placement.orientation,
-        i
-      );
+      const squareLocation = this.squareLocation(tileLocation, orientation, i);
       // Not already occupied:
       if (
-        getLocationState(currentPlayerBoard, squareLocation).terrain !=
+        getLocationState(currentPlayerBoardDraft, squareLocation).terrain !=
         Proto.Terrain.TERRAIN_EMPTY
       ) {
+        console.log(`Square already occupied: ${squareLocation}`);
         return false;
       }
       // Not make the kingdom too tall or wide:
@@ -152,6 +186,9 @@ export class KingdominoAction implements Action<KingdominoState> {
         updatedRectangle.width > maxKingdomSize ||
         updatedRectangle.height > maxKingdomSize
       ) {
+        console.log(
+          `Square would make the kingdom too large: ${squareLocation}`
+        );
         return false;
       }
     }
@@ -159,16 +196,20 @@ export class KingdominoAction implements Action<KingdominoState> {
     // At least one adjacent square must have matching terrain or be the center
     // square:
     for (let i = 0; i < 2; i++) {
-      const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
+      const tileSquareTerrain = tileWithNumber(tile.number).properties[i]
         .terrain;
       for (let location of this.adjacentExternalLocations(
-        firstSquareLocation,
-        placement.orientation,
+        tileLocation,
+        orientation,
         i
       )) {
+        const adjacentTerrain = getLocationState(
+          currentPlayerBoardDraft,
+          location
+        ).terrain;
         if (
-          getLocationState(currentPlayerBoard, location).terrain ==
-          tileSquareTerrain
+          adjacentTerrain == tileSquareTerrain ||
+          adjacentTerrain == Proto.Terrain.TERRAIN_CENTER
         ) {
           return true;
         }
@@ -328,15 +369,11 @@ class KingdominoState implements GameState<KingdominoState> {
       const claimCount = Seq(this.proto.nextOffers.offer).count(
         (offer) => offer.claim != undefined
       );
-      // console.log(
-      //   `claimCount=${claimCount}, offer count = ${this.proto.nextOffers.offer.length}`
-      // );
       if (claimCount == this.proto.nextOffers.offer.length) {
         throw Error("Invalid state: all new offer tiles are claimed");
       }
       const playerIndex = playerCountToConfiguration.get(this.playerCount())
         .firstRoundTurnOrder[claimCount];
-      // console.log(playerIndex);
       return this.playerIdToPlayer.get(this.proto.playerState[playerIndex].id);
     }
     // Non-first round: return the player with the first offer that still has a
@@ -360,9 +397,9 @@ class KingdominoState implements GameState<KingdominoState> {
     throw new Error("Method not implemented.");
   }
 
-  locationState(playerIndex: number, location: Vector2): LocationProperties {
+  locationState(player: Player, location: Vector2): LocationProperties {
     return getLocationState(
-      this.proto.playerState[playerIndex].locationState,
+      playerToState(player, this.proto).locationState,
       location
     );
   }
@@ -416,11 +453,10 @@ export class Kingdomino implements Game<KingdominoState> {
 }
 
 /**
- * Returns an offer consistinng of `turnCount` tiles from the end of
+ * Returns an offer consisting of `turnCount` tiles from the end of
  * `tileNumbers` and removes those tiles from `tileNumbers`
  */
 function dealOffer(turnCount: number, tileNumbers: number[]): Proto.TileOffers {
-  // console.log(`dealOffer: tileNumbers=${tileNumbers}`);
   const offers = new Array<Proto.TileOffer>();
   for (let i = 0; i < turnCount; i++) {
     const tileNumber = tileNumbers.pop();
@@ -441,7 +477,7 @@ function getLocationState(
   if (tile == undefined) {
     return defaultLocationProperties;
   }
-  return tiles[tile.tileNumber].properties[locationState.tileLocationIndex];
+  return tileWithNumber(tile.tileNumber).properties[locationState.tileLocationIndex];
 }
 
 function setLocationState(

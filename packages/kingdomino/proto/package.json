@@ -11,8 +11,8 @@
     },
     "devDependencies": {
         "protobufjs": "^7.2.6",
-        "ts-proto": "^1.170.0",
+        "ts-proto": "^1.172.0",
         "tsconfig": "workspace:*",
-        "typescript": "^5.4.3"
+        "typescript": "^5.4.5"
     }
 }

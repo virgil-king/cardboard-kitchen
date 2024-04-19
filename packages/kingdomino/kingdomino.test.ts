@@ -1,10 +1,12 @@
 import { Player, Players, unroll } from "game";
 import { Kingdomino, KingdominoAction } from "./kingdomino.js";
 import * as Proto from "kingdomino-proto";
-import { tiles } from "./tiles.js";
+// import { tiles } from "./tiles.js";
 import { Vector2 } from "./util.js";
+import { Tile, tileWithNumber } from "./tiles.js";
 
-import { assert, expect, test } from "vitest";
+import { expect, test } from "vitest";
+import { assert } from "chai";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -17,15 +19,31 @@ test("newGame: board is correct size with castle in center", () => {
 
   const state = kingdomino.newGame(players);
 
-  for (let i = 0; i < players.players.length; i++) {
-    assert(state.locationState(i, new Vector2(0, 0)).terrain == Proto.Terrain.TERRAIN_EMPTY);
-    assert(state.locationState(i, new Vector2(8, 0)).terrain == Proto.Terrain.TERRAIN_EMPTY);
-    assert(state.locationState(i, new Vector2(0, 8)).terrain == Proto.Terrain.TERRAIN_EMPTY);
-    assert(state.locationState(i, new Vector2(8, 8)).terrain == Proto.Terrain.TERRAIN_EMPTY);
+  for (let player of players.players) {
     assert(
-      state.locationState(i, new Vector2(4, 4)).terrain == Proto.Terrain.TERRAIN_CENTER
+      state.locationState(player, new Vector2(0, 0)).terrain ==
+        Proto.Terrain.TERRAIN_EMPTY
     );
-    assert(state.locationState(1, new Vector2(0, 0)).terrain == Proto.Terrain.TERRAIN_EMPTY);
+    assert(
+      state.locationState(player, new Vector2(8, 0)).terrain ==
+        Proto.Terrain.TERRAIN_EMPTY
+    );
+    assert(
+      state.locationState(player, new Vector2(0, 8)).terrain ==
+        Proto.Terrain.TERRAIN_EMPTY
+    );
+    assert(
+      state.locationState(player, new Vector2(8, 8)).terrain ==
+        Proto.Terrain.TERRAIN_EMPTY
+    );
+    assert(
+      state.locationState(player, new Vector2(4, 4)).terrain ==
+        Proto.Terrain.TERRAIN_CENTER
+    );
+    assert(
+      state.locationState(player, new Vector2(0, 0)).terrain ==
+        Proto.Terrain.TERRAIN_EMPTY
+    );
   }
 });
 
@@ -172,12 +190,12 @@ test("apply: no matching terrain: throws", () => {
   ).toThrowError();
 });
 
-test("apply: matches center: updates player board", () => {
+test("apply: updates player board", () => {
   const players = new Players([alice, bob, cecile]);
   const initialState = kingdomino.newGame(players);
-  const tileNumber = initialState.proto.nextOffers?.offer[1].tile
-    ?.tileNumber as number;
-  const tile = tiles[tileNumber - 1];
+  // Capture the first offer tile here since that's the one we'll place later
+  const tileNumber = initialState.proto.nextOffers?.offer[0].tile?.tileNumber as number;
+  const tile = tileWithNumber(tileNumber);
   const startOfSecondRound = unroll(initialState, [
     claim(1),
     claim(0),
@@ -193,8 +211,10 @@ test("apply: matches center: updates player board", () => {
     },
   }).apply(startOfSecondRound);
 
-  assert(after.locationState(0, new Vector2(4, 3)) == tile.properties[0]);
-  assert(after.locationState(0, new Vector2(4, 2)) == tile.properties[1]);
+  console.log(`Expected tile is ${JSON.stringify(tile)}`);
+  // Bob claimed the first tile 
+  assert.equal(after.locationState(bob, new Vector2(4, 3)), tile.properties[0]);
+  assert.equal(after.locationState(bob, new Vector2(4, 2)), tile.properties[1]);
 });
 
 function claim(offerIndex: number) {

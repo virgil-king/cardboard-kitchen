@@ -1,3 +1,5 @@
+import { Player } from "game";
+import * as Proto from "kingdomino-proto";
 
 export class Vector2 {
   constructor(readonly x: number, readonly y: number) {}
@@ -23,7 +25,7 @@ export class Rectangle {
     readonly bottom: number
   ) {
     if (left > right || bottom > top) {
-      throw new Error(`Invalid rectangle: ${left}/${top}/${right}${bottom}`);
+      throw new Error(`Invalid rectangle: ${left}/${top}/${right}/${bottom}`);
     }
   }
 
@@ -43,4 +45,11 @@ export class Rectangle {
   get width() {
     return this.right - this.left;
   }
+}
+
+export function playerToState(
+  player: Player,
+  gameState: Proto.State
+): Proto.PlayerState {
+  return gameState.playerState.find((p) => p.id == player.id);
 }
