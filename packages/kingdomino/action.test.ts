@@ -120,6 +120,34 @@ test("apply: updates player board", () => {
   assert.equal(after.locationState(bob, new Vector2(4, 2)), tile.properties[1]);
 });
 
+// test("apply: game over: throws", () => {
+//   const players = new Players([alice, bob, cecile]);
+//   const initialState = kingdomino.newGame(players);
+//   // Capture the first offer tile here since that's the one we'll place later
+//   const tileNumber = initialState.proto.nextOffers?.offer[0].tile
+//     ?.tileNumber as number;
+//   const tile = tileWithNumber(tileNumber);
+//   const startOfSecondRound = unroll(initialState, [
+//     claim(1),
+//     claim(0),
+//     claim(2),
+//   ]);
+
+//   const after = new KingdominoAction({
+//     claimTile: { offerIndex: 0 },
+//     placeTile: {
+//       x: 4,
+//       y: 3,
+//       orientation: Proto.TileOrientation.DOWN,
+//     },
+//   }).apply(startOfSecondRound);
+
+//   console.log(`Expected tile is ${JSON.stringify(tile)}`);
+//   // Bob claimed the first tile
+//   assert.equal(after.locationState(bob, new Vector2(4, 3)), tile.properties[0]);
+//   assert.equal(after.locationState(bob, new Vector2(4, 2)), tile.properties[1]);
+// });
+
 function claim(offerIndex: number) {
   return new KingdominoAction({ claimTile: { offerIndex: offerIndex } });
 }

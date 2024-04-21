@@ -1,7 +1,7 @@
 import { Action, Player } from "game";
 import * as Proto from "kingdomino-proto";
 import { Tile, tileWithNumber } from "./tiles.js";
-import { Direction, Rectangle, Vector2 } from "./util.js";
+import { Direction, Rectangle, Vector2, neighbors } from "./util.js";
 import { KingdominoState } from "./state.js";
 
 import { Range, Seq } from "immutable";
@@ -80,7 +80,7 @@ export class KingdominoAction implements Action<KingdominoState> {
 
     // Check placement legality
     if (
-      !this.isPlacementAllowed(
+      !isPlacementAllowed(
         tileLocation,
         placement.orientation,
         tile,
@@ -117,7 +117,7 @@ export class KingdominoAction implements Action<KingdominoState> {
     tileNumber: number,
     tileLocationIndex: number
   ) {
-    const location = this.squareLocation(
+    const location = squareLocation(
       tileLocation,
       orientation,
       tileLocationIndex
@@ -132,163 +132,6 @@ export class KingdominoAction implements Action<KingdominoState> {
       )}`
     );
     setLocationState(currentPlayerBoardDraft, location, state);
-  }
-
-  isPlacementAllowed(
-    tileLocation: Vector2,
-    orientation: Proto.TileOrientation,
-    tile: Tile,
-    currentPlayerBoardDraft: Proto.LocationState[]
-  ): boolean {
-    const occupiedRectangle = this.occupiedRectangle(currentPlayerBoardDraft);
-    // Each square of the tile must be:
-    for (let i = 0; i < 2; i++) {
-      const squareLocation = this.squareLocation(tileLocation, orientation, i);
-      // Not already occupied:
-      if (
-        getLocationState(currentPlayerBoardDraft, squareLocation).terrain !=
-        Proto.Terrain.TERRAIN_EMPTY
-      ) {
-        console.log(`Square already occupied: ${squareLocation}`);
-        return false;
-      }
-      // Not make the kingdom too tall or wide:
-      const updatedRectangle = occupiedRectangle.extend(squareLocation);
-      if (
-        updatedRectangle.width > maxKingdomSize ||
-        updatedRectangle.height > maxKingdomSize
-      ) {
-        console.log(
-          `Square would make the kingdom too large: ${squareLocation}`
-        );
-        return false;
-      }
-    }
-
-    // At least one adjacent square must have matching terrain or be the center
-    // square:
-    for (let i = 0; i < 2; i++) {
-      const tileSquareTerrain = tileWithNumber(tile.number).properties[i]
-        .terrain;
-      for (let location of this.adjacentExternalLocations(
-        tileLocation,
-        orientation,
-        i
-      )) {
-        const adjacentTerrain = getLocationState(
-          currentPlayerBoardDraft,
-          location
-        ).terrain;
-        if (
-          adjacentTerrain == tileSquareTerrain ||
-          adjacentTerrain == Proto.Terrain.TERRAIN_CENTER
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-
-  private squareLocation(
-    tileLocation: Vector2,
-    tileOrientation: Proto.TileOrientation,
-    squareIndex: number
-  ): Vector2 {
-    if (squareIndex == 0) {
-      return tileLocation;
-    }
-    if (squareIndex != 1) {
-      throw Error("Invalid tile square index");
-    }
-    return tileLocation.plus(orientationToDirection(tileOrientation).offset);
-  }
-
-  /**
-   * Returns the locations adjacent to one square of a tile, not including the
-   * other square of the tile.
-   *
-   * @param tileLocation location of the first square of the tile
-   * @param tileOrientation orientation of the tile
-   * @param squareIndex square index on the tile
-   */
-  private *adjacentExternalLocations(
-    tileLocation: Vector2,
-    tileOrientation: Proto.TileOrientation,
-    squareIndex: number
-  ) {
-    const squareLocation = this.squareLocation(
-      tileLocation,
-      tileOrientation,
-      squareIndex
-    );
-    const otherSquareLocation = this.squareLocation(
-      tileLocation,
-      tileOrientation,
-      this.otherSquareIndex(squareIndex)
-    );
-    for (const location of this.adjacentLocations(squareLocation)) {
-      if (
-        !_.isEqual(location, otherSquareLocation) &&
-        this.isInBounds(location)
-      ) {
-        yield location;
-      }
-    }
-  }
-
-  private *adjacentLocations(location: Vector2): Generator<Vector2> {
-    yield location.plus(Direction.LEFT.offset);
-    yield location.plus(Direction.UP.offset);
-    yield location.plus(Direction.RIGHT.offset);
-    yield location.plus(Direction.DOWN.offset);
-  }
-
-  private otherSquareIndex(squareIndex: number) {
-    switch (squareIndex) {
-      case 0:
-        return 1;
-      case 1:
-        return 0;
-      default:
-        throw Error(`Invalid square index ${squareIndex}`);
-    }
-  }
-
-  private isInBounds(location: Vector2): boolean {
-    return (
-      location.x >= 0 &&
-      location.x < playAreaSize &&
-      location.y >= 0 &&
-      location.y < playAreaSize
-    );
-  }
-
-  private occupiedRectangle(board: Proto.LocationState[]): Rectangle {
-    function isEmpty(x: number, y: number) {
-      return (
-        getLocationState(board, new Vector2(x, y)).terrain ==
-        Proto.Terrain.TERRAIN_EMPTY
-      );
-    }
-    // Scan out in all four directions from the center tile, choosing the last
-    // row or column before the first row or column that's completely empty
-    const left =
-      Seq(Range(centerX - 1, 0, -1)).find((x) =>
-        Seq(Range(0, playAreaSize)).every((y) => isEmpty(x, y))
-      ) + 1;
-    const top =
-      Seq(Range(centerY + 1, playAreaSize)).find((y) =>
-        Seq(Range(0, playAreaSize)).every((x) => isEmpty(x, y))
-      ) - 1;
-    const right =
-      Seq(Range(centerX + 1, playAreaSize)).find((x) =>
-        Seq(Range(0, playAreaSize)).every((y) => isEmpty(x, y))
-      ) - 1;
-    const bottom =
-      Seq(Range(centerY - 1, 0, -1)).find((y) =>
-        Seq(Range(0, playAreaSize)).every((x) => isEmpty(x, y))
-      ) + 1;
-    return new Rectangle(left, top, right, bottom);
   }
 
   applyClaim(
@@ -307,4 +150,147 @@ export class KingdominoAction implements Action<KingdominoState> {
   serialize(): Uint8Array {
     throw new Error("Method not implemented.");
   }
+}
+
+export function isPlacementAllowed(
+  tileLocation: Vector2,
+  orientation: Proto.TileOrientation,
+  tile: Tile,
+  currentPlayerBoardDraft: Proto.LocationState[]
+): boolean {
+  const occupied = occupiedRectangle(currentPlayerBoardDraft);
+  // Each square of the tile must be:
+  for (let i = 0; i < 2; i++) {
+    const location = squareLocation(tileLocation, orientation, i);
+    // Not already occupied:
+    if (
+      getLocationState(currentPlayerBoardDraft, location).terrain !=
+      Proto.Terrain.TERRAIN_EMPTY
+    ) {
+      console.log(`Square already occupied: ${location}`);
+      return false;
+    }
+    // Not make the kingdom too tall or wide:
+    const updatedRectangle = occupied.extend(location);
+    if (
+      updatedRectangle.width > maxKingdomSize ||
+      updatedRectangle.height > maxKingdomSize
+    ) {
+      console.log(`Square would make the kingdom too large: ${location}`);
+      return false;
+    }
+  }
+
+  // At least one adjacent square must have matching terrain or be the center
+  // square:
+  for (let i = 0; i < 2; i++) {
+    const tileSquareTerrain = tileWithNumber(tile.number).properties[i].terrain;
+    for (let location of adjacentExternalLocations(
+      tileLocation,
+      orientation,
+      i
+    )) {
+      const adjacentTerrain = getLocationState(
+        currentPlayerBoardDraft,
+        location
+      ).terrain;
+      if (
+        adjacentTerrain == tileSquareTerrain ||
+        adjacentTerrain == Proto.Terrain.TERRAIN_CENTER
+      ) {
+        return true;
+      }
+    }
+  }
+}
+
+function occupiedRectangle(board: Proto.LocationState[]): Rectangle {
+  function isEmpty(x: number, y: number) {
+    return (
+      getLocationState(board, new Vector2(x, y)).terrain ==
+      Proto.Terrain.TERRAIN_EMPTY
+    );
+  }
+  // Scan out in all four directions from the center tile, choosing the last
+  // row or column before the first row or column that's completely empty
+  const left =
+    Seq(Range(centerX - 1, 0, -1)).find((x) =>
+      Seq(Range(0, playAreaSize)).every((y) => isEmpty(x, y))
+    ) + 1;
+  const top =
+    Seq(Range(centerY + 1, playAreaSize)).find((y) =>
+      Seq(Range(0, playAreaSize)).every((x) => isEmpty(x, y))
+    ) - 1;
+  const right =
+    Seq(Range(centerX + 1, playAreaSize)).find((x) =>
+      Seq(Range(0, playAreaSize)).every((y) => isEmpty(x, y))
+    ) - 1;
+  const bottom =
+    Seq(Range(centerY - 1, 0, -1)).find((y) =>
+      Seq(Range(0, playAreaSize)).every((x) => isEmpty(x, y))
+    ) + 1;
+  return new Rectangle(left, top, right, bottom);
+}
+
+function squareLocation(
+  tileLocation: Vector2,
+  tileOrientation: Proto.TileOrientation,
+  squareIndex: number
+): Vector2 {
+  if (squareIndex == 0) {
+    return tileLocation;
+  }
+  if (squareIndex != 1) {
+    throw Error("Invalid tile square index");
+  }
+  return tileLocation.plus(orientationToDirection(tileOrientation).offset);
+}
+
+/**
+ * Returns the locations adjacent to one square of a tile, not including the
+ * other square of the tile.
+ *
+ * @param tileLocation location of the first square of the tile
+ * @param tileOrientation orientation of the tile
+ * @param squareIndex square index on the tile
+ */
+function* adjacentExternalLocations(
+  tileLocation: Vector2,
+  tileOrientation: Proto.TileOrientation,
+  squareIndex: number
+) {
+  const location = squareLocation(tileLocation, tileOrientation, squareIndex);
+  const otherSquareLocation = squareLocation(
+    tileLocation,
+    tileOrientation,
+    otherSquareIndex(squareIndex)
+  );
+  for (const adjacentLocation of neighbors(location)) {
+    if (
+      !_.isEqual(adjacentLocation, otherSquareLocation) &&
+      isInBounds(adjacentLocation)
+    ) {
+      yield adjacentLocation;
+    }
+  }
+}
+
+function otherSquareIndex(squareIndex: number) {
+  switch (squareIndex) {
+    case 0:
+      return 1;
+    case 1:
+      return 0;
+    default:
+      throw Error(`Invalid square index ${squareIndex}`);
+  }
+}
+
+function isInBounds(location: Vector2): boolean {
+  return (
+    location.x >= 0 &&
+    location.x < playAreaSize &&
+    location.y >= 0 &&
+    location.y < playAreaSize
+  );
 }

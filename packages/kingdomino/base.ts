@@ -40,11 +40,18 @@ export function orientationToDirection(orientation: Proto.TileOrientation) {
   }
 }
 
+export function* orientations(): Generator<Proto.TileOrientation> {
+  yield Proto.TileOrientation.LEFT;
+  yield Proto.TileOrientation.UP;
+  yield Proto.TileOrientation.RIGHT;
+  yield Proto.TileOrientation.DOWN;
+}
+
 export function playerToState(
   player: Player,
   gameState: Proto.State
 ): Proto.PlayerState {
-  return gameState.playerState.find((p) => p.id == player.id);
+  return gameState.playerState.find((p: Proto.PlayerState) => p.id == player.id);
 }
 
 /**
