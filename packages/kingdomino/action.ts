@@ -167,7 +167,7 @@ export function isPlacementAllowed(
       getLocationState(currentPlayerBoardDraft, location).terrain !=
       Proto.Terrain.TERRAIN_EMPTY
     ) {
-      console.log(`Square already occupied: ${location}`);
+      // console.log(`Square already occupied: ${location}`);
       return false;
     }
     // Not make the kingdom too tall or wide:

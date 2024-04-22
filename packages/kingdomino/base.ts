@@ -54,6 +54,19 @@ export function playerToState(
   return gameState.playerState.find((p: Proto.PlayerState) => p.id == player.id);
 }
 
+export class Configuration {
+  constructor(
+    readonly tileCount: number,
+    readonly firstRoundTurnOrder: number[]
+  ) {}
+}
+
+export const playerCountToConfiguration = new Map([
+  [2, new Configuration(24, [0, 1, 0, 1])],
+  [3, new Configuration(36, [0, 1, 2])],
+  [4, new Configuration(48, [0, 1, 2, 3])],
+]);
+
 /**
  * Returns an offer consisting of `turnCount` tiles from the end of
  * `tileNumbers` and removes those tiles from `tileNumbers`
@@ -94,3 +107,4 @@ export function setLocationState(
 ) {
   board[location.x * playAreaSize + location.y] = value;
 }
+

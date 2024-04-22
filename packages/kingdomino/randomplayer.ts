@@ -21,30 +21,43 @@ function* adjacentEmptyLocations(
   const center = new Vector2(centerX, centerY);
   const visited = Set<Vector2>();
   visited.add(center);
-  yield* visit(currentPlayerBoard, center, visited);
+  for (const [neighbor, _] of visit(currentPlayerBoard, center, visited)) {
+    yield neighbor;
+  }
 }
 
+/**
+ * Emits pairs whose first element is an empty neighbor and whose second element is a new set of all visited locations
+ */
 function* visit(
   board: Proto.LocationState[],
   location: Vector2,
   visited: Set<Vector2>
-): Generator<Vector2> {
+): Generator<[Vector2, Set<Vector2>]> {
+  let localVisited = visited;
   for (const direction of Direction.values()) {
     const neighbor = location.plus(direction.offset);
-    if (visited.contains(neighbor)) {
+    if (localVisited.contains(neighbor)) {
       continue;
     }
-    visited.add(neighbor);
+    localVisited = localVisited.add(neighbor);
     const neighborState = getLocationState(board, neighbor);
     if (neighborState.terrain == Proto.Terrain.TERRAIN_EMPTY) {
-      yield neighbor;
+      yield [neighbor, localVisited];
     } else {
-      yield* visit(board, neighbor, visited);
+      for (const [newNeighbor, newVisited] of visit(
+        board,
+        neighbor,
+        localVisited
+      )) {
+        localVisited = newVisited;
+        yield [newNeighbor, newVisited];
+      }
     }
   }
 }
 
-function* possiblePlacements(
+export function* possiblePlacements(
   state: KingdominoState
 ): Generator<Proto.Action_PlaceTile> {
   const currentPlayer = state.currentPlayer();

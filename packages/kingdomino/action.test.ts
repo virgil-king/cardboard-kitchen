@@ -1,6 +1,6 @@
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
-import { Kingdomino } from "./state.js";
+import { Kingdomino } from "./kingdomino.js";
 import * as Proto from "kingdomino-proto";
 import { Vector2 } from "./util.js";
 import { tileWithNumber } from "./tiles.js";
