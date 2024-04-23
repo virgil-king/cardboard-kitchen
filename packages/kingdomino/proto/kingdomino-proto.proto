@@ -34,7 +34,7 @@ message PlayerState {
   // An alternative representation would be the history of select tiles and
   // their placement position. That representation is expected to be more
   // compact but less efficient to access by location.
-  repeated LocationState location_state = 3;
+  repeated LocationEntry location_entry = 3;
 }
 
 enum Terrain {
@@ -47,6 +47,16 @@ enum Terrain {
   TERRAIN_SWAMP = 6;
   TERRAIN_MINE = 7;
   TERRAIN_HAY = 8;
+}
+
+message LocationEntry {
+  optional Location location = 1;
+  optional LocationState location_state = 2;
+}
+
+message Location {
+  optional int32 x = 1;
+  optional int32 y = 2;
 }
 
 message LocationState {

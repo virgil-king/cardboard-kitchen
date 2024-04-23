@@ -75,7 +75,7 @@ export class KingdominoState implements GameState<KingdominoState> {
 
   locationState(player: Player, location: Vector2): LocationProperties {
     return getLocationState(
-      playerToState(player, this.proto).locationState,
+      playerToState(player, this.proto).locationEntry,
       location
     );
   }

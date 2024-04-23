@@ -51,7 +51,9 @@ export function playerToState(
   player: Player,
   gameState: Proto.State
 ): Proto.PlayerState {
-  return gameState.playerState.find((p: Proto.PlayerState) => p.id == player.id);
+  return gameState.playerState.find(
+    (p: Proto.PlayerState) => p.id == player.id
+  );
 }
 
 export class Configuration {
@@ -84,13 +86,17 @@ export function dealOffer(
 }
 
 export function getLocationState(
-  board: Proto.LocationState[],
+  board: Proto.LocationEntry[],
   location: Vector2
 ): LocationProperties {
   if (location.x == centerX && location.y == centerY) {
     return centerLocationProperties;
   }
-  const locationState = board[location.x * playAreaSize + location.y];
+  const locationState =
+    board.find(
+      (entry) =>
+        entry.location.x == location.x && entry.location.y == location.y
+    )?.locationState || defaultLocationState;
   const tile = locationState.tile;
   if (tile == undefined) {
     return defaultLocationProperties;
@@ -101,10 +107,19 @@ export function getLocationState(
 }
 
 export function setLocationState(
-  board: Proto.LocationState[],
+  board: Proto.LocationEntry[],
   location: Vector2,
   value: Proto.LocationState
 ) {
-  board[location.x * playAreaSize + location.y] = value;
+  const existingIndex = board.findIndex(
+    (entry) => entry.location.x == location.x && entry.location.y == location.y
+  );
+  if (existingIndex >= 0) {
+    board[existingIndex].locationState = value;
+  } else {
+    board.push({
+      location: { x: location.x, y: location.y },
+      locationState: value,
+    });
+  }
 }
-

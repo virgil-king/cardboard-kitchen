@@ -1,13 +1,11 @@
 import { possiblePlacements, streamingRandom } from "./randomplayer.js";
 
-import { expect, test } from "vitest";
+import { test } from "vitest";
 import { assert } from "chai";
 import { Kingdomino } from "./kingdomino.js";
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
-import { start } from "repl";
 import { Set } from "immutable";
-import { Action_PlaceTile } from "kingdomino-proto";
 import * as Proto from "kingdomino-proto";
 
 const kingdomino = new Kingdomino();
@@ -38,7 +36,10 @@ test("possiblePlacements: returns all options for first tile", () => {
   console.log(placements.toJSON());
   assert.equal(placements.count(), 12);
   assert.isTrue(
-    placements.contains({ x: 3, y: 4, orientation: Proto.TileOrientation.DOWN })
+    placements.find(
+      (it) =>
+        it.x == 3 && it.y == 4 && it.orientation == Proto.TileOrientation.DOWN
+    ) != undefined
   );
   // kingdomino:test:   { x: 3, y: 4, orientation: 3 },
   // kingdomino:test:   { x: 3, y: 4, orientation: 4 },

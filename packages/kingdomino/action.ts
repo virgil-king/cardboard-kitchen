@@ -75,7 +75,7 @@ export class KingdominoAction implements Action<KingdominoState> {
     const currentPlayerBoardDraft = playerToState(
       currentPlayer,
       draft
-    ).locationState;
+    ).locationEntry;
     const tileLocation = new Vector2(placement.x, placement.y);
 
     // Check placement legality
@@ -111,7 +111,7 @@ export class KingdominoAction implements Action<KingdominoState> {
   }
 
   setLocationState(
-    currentPlayerBoardDraft: Proto.LocationState[],
+    currentPlayerBoardDraft: Proto.LocationEntry[],
     tileLocation: Vector2,
     orientation: Proto.TileOrientation,
     tileNumber: number,
@@ -156,7 +156,7 @@ export function isPlacementAllowed(
   tileLocation: Vector2,
   orientation: Proto.TileOrientation,
   tile: Tile,
-  currentPlayerBoardDraft: Proto.LocationState[]
+  currentPlayerBoardDraft: Proto.LocationEntry[]
 ): boolean {
   const occupied = occupiedRectangle(currentPlayerBoardDraft);
   // Each square of the tile must be:
@@ -204,7 +204,7 @@ export function isPlacementAllowed(
   }
 }
 
-function occupiedRectangle(board: Proto.LocationState[]): Rectangle {
+function occupiedRectangle(board: Proto.LocationEntry[]): Rectangle {
   function isEmpty(x: number, y: number) {
     return (
       getLocationState(board, new Vector2(x, y)).terrain ==

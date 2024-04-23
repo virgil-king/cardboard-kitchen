@@ -15,7 +15,7 @@ import { Set } from "immutable";
 import { tileWithNumber } from "./tiles.js";
 
 function* adjacentEmptyLocations(
-  currentPlayerBoard: Proto.LocationState[]
+  currentPlayerBoard: Proto.LocationEntry[]
 ): Generator<Vector2> {
   // Contains both occupied and empty locations
   const center = new Vector2(centerX, centerY);
@@ -30,7 +30,7 @@ function* adjacentEmptyLocations(
  * Emits pairs whose first element is an empty neighbor and whose second element is a new set of all visited locations
  */
 function* visit(
-  board: Proto.LocationState[],
+  board: Proto.LocationEntry[],
   location: Vector2,
   visited: Set<Vector2>
 ): Generator<[Vector2, Set<Vector2>]> {
@@ -62,7 +62,7 @@ export function* possiblePlacements(
 ): Generator<Proto.Action_PlaceTile> {
   const currentPlayer = state.currentPlayer();
   const currentPlayerState = playerToState(currentPlayer, state.proto);
-  const currentPlayerBoard = currentPlayerState.locationState;
+  const currentPlayerBoard = currentPlayerState.locationEntry;
   const firstUnplacedOffer = state.proto.previousOffers.offer.find(
     (offer) => offer.tile != undefined
   );
