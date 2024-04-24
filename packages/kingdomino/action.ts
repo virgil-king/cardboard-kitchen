@@ -1,6 +1,6 @@
 import { Action, Player } from "game";
 import * as Proto from "kingdomino-proto";
-import { Tile, tileWithNumber } from "./tiles.js";
+import { Terrain, Tile, tileWithNumber } from "./tile.js";
 import { Direction, Rectangle, Vector2, neighbors } from "./util.js";
 import { KingdominoState } from "./state.js";
 
@@ -13,7 +13,6 @@ import {
   dealOffer,
   getLocationState,
   maxKingdomSize,
-  orientationToDirection,
   playAreaSize,
   playerToState,
   setLocationState,
@@ -55,7 +54,7 @@ export class KingdominoAction implements Action<KingdominoState> {
         }
       }
     });
-    return new KingdominoState(newProto, state.playerIdToPlayer);
+    return new KingdominoState(newProto, state.playerIdToState);
   }
 
   applyPlace(
@@ -147,7 +146,7 @@ export class KingdominoAction implements Action<KingdominoState> {
     };
   }
 
-  serialize(): Uint8Array {
+  toJson(): string {
     throw new Error("Method not implemented.");
   }
 }
@@ -165,7 +164,7 @@ export function isPlacementAllowed(
     // Not already occupied:
     if (
       getLocationState(currentPlayerBoardDraft, location).terrain !=
-      Proto.Terrain.TERRAIN_EMPTY
+      Terrain.TERRAIN_EMPTY
     ) {
       // console.log(`Square already occupied: ${location}`);
       return false;
@@ -196,7 +195,7 @@ export function isPlacementAllowed(
       ).terrain;
       if (
         adjacentTerrain == tileSquareTerrain ||
-        adjacentTerrain == Proto.Terrain.TERRAIN_CENTER
+        adjacentTerrain == Terrain.TERRAIN_CENTER
       ) {
         return true;
       }
@@ -208,7 +207,7 @@ function occupiedRectangle(board: Proto.LocationEntry[]): Rectangle {
   function isEmpty(x: number, y: number) {
     return (
       getLocationState(board, new Vector2(x, y)).terrain ==
-      Proto.Terrain.TERRAIN_EMPTY
+      Terrain.TERRAIN_EMPTY
     );
   }
   // Scan out in all four directions from the center tile, choosing the last
@@ -234,7 +233,7 @@ function occupiedRectangle(board: Proto.LocationEntry[]): Rectangle {
 
 function squareLocation(
   tileLocation: Vector2,
-  tileOrientation: Proto.TileOrientation,
+  tileOrientation: Direction,
   squareIndex: number
 ): Vector2 {
   if (squareIndex == 0) {
@@ -243,7 +242,7 @@ function squareLocation(
   if (squareIndex != 1) {
     throw Error("Invalid tile square index");
   }
-  return tileLocation.plus(orientationToDirection(tileOrientation).offset);
+  return tileLocation.plus(tileOrientation.offset);
 }
 
 /**
@@ -256,7 +255,7 @@ function squareLocation(
  */
 function* adjacentExternalLocations(
   tileLocation: Vector2,
-  tileOrientation: Proto.TileOrientation,
+  tileOrientation: Direction,
   squareIndex: number
 ) {
   const location = squareLocation(tileLocation, tileOrientation, squareIndex);

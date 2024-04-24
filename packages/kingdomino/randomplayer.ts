@@ -12,7 +12,7 @@ import * as Proto from "kingdomino-proto";
 
 import seedrandom from "seedrandom";
 import { Set } from "immutable";
-import { tileWithNumber } from "./tiles.js";
+import { tileWithNumber } from "./tile.js";
 
 function* adjacentEmptyLocations(
   currentPlayerBoard: Proto.LocationEntry[]

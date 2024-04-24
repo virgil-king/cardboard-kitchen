@@ -1,12 +1,12 @@
 import { Game, Players } from "game";
 import { KingdominoState } from "./state.js";
-import * as Proto from "kingdomino-proto";
+// import * as Proto from "kingdomino-proto";
 import _ from "lodash";
 import {
   dealOffer,
   playerCountToConfiguration,
 } from "./base.js";
-import { tiles } from "./tiles.js";
+import { tiles } from "./tile.js";
 
 export class Kingdomino implements Game<KingdominoState> {
   playerCounts(): number[] {

@@ -1,5 +1,5 @@
-export interface Serializable {
-  serialize(): Uint8Array;
+export interface JsonSerializable {
+  toJson(): String;
 }
 
 export class Player {
@@ -23,11 +23,11 @@ export interface Endomorphism<T> {
 }
 
 export interface Action<StateT extends GameState<any>>
-  extends Serializable,
+  extends JsonSerializable,
     Endomorphism<StateT> {}
 
 export interface GameState<StateT extends GameState<StateT>>
-  extends Serializable {
+  extends JsonSerializable {
   result(): PlayerResult[] | undefined;
   currentPlayer(): Player;
   possibleActions(): Action<StateT>[];

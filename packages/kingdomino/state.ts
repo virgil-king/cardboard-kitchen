@@ -1,8 +1,10 @@
 import { Action, GameState, Player, PlayerResult } from "game";
-import * as Proto from "kingdomino-proto";
-import { LocationProperties } from "./tiles.js";
+// import * as Proto from "kingdomino-proto";
+import { LocationProperties, Tile } from "./tile.js";
 import {
   Configuration,
+  LocationState,
+  TileOffers,
   getLocationState,
   playerCountToConfiguration,
   playerToState,
@@ -11,19 +13,32 @@ import { Vector2 } from "./util.js";
 
 import { Seq } from "immutable";
 import _ from "lodash";
-import { Set } from "immutable";
+import { Map, Set } from "immutable";
+
+export class PlayerState {
+  constructor(
+    readonly player: Player,
+    readonly locationEntries: Map<Vector2, LocationState>
+  ) {}
+}
+
+// interface Foo {
+//   readonly x: string;
+// }
+
+// let bar = { x: 5 };
+// bar.x = 7;
 
 export class KingdominoState implements GameState<KingdominoState> {
   constructor(
-    readonly proto: Proto.State,
-    /** Convenience cache of `Player` found in `proto` */ readonly playerIdToPlayer: Map<
-      string,
-      Player
-    >
+    readonly players: Player[],
+    readonly playerIdToState: Map<string, PlayerState>,
+    readonly previousOffers: TileOffers | undefined,
+    readonly nextOffers: TileOffers | undefined
   ) {}
 
   private playerCount(): number {
-    return this.playerIdToPlayer.size;
+    return this.playerIdToState.size;
   }
 
   configuration(): Configuration {
@@ -39,27 +54,27 @@ export class KingdominoState implements GameState<KingdominoState> {
   }
 
   currentPlayer(): Player {
-    if (this.proto.previousOffers == undefined) {
+    if (this.previousOffers == undefined) {
       // First round: the number of existing claims is the number of players who
       // have gone already, so return the next player after that in player order
-      const claimCount = Seq(this.proto.nextOffers.offer).count(
+      const claimCount = Seq(this.nextOffers.offers).count(
         (offer) => offer.claim != undefined
       );
-      if (claimCount == this.proto.nextOffers.offer.length) {
+      if (claimCount == this.nextOffers.offers.length) {
         throw Error("Invalid state: all new offer tiles are claimed");
       }
       const playerIndex = playerCountToConfiguration.get(this.playerCount())
         .firstRoundTurnOrder[claimCount];
-      return this.playerIdToPlayer.get(this.proto.playerState[playerIndex].id);
+      return this.playerIdToState.get(this.players[playerIndex].id).player;
     }
     // Non-first round: return the player with the first offer that still has a
     // tile. This logic assumes that a single action atomically removes the
     // claimed tile, places it, and claims a new offered tile. If that weren't
     // the case those states would need to be checked separately.
     const newClaimIndices = Set<number>();
-    for (const offer of this.proto.previousOffers.offer) {
-      if (offer.tile != undefined) {
-        return this.playerIdToPlayer.get(offer.claim.playerId);
+    for (const offer of this.previousOffers.offers) {
+      if (offer.tileNumber != undefined) {
+        return this.playerIdToState.get(offer.claim.playerId).player;
       }
     }
     throw new Error("No cases matched");
@@ -69,13 +84,13 @@ export class KingdominoState implements GameState<KingdominoState> {
     throw new Error("Method not implemented.");
   }
 
-  serialize(): Uint8Array {
+  toJson(): string {
     throw new Error("Method not implemented.");
   }
 
   locationState(player: Player, location: Vector2): LocationProperties {
     return getLocationState(
-      playerToState(player, this.proto).locationEntry,
+      playerToState(player, this).locationEntry,
       location
     );
   }

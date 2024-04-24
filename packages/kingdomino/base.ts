@@ -1,7 +1,7 @@
 import { Player } from "game";
-import * as Proto from "kingdomino-proto";
+// import * as Proto from "kingdomino-proto";
 import { Direction, Vector2 } from "./util.js";
-import { LocationProperties, tileWithNumber } from "./tiles.js";
+import { LocationProperties, Terrain, Tile, tileWithNumber } from "./tile.js";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -12,40 +12,47 @@ export const playAreaSize = 1 + 2 * (maxKingdomSize - 1);
 export const centerX = Math.floor(playAreaSize / 2);
 export const centerY = centerX;
 
-export const defaultLocationState: Proto.LocationState = {
-  tile: undefined,
+export class LocationState {
+  constructor(
+    readonly tileNumber: number | undefined,
+    readonly tileLocationIndex: number | undefined
+  ) {}
+}
+
+export const defaultLocationState: LocationState = {
+  tileNumber: undefined,
   tileLocationIndex: undefined,
 };
 
 export const defaultLocationProperties: LocationProperties = {
-  terrain: Proto.Terrain.TERRAIN_EMPTY,
+  terrain: Terrain.TERRAIN_EMPTY,
   crowns: 0,
 };
 
 export const centerLocationProperties: LocationProperties = {
-  terrain: Proto.Terrain.TERRAIN_CENTER,
+  terrain: Terrain.TERRAIN_CENTER,
   crowns: 0,
 };
 
-export function orientationToDirection(orientation: Proto.TileOrientation) {
-  switch (orientation) {
-    case Proto.TileOrientation.LEFT:
-      return Direction.LEFT;
-    case Proto.TileOrientation.UP:
-      return Direction.UP;
-    case Proto.TileOrientation.RIGHT:
-      return Direction.RIGHT;
-    case Proto.TileOrientation.DOWN:
-      return Direction.DOWN;
-  }
-}
+// export function orientationToDirection(orientation: Proto.TileOrientation) {
+//   switch (orientation) {
+//     case Proto.TileOrientation.LEFT:
+//       return Direction.LEFT;
+//     case Proto.TileOrientation.UP:
+//       return Direction.UP;
+//     case Proto.TileOrientation.RIGHT:
+//       return Direction.RIGHT;
+//     case Proto.TileOrientation.DOWN:
+//       return Direction.DOWN;
+//   }
+// }
 
-export function* orientations(): Generator<Proto.TileOrientation> {
-  yield Proto.TileOrientation.LEFT;
-  yield Proto.TileOrientation.UP;
-  yield Proto.TileOrientation.RIGHT;
-  yield Proto.TileOrientation.DOWN;
-}
+// export function* orientations(): Generator<Proto.TileOrientation> {
+//   yield Proto.TileOrientation.LEFT;
+//   yield Proto.TileOrientation.UP;
+//   yield Proto.TileOrientation.RIGHT;
+//   yield Proto.TileOrientation.DOWN;
+// }
 
 export function playerToState(
   player: Player,
@@ -69,6 +76,21 @@ export const playerCountToConfiguration = new Map([
   [4, new Configuration(48, [0, 1, 2, 3])],
 ]);
 
+export class TileClaim {
+  constructor(readonly playerId: string | undefined) {}
+}
+
+export class TileOffer {
+  constructor(
+    readonly tileNumber: number | undefined,
+    readonly claim: TileClaim | undefined
+  ) {}
+}
+
+export class TileOffers {
+  constructor(readonly offers: TileOffer[]) {}
+}
+
 /**
  * Returns an offer consisting of `turnCount` tiles from the end of
  * `tileNumbers` and removes those tiles from `tileNumbers`
@@ -76,17 +98,17 @@ export const playerCountToConfiguration = new Map([
 export function dealOffer(
   turnCount: number,
   tileNumbers: number[]
-): Proto.TileOffers {
-  const offers = new Array<Proto.TileOffer>();
+): TileOffers {
+  const offers = new Array<TileOffer>();
   for (let i = 0; i < turnCount; i++) {
     const tileNumber = tileNumbers.pop();
-    offers.push({ tile: { tileNumber: tileNumber } });
+    offers.push({ tileNumber: tileNumber, claim: undefined });
   }
-  return { offer: offers };
+  return { offers: offers };
 }
 
 export function getLocationState(
-  board: Proto.LocationEntry[],
+  board: LocationEntry[],
   location: Vector2
 ): LocationProperties {
   if (location.x == centerX && location.y == centerY) {
