@@ -10,20 +10,21 @@
         "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run out/*.test.js"
     },
     "dependencies": {
-        "@types/lodash": "^4.17.0",
         "chai": "^5.1.0",
         "game": "workspace:*",
-        "immer": "^10.0.4",
+        "immer": "^10.1.1",
         "immutable": "5.0.0-beta.5",
         "kingdomino-proto": "workspace:*",
         "lodash": "^4.17.21",
-        "seedrandom": "^3.0.5"
+        "seedrandom": "^3.0.5",
+        "studio-util": "workspace:*"
     },
     "devDependencies": {
+        "@types/lodash": "^4.17.0",
         "protobufjs": "^7.2.6",
         "ts-proto": "^1.172.0",
         "tsconfig": "workspace:*",
         "typescript": "^5.4.5",
-        "vitest": "^1.5.0"
+        "vitest": "^1.5.2"
     }
 }

@@ -1,10 +1,12 @@
-import { Player } from "game";
-import * as Proto from "kingdomino-proto";
+import { combineHashes } from "studio-util";
 
-import { hash, ValueObject } from "immutable";
+import { ValueObject } from "immutable";
 
 export class Vector2 implements ValueObject {
-  constructor(readonly x: number, readonly y: number) {}
+  constructor(readonly x: number, readonly y: number) {
+    this.x = x;
+    this.y = y;
+  }
 
   equals(other: unknown): boolean {
     if (!(other instanceof Vector2)) {
@@ -14,7 +16,7 @@ export class Vector2 implements ValueObject {
   }
 
   hashCode(): number {
-    return hash(this.x) ^ hash(this.y);
+    return combineHashes([(this.x, this.y)]);
   }
 
   plus(other: Vector2) {
@@ -43,7 +45,7 @@ export function* neighbors(location: Vector2): Generator<Vector2> {
   yield location.plus(Direction.DOWN.offset);
 }
 
-export class Rectangle {
+export class Rectangle implements ValueObject {
   constructor(
     readonly left: number,
     readonly top: number,
@@ -54,7 +56,6 @@ export class Rectangle {
       throw new Error(`Invalid rectangle: ${left}/${top}/${right}/${bottom}`);
     }
   }
-
   extend(location: Vector2) {
     return new Rectangle(
       Math.min(this.left, location.x),
@@ -71,4 +72,35 @@ export class Rectangle {
   get width() {
     return this.right - this.left;
   }
+
+  equals(other: unknown): boolean {
+    if (!(other instanceof Rectangle)) {
+      return false;
+    }
+    throw (
+      this.left == other.left &&
+      this.top == other.top &&
+      this.right == other.right &&
+      this.bottom == other.bottom
+    );
+  }
+  hashCode(): number {
+    return combineHashes([this.left, this.top, this.right, this.bottom]);
+  }
+}
+
+export function assertDefined<T>(val: T): asserts val is NonNullable<T> {
+  if (val === undefined || val === null) {
+    throw new Error(`Expected 'val' to be defined, but received ${val}`);
+  }
+}
+
+export function requireDefined<T>(
+  val: T,
+  message: string = "Unexpected undefined value"
+): NonNullable<T> {
+  if (val == undefined) {
+    throw new Error(message);
+  }
+  return val;
 }

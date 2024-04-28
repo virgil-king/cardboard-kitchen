@@ -1,7 +1,9 @@
 import { Player } from "game";
-// import * as Proto from "kingdomino-proto";
-import { Direction, Vector2 } from "./util.js";
-import { LocationProperties, Terrain, Tile, tileWithNumber } from "./tile.js";
+import { Direction, Rectangle, Vector2, neighbors } from "./util.js";
+import { LocationProperties, Terrain, Tile } from "./tile.js";
+
+import { List, Map, Range, Seq } from "immutable";
+import _ from "lodash";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -14,15 +16,76 @@ export const centerY = centerX;
 
 export class LocationState {
   constructor(
-    readonly tileNumber: number | undefined,
-    readonly tileLocationIndex: number | undefined
+    readonly tileNumber: number,
+    readonly tileLocationIndex: number
   ) {}
+
+  properties(): LocationProperties {
+    return Tile.withNumber(this.tileNumber).properties[this.tileLocationIndex];
+  }
 }
 
-export const defaultLocationState: LocationState = {
-  tileNumber: undefined,
-  tileLocationIndex: undefined,
-};
+export class PlayerBoard {
+  constructor(readonly locationStates: Map<Vector2, LocationState>) {}
+
+  getLocationState(location: Vector2): LocationProperties {
+    if (location.x == centerX && location.y == centerY) {
+      return centerLocationProperties;
+    }
+    const locationState = this.locationStates.get(location);
+    if (locationState == undefined) {
+      return defaultLocationProperties;
+    }
+    return locationState.properties();
+  }
+
+  withLocationStateFromTile(
+    tileLocation: Vector2,
+    direction: Direction,
+    tileNumber: number,
+    tileLocationIndex: number
+  ): PlayerBoard {
+    const location = squareLocation(tileLocation, direction, tileLocationIndex);
+    const state = new LocationState(tileNumber, tileLocationIndex);
+    console.log(
+      `Setting square ${JSON.stringify(location)} state to ${JSON.stringify(
+        state
+      )}`
+    );
+    return this.withLocationState(location, state);
+  }
+
+  withLocationState(location: Vector2, value: LocationState): PlayerBoard {
+    return new PlayerBoard(this.locationStates.set(location, value));
+  }
+
+  occupiedRectangle(): Rectangle {
+    const isEmpty = (x: number, y: number) => {
+      return (
+        this.getLocationState(new Vector2(x, y)).terrain ==
+        Terrain.TERRAIN_EMPTY
+      );
+    };
+    const left = this.lastOccupiedLine(centerX - 1, 0, -1, (a, b) => isEmpty(a, b));
+    const top = this.lastOccupiedLine(centerY + 1, 0, 1, (a, b) => isEmpty(b, a));
+    const right = this.lastOccupiedLine(centerX + 1, 0, 1, (a, b) => isEmpty(a, b));
+    const bottom = this.lastOccupiedLine(centerY - 1, 0, -1, (a, b) => isEmpty(b, a));
+    return new Rectangle(left, top, right, bottom);
+  }
+
+  /**
+   * Returns the last occupied row or column between start (inclusive) and end (exclusive).
+   */
+  lastOccupiedLine(start: number, end: number, increment: number, isEmpty: (a: number, b: number) => boolean) {
+    const result = Seq(Range(start, end, increment)).find((a) =>
+      Seq(Range(0, playAreaSize)).every((b) => isEmpty(a, b))
+    )
+    if (result != undefined) {
+      return result - increment;
+    }
+    return end - increment;
+  }
+}
 
 export const defaultLocationProperties: LocationProperties = {
   terrain: Terrain.TERRAIN_EMPTY,
@@ -34,114 +97,157 @@ export const centerLocationProperties: LocationProperties = {
   crowns: 0,
 };
 
-// export function orientationToDirection(orientation: Proto.TileOrientation) {
-//   switch (orientation) {
-//     case Proto.TileOrientation.LEFT:
-//       return Direction.LEFT;
-//     case Proto.TileOrientation.UP:
-//       return Direction.UP;
-//     case Proto.TileOrientation.RIGHT:
-//       return Direction.RIGHT;
-//     case Proto.TileOrientation.DOWN:
-//       return Direction.DOWN;
-//   }
-// }
-
-// export function* orientations(): Generator<Proto.TileOrientation> {
-//   yield Proto.TileOrientation.LEFT;
-//   yield Proto.TileOrientation.UP;
-//   yield Proto.TileOrientation.RIGHT;
-//   yield Proto.TileOrientation.DOWN;
-// }
-
-export function playerToState(
-  player: Player,
-  gameState: Proto.State
-): Proto.PlayerState {
-  return gameState.playerState.find(
-    (p: Proto.PlayerState) => p.id == player.id
-  );
-}
-
 export class Configuration {
   constructor(
     readonly tileCount: number,
     readonly firstRoundTurnOrder: number[]
   ) {}
+
+  turnCount(): number {
+    return this.firstRoundTurnOrder.length;
+  }
 }
 
-export const playerCountToConfiguration = new Map([
+export const playerCountToConfiguration = Map([
   [2, new Configuration(24, [0, 1, 0, 1])],
   [3, new Configuration(36, [0, 1, 2])],
   [4, new Configuration(48, [0, 1, 2, 3])],
 ]);
 
+export function getConfiguration(playerCount: number): Configuration {
+  const result = playerCountToConfiguration.get(playerCount);
+  if (result == undefined) {
+    throw new Error(`Invalid player count ${playerCount}`);
+  }
+  return result;
+}
+
 export class TileClaim {
-  constructor(readonly playerId: string | undefined) {}
+  constructor(readonly playerId: string) {}
 }
 
 export class TileOffer {
-  constructor(
-    readonly tileNumber: number | undefined,
-    readonly claim: TileClaim | undefined
-  ) {}
+  constructor(readonly tileNumber?: number, readonly claim?: TileClaim) {}
+
+  isClaimed() {
+    return this.claim != undefined;
+  }
+
+  hasTile() {
+    return this.tileNumber != undefined;
+  }
+
+  withClaim(player: Player): TileOffer {
+    return new TileOffer(this.tileNumber, new TileClaim(player.id));
+  }
+
+  withTileRemoved(): TileOffer {
+    return new TileOffer();
+  }
 }
 
 export class TileOffers {
-  constructor(readonly offers: TileOffer[]) {}
+  constructor(readonly offers: List<TileOffer>) {}
+
+  withTileClaimed(offerIndex: number, player: Player): TileOffers {
+    const offer = this.offers.get(offerIndex)?.withClaim(player);
+    if (offer == undefined) {
+      throw new Error(`Offer index out of bounds: ${offerIndex}`);
+    }
+    return new TileOffers(this.offers.set(offerIndex, offer));
+  }
+
+  withTileRemoved(offerIndex: number) {
+    const offer = this.offers.get(offerIndex)?.withTileRemoved();
+    if (offer == undefined) {
+      throw new Error(`Offer index out of bounds: ${offerIndex}`);
+    }
+    return new TileOffers(this.offers.set(offerIndex, offer));
+  }
 }
 
 /**
  * Returns an offer consisting of `turnCount` tiles from the end of
- * `tileNumbers` and removes those tiles from `tileNumbers`
+ * `tileNumbers` and the new set of remaining tiles.
  */
 export function dealOffer(
   turnCount: number,
-  tileNumbers: number[]
-): TileOffers {
-  const offers = new Array<TileOffer>();
+  remainingTiles: List<number>
+): [TileOffers, List<number>] {
+  let offers = List<TileOffer>();
   for (let i = 0; i < turnCount; i++) {
-    const tileNumber = tileNumbers.pop();
-    offers.push({ tileNumber: tileNumber, claim: undefined });
+    const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
+    offers = offers.push(new TileOffer(tileNumber));
   }
-  return { offers: offers };
-}
-
-export function getLocationState(
-  board: LocationEntry[],
-  location: Vector2
-): LocationProperties {
-  if (location.x == centerX && location.y == centerY) {
-    return centerLocationProperties;
-  }
-  const locationState =
-    board.find(
-      (entry) =>
-        entry.location.x == location.x && entry.location.y == location.y
-    )?.locationState || defaultLocationState;
-  const tile = locationState.tile;
-  if (tile == undefined) {
-    return defaultLocationProperties;
-  }
-  return tileWithNumber(tile.tileNumber).properties[
-    locationState.tileLocationIndex
+  return [
+    new TileOffers(offers),
+    remainingTiles.slice(0, remainingTiles.size - turnCount),
   ];
 }
 
-export function setLocationState(
-  board: Proto.LocationEntry[],
-  location: Vector2,
-  value: Proto.LocationState
-) {
-  const existingIndex = board.findIndex(
-    (entry) => entry.location.x == location.x && entry.location.y == location.y
-  );
-  if (existingIndex >= 0) {
-    board[existingIndex].locationState = value;
-  } else {
-    board.push({
-      location: { x: location.x, y: location.y },
-      locationState: value,
-    });
+export function otherSquareIndex(squareIndex: number) {
+  switch (squareIndex) {
+    case 0:
+      return 1;
+    case 1:
+      return 0;
+    default:
+      throw Error(`Invalid square index ${squareIndex}`);
   }
+}
+
+export function squareLocation(
+  tileLocation: Vector2,
+  tileOrientation: Direction,
+  squareIndex: number
+): Vector2 {
+  if (squareIndex == 0) {
+    return tileLocation;
+  }
+  if (squareIndex != 1) {
+    throw Error("Invalid tile square index");
+  }
+  return tileLocation.plus(tileOrientation.offset);
+}
+
+/**
+ * Returns the locations adjacent to one square of a tile, not including the
+ * other square of the tile.
+ *
+ * @param tileLocation location of the first square of the tile
+ * @param tileOrientation orientation of the tile
+ * @param squareIndex square index on the tile
+ */
+export function* adjacentExternalLocations(
+  tileLocation: Vector2,
+  tileOrientation: Direction,
+  squareIndex: number
+) {
+  const location = squareLocation(tileLocation, tileOrientation, squareIndex);
+  const otherSquareLocation = squareLocation(
+    tileLocation,
+    tileOrientation,
+    otherSquareIndex(squareIndex)
+  );
+  for (const adjacentLocation of neighbors(location)) {
+    if (
+      !_.isEqual(adjacentLocation, otherSquareLocation) &&
+      isInBounds(adjacentLocation)
+    ) {
+      yield adjacentLocation;
+    }
+  }
+}
+
+export function isInBounds(location: Vector2): boolean {
+  return (
+    location.x >= 0 &&
+    location.x < playAreaSize &&
+    location.y >= 0 &&
+    location.y < playAreaSize
+  );
+}
+
+export function run<T>(f: () => T) {
+  return f();
 }

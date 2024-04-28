@@ -1,5 +1,7 @@
 // import * as Proto from "kingdomino-proto";
 
+import { Vector2, Direction } from "./util.js";
+
 export enum Terrain {
   // TERRAIN_UNKNOWN,
   TERRAIN_EMPTY,
@@ -21,6 +23,10 @@ export class Tile {
     readonly number: number,
     readonly properties: LocationProperties[]
   ) {}
+
+  static withNumber(tileNumber: number) {
+    return tiles[tileNumber - 1];
+  }
 }
 
 function create(
@@ -34,10 +40,6 @@ function create(
     new LocationProperties(terrain0, crowns0),
     new LocationProperties(terrain1, crowns1),
   ]);
-}
-
-export function tileWithNumber(tileNumber: number) {
-  return tiles[tileNumber - 1];
 }
 
 /**

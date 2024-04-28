@@ -1,12 +1,19 @@
-export interface JsonSerializable {
-  toJson(): String;
-}
+import { combineHashes } from "studio-util";
 
-export class Player {
-  constructor(
-    /** Game-unique or globally-unique string ID */ readonly id: string,
-    readonly name: string
-  ) {}
+import { hash, ValueObject } from "immutable";
+import _ from "lodash";
+
+export class Player implements ValueObject {
+  constructor(readonly id: string, readonly name: string) {}
+  equals(other: unknown): boolean {
+    if (!(other instanceof Player)) {
+      return false;
+    }
+    return this.id == other.id && this.name == other.name;
+  }
+  hashCode(): number {
+    return combineHashes([hash(this.id), hash(this.name)]);
+  }
 }
 
 export class Players {
@@ -23,14 +30,12 @@ export interface Endomorphism<T> {
 }
 
 export interface Action<StateT extends GameState<any>>
-  extends JsonSerializable,
-    Endomorphism<StateT> {}
+  extends Endomorphism<StateT> {}
 
-export interface GameState<StateT extends GameState<StateT>>
-  extends JsonSerializable {
+export interface GameState<StateT extends GameState<StateT>> {
   result(): PlayerResult[] | undefined;
-  currentPlayer(): Player;
-  possibleActions(): Action<StateT>[];
+  currentPlayer(): Player | undefined;
+  // possibleActions(): Action<StateT>[];
 }
 
 export interface Game<StateT extends GameState<StateT>> {

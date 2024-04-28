@@ -1,12 +1,10 @@
 import { Game, Players } from "game";
-import { KingdominoState } from "./state.js";
-// import * as Proto from "kingdomino-proto";
+import { KingdominoState, NextAction, PlayerState } from "./state.js";
 import _ from "lodash";
-import {
-  dealOffer,
-  playerCountToConfiguration,
-} from "./base.js";
+import { PlayerBoard, dealOffer, getConfiguration, playerCountToConfiguration } from "./base.js";
 import { tiles } from "./tile.js";
+
+import { List, Map } from "immutable";
 
 export class Kingdomino implements Game<KingdominoState> {
   playerCounts(): number[] {
@@ -18,29 +16,27 @@ export class Kingdomino implements Game<KingdominoState> {
   }
 
   newGame(players: Players): KingdominoState {
-    const protoPlayers: Proto.PlayerState[] = players.players.map((player) => {
-      return {
-        id: player.id,
-        name: player.name,
-        locationEntry: [],
-      };
-    });
     const playerCount = players.players.length;
-    const config = playerCountToConfiguration.get(playerCount);
+    const config = getConfiguration(playerCount);
     const allTileNumbers = _.range(1, tiles.length + 1);
     const shuffledTiles = _.shuffle(allTileNumbers).slice(0, config.tileCount);
-    const firstOffer = dealOffer(
+    const [firstOffer, remainingTiles] = dealOffer(
       config.firstRoundTurnOrder.length,
-      shuffledTiles
+      List(shuffledTiles)
     );
-    return new KingdominoState(
-      {
-        previousOffers: undefined,
-        nextOffers: firstOffer,
-        remainingTiles: shuffledTiles,
-        playerState: protoPlayers,
-      },
-      new Map(players.players.map((player) => [player.id, player]))
-    );
+    return new KingdominoState({
+      configuration: config,
+      players: players,
+      playerIdToState: Map(
+        players.players.map((player) => [
+          player.id,
+          new PlayerState(player, new PlayerBoard(Map())),
+        ])
+      ),
+      currentPlayer: players.players[0],
+      nextAction: NextAction.CLAIM,
+      nextOffers: firstOffer,
+      remainingTiles: remainingTiles,
+    });
   }
 }

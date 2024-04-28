@@ -6,7 +6,7 @@ import { Kingdomino } from "./kingdomino.js";
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
 import { Set } from "immutable";
-import * as Proto from "kingdomino-proto";
+import { Direction } from "./util.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -38,7 +38,7 @@ test("possiblePlacements: returns all options for first tile", () => {
   assert.isTrue(
     placements.find(
       (it) =>
-        it.x == 3 && it.y == 4 && it.orientation == Proto.TileOrientation.DOWN
+        it.location.x == 3 && it.location.y == 4 && it.direction == Direction.DOWN
     ) != undefined
   );
   // kingdomino:test:   { x: 3, y: 4, orientation: 3 },

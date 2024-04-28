@@ -16,3 +16,11 @@ export function shuffle<T>(items: ReadonlyArray<T>): Array<T> {
   }
   return result;
 }
+
+export function combineHashes(hashes: Array<number>): number {
+  let result = hashes[0];
+  for (let hash of hashes.slice(1)) {
+    result = 31 * result + hash;
+  }
+  return result;
+}
