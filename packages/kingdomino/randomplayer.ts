@@ -1,15 +1,15 @@
-import { PlayerBoard, centerX, centerY } from "./base.js";
+import { PlaceTile, PlayerBoard, centerX, centerY } from "./base.js";
 import { KingdominoState } from "./state.js";
 import { Direction, Vector2 } from "./util.js";
 
 import { Seq, Set } from "immutable";
 import { Terrain, Tile } from "./tile.js";
 
-function* adjacentEmptyLocations(
+export function* adjacentEmptyLocations(
   currentPlayerBoard: PlayerBoard
 ): Generator<Vector2> {
-  // Contains both occupied and empty locations
   const center = new Vector2(centerX, centerY);
+  // Contains both occupied and empty locations.
   // We use an immutable Set here, even though a mutable set would be more convenient in this case,
   // because JS mutable sets don't support deep equality behavior (ValueObject in this case)
   const visited = Set<Vector2>();
@@ -50,36 +50,39 @@ function* visit(
   }
 }
 
+/**
+ * Returns all of the legal placements available from {@link state}
+ */
 export function* possiblePlacements(
   state: KingdominoState
-): Generator<{ location: Vector2; direction: Direction }> {
+): Generator<PlaceTile> {
   const currentPlayerBoard = state.requireCurrentPlayerState().board;
   const previousOffers = state.props.previousOffers;
   if (previousOffers == undefined) {
+    // First round; can't place anything
     return;
   }
   const firstUnplacedOfferTileNumber = Seq(previousOffers.offers)
     .map((offer) => offer.tileNumber)
     .find((tileNumber) => tileNumber != undefined);
   if (firstUnplacedOfferTileNumber == undefined) {
+    // All tiles already placed
     return;
   }
   const tile = Tile.withNumber(firstUnplacedOfferTileNumber);
   for (const adjacentLocation of adjacentEmptyLocations(currentPlayerBoard)) {
     for (const direction of Direction.values()) {
+      const square0Placement = new PlaceTile(adjacentLocation, direction);
       if (
         state.isPlacementAllowed(
-          adjacentLocation,
-          direction,
+          square0Placement,
           tile,
           currentPlayerBoard
         )
       ) {
-        yield {
-          location: adjacentLocation,
-          direction: direction,
-        };
+        yield square0Placement;
       }
+      const square1Placement = square0Placement.flip();
     }
   }
 }

@@ -6,6 +6,7 @@ import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
 import { assert } from "chai";
+import { PlaceTile } from "./base.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -31,10 +32,7 @@ test("apply: includes place on first round: throws", () => {
 
   expect(() =>
     new KingdominoAction({
-      placeTile: {
-        location: new Vector2(0, 0),
-        direction: Direction.UP,
-      },
+      placeTile: new PlaceTile(new Vector2(0, 0), Direction.UP),
     }).apply(before)
   ).toThrowError();
 });
@@ -45,10 +43,7 @@ test("apply: no claim in non-final round: throws", () => {
 
   expect(() =>
     new KingdominoAction({
-      placeTile: {
-        location: new Vector2(4, 3),
-        direction: Direction.DOWN,
-      },
+      placeTile: new PlaceTile(new Vector2(4, 3), Direction.DOWN),
     }).apply(state)
   ).toThrowError();
 });
@@ -64,10 +59,7 @@ test("apply: placement out of bounds: throws", () => {
   expect(() =>
     new KingdominoAction({
       claimTile: { offerIndex: 0 },
-      placeTile: {
-        location: new Vector2(25, 25),
-        direction: Direction.DOWN,
-      },
+      placeTile: new PlaceTile(new Vector2(25, 25), Direction.DOWN),
     }).apply(state)
   ).toThrowError();
 });
@@ -83,10 +75,7 @@ test("apply: no matching terrain: throws", () => {
   expect(() =>
     new KingdominoAction({
       claimTile: { offerIndex: 0 },
-      placeTile: {
-        location: new Vector2(0, 0),
-        direction: Direction.DOWN,
-      },
+      placeTile: new PlaceTile(new Vector2(0, 0), Direction.DOWN),
     }).apply(state)
   ).toThrowError();
 });
@@ -95,8 +84,9 @@ test("apply: updates player board", () => {
   const players = new Players([alice, bob, cecile]);
   const initialState = kingdomino.newGame(players);
   // Capture the first offer tile here since that's the one we'll place later
-  const tileNumber = requireDefined(initialState.props.nextOffers?.offers?.get(0)
-    ?.tileNumber) as number;
+  const tileNumber = requireDefined(
+    initialState.props.nextOffers?.offers?.get(0)?.tileNumber
+  ) as number;
   const tile = Tile.withNumber(tileNumber);
   const startOfSecondRound = unroll(initialState, [
     claim(1),
@@ -106,10 +96,7 @@ test("apply: updates player board", () => {
 
   const after = new KingdominoAction({
     claimTile: { offerIndex: 0 },
-    placeTile: {
-      location: new Vector2(4, 3),
-      direction: Direction.DOWN,
-    },
+    placeTile: new PlaceTile(new Vector2(4, 3), Direction.DOWN),
   }).apply(startOfSecondRound);
 
   console.log(`Expected tile is ${JSON.stringify(tile)}`);

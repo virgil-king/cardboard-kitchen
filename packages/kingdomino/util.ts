@@ -1,11 +1,19 @@
 import { combineHashes } from "studio-util";
 
-import { ValueObject } from "immutable";
+import { Seq, ValueObject } from "immutable";
 
 export class Vector2 implements ValueObject {
   constructor(readonly x: number, readonly y: number) {
     this.x = x;
     this.y = y;
+  }
+
+  plus(other: Vector2) {
+    return new Vector2(this.x + other.x, this.y + other.y);
+  }
+
+  multiply(value: number) {
+    return new Vector2(this.x * value, this.y * value);
   }
 
   equals(other: unknown): boolean {
@@ -18,23 +26,29 @@ export class Vector2 implements ValueObject {
   hashCode(): number {
     return combineHashes([(this.x, this.y)]);
   }
-
-  plus(other: Vector2) {
-    return new Vector2(this.x + other.x, this.y + other.y);
-  }
 }
 
 export class Direction {
-  constructor(readonly offset: Vector2) {}
+  private constructor(readonly offset: Vector2) {}
   static readonly LEFT = new Direction(new Vector2(-1, 0));
   static readonly UP = new Direction(new Vector2(0, 1));
   static readonly RIGHT = new Direction(new Vector2(1, 0));
   static readonly DOWN = new Direction(new Vector2(0, -1));
+  opposite(): Direction {
+    const result = Direction.withOffset(this.offset.multiply(-1));
+    if (result == undefined) {
+      throw new Error("Direction had no opposite direction!");
+    }
+    return result;
+  }
   static *values(): Generator<Direction> {
     yield this.LEFT;
     yield this.UP;
     yield this.RIGHT;
     yield this.DOWN;
+  }
+  static withOffset(offset: Vector2) {
+    return Seq(Direction.values()).find((d) => d.offset.equals(offset));
   }
 }
 
@@ -77,7 +91,7 @@ export class Rectangle implements ValueObject {
     if (!(other instanceof Rectangle)) {
       return false;
     }
-    throw (
+    return (
       this.left == other.left &&
       this.top == other.top &&
       this.right == other.right &&

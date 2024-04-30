@@ -2,8 +2,9 @@ import { Player } from "game";
 import { Direction, Rectangle, Vector2, neighbors } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 
-import { List, Map, Range, Seq } from "immutable";
+import { List, Map, Range, Seq, ValueObject } from "immutable";
 import _ from "lodash";
+import { combineHashes } from "studio-util";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -19,7 +20,6 @@ export class LocationState {
     readonly tileNumber: number,
     readonly tileLocationIndex: number
   ) {}
-
   properties(): LocationProperties {
     return Tile.withNumber(this.tileNumber).properties[this.tileLocationIndex];
   }
@@ -66,20 +66,33 @@ export class PlayerBoard {
         Terrain.TERRAIN_EMPTY
       );
     };
-    const left = this.lastOccupiedLine(centerX - 1, 0, -1, (a, b) => isEmpty(a, b));
-    const top = this.lastOccupiedLine(centerY + 1, 0, 1, (a, b) => isEmpty(b, a));
-    const right = this.lastOccupiedLine(centerX + 1, 0, 1, (a, b) => isEmpty(a, b));
-    const bottom = this.lastOccupiedLine(centerY - 1, 0, -1, (a, b) => isEmpty(b, a));
+    const left = this.lastOccupiedLine(centerX - 1, 0, -1, (a, b) =>
+      isEmpty(a, b)
+    );
+    const top = this.lastOccupiedLine(centerY + 1, playAreaSize, 1, (a, b) =>
+      isEmpty(b, a)
+    );
+    const right = this.lastOccupiedLine(centerX + 1, playAreaSize, 1, (a, b) =>
+      isEmpty(a, b)
+    );
+    const bottom = this.lastOccupiedLine(centerY - 1, 0, -1, (a, b) =>
+      isEmpty(b, a)
+    );
     return new Rectangle(left, top, right, bottom);
   }
 
   /**
    * Returns the last occupied row or column between start (inclusive) and end (exclusive).
    */
-  lastOccupiedLine(start: number, end: number, increment: number, isEmpty: (a: number, b: number) => boolean) {
+  lastOccupiedLine(
+    start: number,
+    end: number,
+    increment: number,
+    isEmpty: (a: number, b: number) => boolean
+  ) {
     const result = Seq(Range(start, end, increment)).find((a) =>
       Seq(Range(0, playAreaSize)).every((b) => isEmpty(a, b))
-    )
+    );
     if (result != undefined) {
       return result - increment;
     }
@@ -250,4 +263,35 @@ export function isInBounds(location: Vector2): boolean {
 
 export function run<T>(f: () => T) {
   return f();
+}
+
+export class ClaimTile {
+  constructor(readonly offerIndex: number) {}
+}
+
+export class PlaceTile implements ValueObject {
+  constructor(readonly location: Vector2, readonly direction: Direction) {}
+  /**
+   * Returns a new placement with the tile flipped to cover the same locations in the other orientation
+   */
+  flip() {
+    return new PlaceTile(
+      this.location.plus(this.direction.offset),
+      this.direction.opposite()
+    );
+  }
+  equals(other: unknown): boolean {
+    if (!(other instanceof PlaceTile)) {
+      return false;
+    }
+    return (
+      this.location.equals(other.location) && this.direction == other.direction
+    );
+  }
+  hashCode(): number {
+    return combineHashes([
+      this.location.hashCode(),
+      this.direction.offset.hashCode(),
+    ]);
+  }
 }

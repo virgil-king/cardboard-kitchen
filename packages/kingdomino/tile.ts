@@ -24,7 +24,7 @@ export class Tile {
     readonly properties: LocationProperties[]
   ) {}
 
-  static withNumber(tileNumber: number) {
+  static withNumber(tileNumber: number): Tile {
     return tiles[tileNumber - 1];
   }
 }

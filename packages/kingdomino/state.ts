@@ -2,6 +2,7 @@ import { GameState, Player, PlayerResult, Players } from "game";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import {
   Configuration,
+  PlaceTile,
   PlayerBoard,
   TileOffers,
   adjacentExternalLocations,
@@ -30,7 +31,7 @@ export enum NextAction {
 }
 
 type Props = {
-  readonly configuration: Configuration,
+  readonly configuration: Configuration;
   readonly players: Players;
   readonly playerIdToState: Map<string, PlayerState>;
   readonly currentPlayer?: Player;
@@ -87,7 +88,7 @@ export class KingdominoState implements GameState<KingdominoState> {
   }
 
   /**
-   * Returns a new state where `tileIndex` is claimed by the current player
+   * Returns a new state where {@link tileIndex} is claimed by the current player
    */
   claimTile(tileIndex: number): KingdominoState {
     if (this.props.nextOffers == undefined) {
@@ -155,8 +156,9 @@ export class KingdominoState implements GameState<KingdominoState> {
     const currentPlayerBoard = currentPlayerState.board;
 
     // Check placement legality
+    const placement = new PlaceTile(location, direction);
     if (
-      !this.isPlacementAllowed(location, direction, tile, currentPlayerBoard)
+      !this.isPlacementAllowed(placement, tile, currentPlayerBoard)
     ) {
       throw Error(`Invalid placement: ${location}, ${direction}`);
     }
@@ -186,18 +188,16 @@ export class KingdominoState implements GameState<KingdominoState> {
   }
 
   isPlacementAllowed(
-    tileLocation: Vector2,
-    direction: Direction,
+    placement: PlaceTile,
     tile: Tile,
     board: PlayerBoard
   ): boolean {
     const occupied = board.occupiedRectangle();
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
-      const location = squareLocation(tileLocation, direction, i);
+      const location = squareLocation(placement.location, placement.direction, i);
       // Not already occupied:
       if (board.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
-        // console.log(`Square already occupied: ${location}`);
         return false;
       }
       // Not make the kingdom too tall or wide:
@@ -206,7 +206,6 @@ export class KingdominoState implements GameState<KingdominoState> {
         updatedRectangle.width > maxKingdomSize ||
         updatedRectangle.height > maxKingdomSize
       ) {
-        console.log(`Square would make the kingdom too large: ${location}`);
         return false;
       }
     }
@@ -217,8 +216,8 @@ export class KingdominoState implements GameState<KingdominoState> {
       const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
         .terrain;
       for (let location of adjacentExternalLocations(
-        tileLocation,
-        direction,
+        placement.location,
+        placement.direction,
         i
       )) {
         const adjacentTerrain = board.getLocationState(location).terrain;
@@ -244,7 +243,13 @@ export class KingdominoState implements GameState<KingdominoState> {
  * Returns a copy of {@link props} modified by transitioning to the next round if appropriate
  */
 function handleEndOfTurn(props: Props): Props {
-  let { previousOffers, nextOffers, remainingTiles, nextAction, configuration } = props;
+  let {
+    previousOffers,
+    nextOffers,
+    remainingTiles,
+    nextAction,
+    configuration,
+  } = props;
   // Update offers if it's the end of a round. Check both round-end conditions to handle first,
   // middle, and last round cases.
   if (isEndOfRound(previousOffers, nextOffers)) {

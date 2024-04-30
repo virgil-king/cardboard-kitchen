@@ -3,14 +3,9 @@ import { Direction, Vector2 } from "./util.js";
 import { KingdominoState } from "./state.js";
 
 import _ from "lodash";
-
-class ClaimTile {
-  constructor(readonly offerIndex: number) {}
-}
-
-class PlaceTile {
-  constructor(readonly location: Vector2, readonly direction: Direction) {}
-}
+import { ValueObject } from "immutable";
+import { combineHashes } from "studio-util";
+import { ClaimTile, PlaceTile } from "./base.js";
 
 interface Props {
   readonly claimTile?: ClaimTile;
