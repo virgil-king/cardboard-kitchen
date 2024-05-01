@@ -6,7 +6,7 @@
     "main": "out/kingdomino.js",
     "scripts": {
         "build": "pnpm exec tsc",
-        "clean": "rm -rf out/* tsconfig.tsbuildinfo",
+        "clean": "rm -rf out/*",
         "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
     },
     "dependencies": {

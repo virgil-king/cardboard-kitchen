@@ -1,9 +1,10 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "files": [
-      "out/kingdomino-proto.ts"
-  ],
+  "files": ["out/kingdomino-proto.ts"],
   "compilerOptions": {
-    "composite": true,
-  },
+    "tsBuildInfoFile": "out/tsconfig.tsbuildinfo",
+    "outDir": "out",
+    "rootDir": "out",
+    "composite": true
+  }
 }
