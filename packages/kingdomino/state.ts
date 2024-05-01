@@ -131,7 +131,7 @@ export class KingdominoState implements GameState<KingdominoState> {
     );
   }
 
-  placeTile(location: Vector2, direction: Direction) {
+  placeTile(placement: PlaceTile) {
     if (this.props.previousOffers == undefined) {
       throw new Error("Invalid action: can't place a tile in the first round");
     }
@@ -156,11 +156,9 @@ export class KingdominoState implements GameState<KingdominoState> {
     const currentPlayerBoard = currentPlayerState.board;
 
     // Check placement legality
-    const placement = new PlaceTile(location, direction);
-    if (
-      !this.isPlacementAllowed(placement, tile, currentPlayerBoard)
-    ) {
-      throw Error(`Invalid placement: ${location}, ${direction}`);
+    // const placement = new PlaceTile(location, direction);
+    if (!this.isPlacementAllowed(placement, tile, currentPlayerBoard)) {
+      throw Error(`Invalid placement: ${placement}`);
     }
 
     // Successful placement! Remove the tile from the next unplaced offer.
@@ -170,12 +168,11 @@ export class KingdominoState implements GameState<KingdominoState> {
 
     // Update the two board locations
     let board = currentPlayerBoard.withLocationStateFromTile(
-      location,
-      direction,
+      placement,
       tileNumber,
       0
     );
-    board = board.withLocationStateFromTile(location, direction, tileNumber, 1);
+    board = board.withLocationStateFromTile(placement, tileNumber, 1);
     const playerIdToState = this.props.playerIdToState.set(
       currentPlayer.id,
       currentPlayerState.withBoard(board)
@@ -195,7 +192,7 @@ export class KingdominoState implements GameState<KingdominoState> {
     const occupied = board.occupiedRectangle();
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
-      const location = squareLocation(placement.location, placement.direction, i);
+      const location = squareLocation(placement, i);
       // Not already occupied:
       if (board.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
         return false;
@@ -215,11 +212,7 @@ export class KingdominoState implements GameState<KingdominoState> {
     for (let i = 0; i < 2; i++) {
       const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
         .terrain;
-      for (let location of adjacentExternalLocations(
-        placement.location,
-        placement.direction,
-        i
-      )) {
+      for (let location of adjacentExternalLocations(placement, i)) {
         const adjacentTerrain = board.getLocationState(location).terrain;
         if (
           adjacentTerrain == tileSquareTerrain ||

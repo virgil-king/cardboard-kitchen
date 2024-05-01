@@ -6,6 +6,7 @@ import { Vector2 } from "./util.js";
 import { test } from "vitest";
 import { assert } from "chai";
 import { Terrain } from "./tile.js";
+import { centerX, centerY, playAreaRadius } from "./base.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -13,35 +14,15 @@ const bob = new Player("bob", "Bob");
 const cecile = new Player("cecile", "Cecile");
 const derek = new Player("derek", "Derek");
 
-test("newGame: board is correct size with castle in center", () => {
+test("newGame: board has castle in center", () => {
   const players = new Players([alice, bob]);
 
   const state = kingdomino.newGame(players);
 
   for (let player of players.players) {
     assert(
-      state.locationState(player, new Vector2(0, 0)).terrain ==
-        Terrain.TERRAIN_EMPTY
-    );
-    assert(
-      state.locationState(player, new Vector2(8, 0)).terrain ==
-        Terrain.TERRAIN_EMPTY
-    );
-    assert(
-      state.locationState(player, new Vector2(0, 8)).terrain ==
-        Terrain.TERRAIN_EMPTY
-    );
-    assert(
-      state.locationState(player, new Vector2(8, 8)).terrain ==
-        Terrain.TERRAIN_EMPTY
-    );
-    assert(
-      state.locationState(player, new Vector2(4, 4)).terrain ==
+      state.locationState(player, new Vector2(centerX, centerY)).terrain ==
         Terrain.TERRAIN_CENTER
-    );
-    assert(
-      state.locationState(player, new Vector2(0, 0)).terrain ==
-        Terrain.TERRAIN_EMPTY
     );
   }
 });

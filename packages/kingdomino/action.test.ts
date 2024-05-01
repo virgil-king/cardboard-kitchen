@@ -6,7 +6,7 @@ import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
 import { assert } from "chai";
-import { PlaceTile } from "./base.js";
+import { PlaceTile, PlayerBoard, centerX, centerY, squareLocation } from "./base.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -96,13 +96,18 @@ test("apply: updates player board", () => {
 
   const after = new KingdominoAction({
     claimTile: { offerIndex: 0 },
-    placeTile: new PlaceTile(new Vector2(4, 3), Direction.DOWN),
+    placeTile: new PlaceTile(
+      PlayerBoard.center.plus(Direction.DOWN.offset),
+      Direction.DOWN
+    ),
   }).apply(startOfSecondRound);
 
   console.log(`Expected tile is ${JSON.stringify(tile)}`);
   // Bob claimed the first tile
-  assert.equal(after.locationState(bob, new Vector2(4, 3)), tile.properties[0]);
-  assert.equal(after.locationState(bob, new Vector2(4, 2)), tile.properties[1]);
+  const square0Location = PlayerBoard.center.plus(Direction.DOWN.offset);
+  assert.equal(after.locationState(bob, square0Location), tile.properties[0]);
+  const square1Location = square0Location.plus(Direction.DOWN.offset);
+  assert.equal(after.locationState(bob, square1Location), tile.properties[1]);
 });
 
 function claim(offerIndex: number) {

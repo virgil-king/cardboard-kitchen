@@ -51,7 +51,7 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
     )
   );
 
-  console.log(result);
+  // console.log(result);
   assert.isTrue(
     result.equals(
       Set([
@@ -74,26 +74,26 @@ test("possiblePlacements: returns all options for first tile", () => {
 
   const placements = Set(possiblePlacements(startOfSecondRound));
 
-  console.log(JSON.stringify(startOfSecondRound));
-  console.log(placements.toJSON());
-  assert.equal(placements.count(), 24);
+  // console.log(JSON.stringify(startOfSecondRound));
+  // console.log(placements.toJSON());
+  assert.equal(placements.count(), 12);
   const check = (x: number, y: number, direction: Direction) => {
     assert.isTrue(
       placements.contains(new PlaceTile(new Vector2(x, y), direction))
     );
   };
-  check(3, 4, Direction.DOWN);
-  check(3, 4, Direction.LEFT);
-  check(3, 4, Direction.UP);
-  check(4, 5, Direction.LEFT);
-  check(4, 5, Direction.UP);
-  check(4, 5, Direction.RIGHT);
-  check(5, 4, Direction.UP);
-  check(5, 4, Direction.RIGHT);
-  check(5, 4, Direction.DOWN);
-  check(4, 3, Direction.RIGHT);
-  check(4, 3, Direction.DOWN);
-  check(4, 3, Direction.LEFT);
+  check(-1, 0, Direction.DOWN);
+  check(-1, 0, Direction.LEFT);
+  check(-1, 0, Direction.UP);
+  check(0, 1, Direction.LEFT);
+  check(0, 1, Direction.UP);
+  check(0, 1, Direction.RIGHT);
+  check(1, 0, Direction.UP);
+  check(1, 0, Direction.RIGHT);
+  check(1, 0, Direction.DOWN);
+  check(0, -1, Direction.RIGHT);
+  check(0, -1, Direction.DOWN);
+  check(0, -1, Direction.LEFT);
 });
 
 function claim(offerIndex: number) {

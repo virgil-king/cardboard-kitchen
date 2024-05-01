@@ -11,8 +11,10 @@ export const maxKingdomSize = 5;
 
 /** Size of the square in which a player could possibly place tiles */
 export const playAreaSize = 1 + 2 * (maxKingdomSize - 1);
+/** Distance from the center of the board to the furthest playable location in any cardinal direction */
+export const playAreaRadius = Math.floor(playAreaSize / 2);
 
-export const centerX = Math.floor(playAreaSize / 2);
+export const centerX = 0;
 export const centerY = centerX;
 
 export class LocationState {
@@ -39,13 +41,14 @@ export class PlayerBoard {
     return locationState.properties();
   }
 
+  static center: Vector2 = new Vector2(centerX, centerY);
+
   withLocationStateFromTile(
-    tileLocation: Vector2,
-    direction: Direction,
+    placement: PlaceTile,
     tileNumber: number,
     tileLocationIndex: number
   ): PlayerBoard {
-    const location = squareLocation(tileLocation, direction, tileLocationIndex);
+    const location = squareLocation(placement, tileLocationIndex);
     const state = new LocationState(tileNumber, tileLocationIndex);
     console.log(
       `Setting square ${JSON.stringify(location)} state to ${JSON.stringify(
@@ -198,6 +201,7 @@ export function dealOffer(
   ];
 }
 
+/** Returns the  */
 export function otherSquareIndex(squareIndex: number) {
   switch (squareIndex) {
     case 0:
@@ -209,18 +213,20 @@ export function otherSquareIndex(squareIndex: number) {
   }
 }
 
+/**
+ * Returns the location of {@link squareIndex} when performing {@link placement}
+ */
 export function squareLocation(
-  tileLocation: Vector2,
-  tileOrientation: Direction,
+  placement: PlaceTile,
   squareIndex: number
 ): Vector2 {
   if (squareIndex == 0) {
-    return tileLocation;
+    return placement.location;
   }
   if (squareIndex != 1) {
     throw Error("Invalid tile square index");
   }
-  return tileLocation.plus(tileOrientation.offset);
+  return placement.location.plus(placement.direction.offset);
 }
 
 /**
@@ -232,14 +238,12 @@ export function squareLocation(
  * @param squareIndex square index on the tile
  */
 export function* adjacentExternalLocations(
-  tileLocation: Vector2,
-  tileOrientation: Direction,
+  placement: PlaceTile,
   squareIndex: number
 ) {
-  const location = squareLocation(tileLocation, tileOrientation, squareIndex);
+  const location = squareLocation(placement, squareIndex);
   const otherSquareLocation = squareLocation(
-    tileLocation,
-    tileOrientation,
+    placement,
     otherSquareIndex(squareIndex)
   );
   for (const adjacentLocation of neighbors(location)) {

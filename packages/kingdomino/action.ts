@@ -20,8 +20,7 @@ export class KingdominoAction implements Action<KingdominoState> {
       result = result.claimTile(this.props.claimTile.offerIndex);
     }
     if (this.props.placeTile) {
-      const place = this.props.placeTile;
-      result = result.placeTile(place.location, place.direction);
+      result = result.placeTile(this.props.placeTile);
     }
     return result;
   }
