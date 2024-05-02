@@ -12,11 +12,13 @@ import { KingdominoAction } from "./action.js";
 import { Map, Set } from "immutable";
 import { Direction, Vector2 } from "./util.js";
 import {
+  ClaimTile,
   LocationState,
   PlaceTile,
   PlayerBoard,
   centerX,
   centerY,
+  playAreaRadius,
 } from "./base.js";
 
 const kingdomino = new Kingdomino();
@@ -51,7 +53,6 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
     )
   );
 
-  // console.log(result);
   assert.isTrue(
     result.equals(
       Set([
@@ -74,14 +75,13 @@ test("possiblePlacements: returns all options for first tile", () => {
 
   const placements = Set(possiblePlacements(startOfSecondRound));
 
-  // console.log(JSON.stringify(startOfSecondRound));
-  // console.log(placements.toJSON());
-  assert.equal(placements.count(), 12);
+  assert.equal(placements.count(), 24);
   const check = (x: number, y: number, direction: Direction) => {
     assert.isTrue(
       placements.contains(new PlaceTile(new Vector2(x, y), direction))
     );
   };
+  // Placements for square zero touching the center
   check(-1, 0, Direction.DOWN);
   check(-1, 0, Direction.LEFT);
   check(-1, 0, Direction.UP);
@@ -94,10 +94,75 @@ test("possiblePlacements: returns all options for first tile", () => {
   check(0, -1, Direction.RIGHT);
   check(0, -1, Direction.DOWN);
   check(0, -1, Direction.LEFT);
+
+  // Placements for square one touching the center
+  check(-1, -1, Direction.UP);
+  check(-2, 0, Direction.RIGHT);
+  check(-1, 1, Direction.DOWN);
+  check(-1, 1, Direction.RIGHT);
+  check(0, 2, Direction.DOWN);
+  check(1, 1, Direction.LEFT);
+  check(1, 1, Direction.DOWN);
+  check(2, 0, Direction.LEFT);
+  check(1, -1, Direction.UP);
+  check(1, -1, Direction.LEFT);
+  check(0, -2, Direction.UP);
+  check(-1, -1, Direction.RIGHT);
+});
+
+test("possiblePlacements: does not return out of bounds placements", () => {
+  // Arrange the tiles so that tiles with the same offer index in the first
+  // two rounds have matching terrain
+  const state = kingdomino.newGame(
+    new Players([alice, bob, cecile]),
+    [1, 3, 7, 2, 4, 8, 10, 11, 12].reverse()
+  );
+  const startOfSecondRound = unroll(state, [claim(0), claim(1), claim(2)]);
+  const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);
+  const startOfThirdRound = unroll(startOfSecondRound, [
+    new KingdominoAction({
+      claimTile: new ClaimTile(0),
+      placeTile: firstTilePlacement,
+    }),
+    new KingdominoAction({
+      claimTile: new ClaimTile(1),
+      placeTile: firstTilePlacement,
+    }),
+    new KingdominoAction({
+      claimTile: new ClaimTile(2),
+      placeTile: firstTilePlacement,
+    }),
+  ]);
+  const secondTilePlacement = new PlaceTile(new Vector2(3, 0), Direction.RIGHT);
+  const startOfFourthRound = unroll(startOfThirdRound, [
+    new KingdominoAction({
+      claimTile: new ClaimTile(0),
+      placeTile: secondTilePlacement,
+    }),
+    new KingdominoAction({
+      claimTile: new ClaimTile(1),
+      placeTile: secondTilePlacement,
+    }),
+    new KingdominoAction({
+      claimTile: new ClaimTile(2),
+      placeTile: secondTilePlacement,
+    }),
+  ]);
+
+  const placements = Set(possiblePlacements(startOfFourthRound));
+
+  assert.isTrue(
+    placements.every((placement) => {
+      return (
+        placement.squareLocation(0).x <= playAreaRadius &&
+        placement.squareLocation(1).x <= playAreaRadius
+      );
+    })
+  );
 });
 
 function claim(offerIndex: number) {
-  return new KingdominoAction({ claimTile: { offerIndex: offerIndex } });
+  return new KingdominoAction({ claimTile: new ClaimTile(offerIndex) });
 }
 
 test("streamingRandom: returns some item", () => {

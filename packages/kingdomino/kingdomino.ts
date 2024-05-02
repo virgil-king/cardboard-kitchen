@@ -1,7 +1,12 @@
 import { Game, Players } from "game";
 import { KingdominoState, NextAction, PlayerState } from "./state.js";
 import _ from "lodash";
-import { PlayerBoard, dealOffer, getConfiguration, playerCountToConfiguration } from "./base.js";
+import {
+  PlayerBoard,
+  dealOffer,
+  getConfiguration,
+  playerCountToConfiguration,
+} from "./base.js";
 import { tiles } from "./tile.js";
 
 import { List, Map } from "immutable";
@@ -15,11 +20,22 @@ export class Kingdomino implements Game<KingdominoState> {
     throw new Error("Method not implemented.");
   }
 
-  newGame(players: Players): KingdominoState {
+  /**
+   * @param shuffledTileNumbers shuffled tiles to use instead of a random shuffle of all tiles
+   */
+  newGame(
+    players: Players,
+    shuffledTileNumbers?: Array<number>
+  ): KingdominoState {
     const playerCount = players.players.length;
     const config = getConfiguration(playerCount);
-    const allTileNumbers = _.range(1, tiles.length + 1);
-    const shuffledTiles = _.shuffle(allTileNumbers).slice(0, config.tileCount);
+    let shuffledTiles: Array<number>;
+    if (shuffledTileNumbers) {
+      shuffledTiles = shuffledTileNumbers;
+    } else {
+      const allTileNumbers = _.range(1, tiles.length + 1);
+      shuffledTiles = _.shuffle(allTileNumbers);
+    }
     const [firstOffer, remainingTiles] = dealOffer(
       config.firstRoundTurnOrder.length,
       List(shuffledTiles)

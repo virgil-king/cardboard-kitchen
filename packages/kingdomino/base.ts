@@ -48,13 +48,8 @@ export class PlayerBoard {
     tileNumber: number,
     tileLocationIndex: number
   ): PlayerBoard {
-    const location = squareLocation(placement, tileLocationIndex);
+    const location = placement.squareLocation(tileLocationIndex);
     const state = new LocationState(tileNumber, tileLocationIndex);
-    console.log(
-      `Setting square ${JSON.stringify(location)} state to ${JSON.stringify(
-        state
-      )}`
-    );
     return this.withLocationState(location, state);
   }
 
@@ -100,6 +95,45 @@ export class PlayerBoard {
       return result - increment;
     }
     return end - increment;
+  }
+
+  isPlacementAllowed(placement: PlaceTile, tile: Tile): boolean {
+    const occupied = this.occupiedRectangle();
+    // Each square of the tile must be:
+    for (let i = 0; i < 2; i++) {
+      const location = placement.squareLocation(i);
+      // Not already occupied:
+      if (this.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
+        return false;
+      }
+      // Not make the kingdom too tall or wide:
+      const updatedRectangle = occupied.extend(location);
+      if (
+        updatedRectangle.width > maxKingdomSize ||
+        updatedRectangle.height > maxKingdomSize
+      ) {
+        return false;
+      }
+    }
+
+    // At least one adjacent square must have matching terrain or be the center
+    // square:
+    for (let i = 0; i < 2; i++) {
+      const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
+        .terrain;
+      for (let location of adjacentExternalLocations(placement, i)) {
+        const adjacentTerrain = this.getLocationState(location).terrain;
+        if (
+          adjacentTerrain == tileSquareTerrain ||
+          adjacentTerrain == Terrain.TERRAIN_CENTER
+        ) {
+          return true;
+        }
+      }
+    }
+
+    // No terrain matches found
+    return false;
   }
 }
 
@@ -214,22 +248,6 @@ export function otherSquareIndex(squareIndex: number) {
 }
 
 /**
- * Returns the location of {@link squareIndex} when performing {@link placement}
- */
-export function squareLocation(
-  placement: PlaceTile,
-  squareIndex: number
-): Vector2 {
-  if (squareIndex == 0) {
-    return placement.location;
-  }
-  if (squareIndex != 1) {
-    throw Error("Invalid tile square index");
-  }
-  return placement.location.plus(placement.direction.offset);
-}
-
-/**
  * Returns the locations adjacent to one square of a tile, not including the
  * other square of the tile.
  *
@@ -241,9 +259,8 @@ export function* adjacentExternalLocations(
   placement: PlaceTile,
   squareIndex: number
 ) {
-  const location = squareLocation(placement, squareIndex);
-  const otherSquareLocation = squareLocation(
-    placement,
+  const location = placement.squareLocation(squareIndex);
+  const otherSquareLocation = placement.squareLocation(
     otherSquareIndex(squareIndex)
   );
   for (const adjacentLocation of neighbors(location)) {
@@ -275,6 +292,19 @@ export class ClaimTile {
 
 export class PlaceTile implements ValueObject {
   constructor(readonly location: Vector2, readonly direction: Direction) {}
+  /**
+   * Returns the location of {@link squareIndex} when performing {@link placement}
+   */
+  squareLocation(squareIndex: number): Vector2 {
+    if (squareIndex == 0) {
+      return this.location;
+    }
+    if (squareIndex != 1) {
+      throw Error("Invalid tile square index");
+    }
+    return this.location.plus(this.direction.offset);
+  }
+
   /**
    * Returns a new placement with the tile flipped to cover the same locations in the other orientation
    */

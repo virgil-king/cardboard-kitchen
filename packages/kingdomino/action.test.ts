@@ -6,7 +6,7 @@ import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
 import { assert } from "chai";
-import { PlaceTile, PlayerBoard, centerX, centerY, squareLocation } from "./base.js";
+import { PlaceTile, PlayerBoard } from "./base.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");

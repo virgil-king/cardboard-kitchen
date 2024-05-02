@@ -74,15 +74,16 @@ export function* possiblePlacements(
     for (const direction of Direction.values()) {
       const square0Placement = new PlaceTile(adjacentLocation, direction);
       if (
-        state.isPlacementAllowed(
-          square0Placement,
-          tile,
-          currentPlayerBoard
-        )
+        currentPlayerBoard.isPlacementAllowed(square0Placement, tile)
       ) {
         yield square0Placement;
       }
       const square1Placement = square0Placement.flip();
+      if (
+        currentPlayerBoard.isPlacementAllowed(square1Placement, tile)
+      ) {
+        yield square1Placement;
+      }
     }
   }
 }

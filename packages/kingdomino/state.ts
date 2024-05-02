@@ -10,9 +10,8 @@ import {
   getConfiguration,
   maxKingdomSize,
   run,
-  squareLocation,
 } from "./base.js";
-import { Direction, Vector2, assertDefined, requireDefined } from "./util.js";
+import { Vector2, assertDefined, requireDefined } from "./util.js";
 
 import { List, Map } from "immutable";
 import _ from "lodash";
@@ -27,7 +26,6 @@ export class PlayerState {
 export enum NextAction {
   CLAIM,
   PLACE,
-  DONE,
 }
 
 type Props = {
@@ -35,7 +33,7 @@ type Props = {
   readonly players: Players;
   readonly playerIdToState: Map<string, PlayerState>;
   readonly currentPlayer?: Player;
-  readonly nextAction: NextAction;
+  readonly nextAction?: NextAction;
   readonly remainingTiles: List<number>;
   readonly previousOffers?: TileOffers;
   readonly nextOffers?: TileOffers;
@@ -67,6 +65,10 @@ export class KingdominoState implements GameState<KingdominoState> {
     return this.props.currentPlayer;
   }
 
+  get nextAction(): NextAction | undefined {
+    return this.props.nextAction;
+  }
+
   requireCurrentPlayer(): Player {
     const result = this.currentPlayer();
     if (result == undefined) {
@@ -96,39 +98,26 @@ export class KingdominoState implements GameState<KingdominoState> {
     }
     if (this.props.nextAction != NextAction.CLAIM) {
       throw new Error(
-        `Invalid action: next action should be ${this.props.nextAction}`
+        `Invalid action: next action should be ${NextAction.CLAIM}`
       );
     }
 
-    const currentPlayer = this.requireCurrentPlayer();
+    let currentPlayer = this.requireCurrentPlayer();
 
     const nextOffers = this.props.nextOffers.withTileClaimed(
       tileIndex,
       currentPlayer
     );
-    // If there's another previous offer to place, place it; otherwise it's
-    // the first round and the next player will claim their first tile
-    const nextAction = run(() => {
-      if (this.props.previousOffers == undefined) {
-        // First round: can only claim
-        return NextAction.CLAIM;
-      } else if (
-        this.props.previousOffers.offers.some((offer) => offer.hasTile())
-      ) {
-        // Place the next previously claimed tile
-        return NextAction.PLACE;
-      } else {
-        // It's the end of the round. The next round will start with a claim.
-        return NextAction.CLAIM;
-      }
-    });
-    return new KingdominoState(
-      handleEndOfTurn({
-        ...this.props,
-        nextAction: nextAction,
-        nextOffers: nextOffers,
-      })
-    );
+    let props: Props = {
+      ...this.props,
+      nextOffers: nextOffers,
+    };
+    // if (props.previousOffers == undefined) {
+    // First round: claim is end of turn so handle end of turn
+    // Claiming is always the end of the player's turn
+    props = handleEndOfTurn(props);
+    // }
+    return new KingdominoState(props);
   }
 
   placeTile(placement: PlaceTile) {
@@ -137,7 +126,7 @@ export class KingdominoState implements GameState<KingdominoState> {
     }
     if (this.props.nextAction != NextAction.PLACE) {
       throw new Error(
-        `Invalid action: next action should be ${this.props.nextAction}`
+        `Invalid action: next action should be ${NextAction.PLACE}`
       );
     }
     const firstUnplacedOfferIndex = requireDefined(
@@ -156,8 +145,7 @@ export class KingdominoState implements GameState<KingdominoState> {
     const currentPlayerBoard = currentPlayerState.board;
 
     // Check placement legality
-    // const placement = new PlaceTile(location, direction);
-    if (!this.isPlacementAllowed(placement, tile, currentPlayerBoard)) {
+    if (!currentPlayerBoard.isPlacementAllowed(placement, tile)) {
       throw Error(`Invalid placement: ${placement}`);
     }
 
@@ -177,54 +165,19 @@ export class KingdominoState implements GameState<KingdominoState> {
       currentPlayer.id,
       currentPlayerState.withBoard(board)
     );
-    return new KingdominoState({
+    let props: Props = {
       ...this.props,
       previousOffers: previousOffers,
       playerIdToState: playerIdToState,
-    });
-  }
-
-  isPlacementAllowed(
-    placement: PlaceTile,
-    tile: Tile,
-    board: PlayerBoard
-  ): boolean {
-    const occupied = board.occupiedRectangle();
-    // Each square of the tile must be:
-    for (let i = 0; i < 2; i++) {
-      const location = squareLocation(placement, i);
-      // Not already occupied:
-      if (board.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
-        return false;
-      }
-      // Not make the kingdom too tall or wide:
-      const updatedRectangle = occupied.extend(location);
-      if (
-        updatedRectangle.width > maxKingdomSize ||
-        updatedRectangle.height > maxKingdomSize
-      ) {
-        return false;
-      }
+    };
+    if (props.nextOffers == undefined) {
+      // Place is the end of the player's turn in the last round
+      props = handleEndOfTurn(props);
+    } else {
+      // In non-last rounds the current player claims after placing
+      props = { ...props, nextAction: NextAction.CLAIM };
     }
-
-    // At least one adjacent square must have matching terrain or be the center
-    // square:
-    for (let i = 0; i < 2; i++) {
-      const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
-        .terrain;
-      for (let location of adjacentExternalLocations(placement, i)) {
-        const adjacentTerrain = board.getLocationState(location).terrain;
-        if (
-          adjacentTerrain == tileSquareTerrain ||
-          adjacentTerrain == Terrain.TERRAIN_CENTER
-        ) {
-          return true;
-        }
-      }
-    }
-
-    // No terrain matches found
-    return false;
+    return new KingdominoState(props);
   }
 
   locationState(player: Player, location: Vector2): LocationProperties {
@@ -233,41 +186,87 @@ export class KingdominoState implements GameState<KingdominoState> {
 }
 
 /**
- * Returns a copy of {@link props} modified by transitioning to the next round if appropriate
+ * Call after the last action in a player's turn.
+ *
+ * @param props props that already reflect the last action in the current player's turn
+ * @returns a copy of {@link props} modified by transitioning to the next round or end
+ * of game if appropriate and selecting the new current player and action
  */
 function handleEndOfTurn(props: Props): Props {
   let {
+    currentPlayer,
     previousOffers,
     nextOffers,
     remainingTiles,
     nextAction,
     configuration,
   } = props;
-  // Update offers if it's the end of a round. Check both round-end conditions to handle first,
-  // middle, and last round cases.
-  if (isEndOfRound(previousOffers, nextOffers)) {
-    previousOffers = nextOffers;
-    if (props.remainingTiles.size == 0) {
-      // Starting last round
-      nextOffers = undefined;
+  if (isEndOfGame(previousOffers, nextOffers)) {
+    console.log("End of game");
+    currentPlayer = undefined;
+    nextAction = undefined;
+    previousOffers = undefined;
+    // TODO compute player results here
+  } else {
+    if (isEndOfRound(previousOffers, nextOffers)) {
+      console.log("End of round");
+      // Update offers if it's the end of a round
+      previousOffers = nextOffers;
+      if (props.remainingTiles.size == 0) {
+        // Starting last round
+        nextOffers = undefined;
+      } else {
+        [nextOffers, remainingTiles] = dealOffer(
+          configuration.turnCount(),
+          remainingTiles
+        );
+      }
+      // The first action in a new non-first round is always place
+      nextAction = NextAction.PLACE;
     } else {
-      [nextOffers, remainingTiles] = dealOffer(
-        configuration.turnCount(),
-        remainingTiles
-      );
+      if (previousOffers == undefined) {
+        // First round: only action is claim
+        nextAction = NextAction.CLAIM;
+      } else {
+        // Otherwise first action is place
+        nextAction = NextAction.PLACE;
+      }
     }
-    // The first action in a new non-first round is always place
-    nextAction = NextAction.PLACE;
+    currentPlayer = nextPlayer(previousOffers, nextOffers, props.players);
   }
-  // Update current player
-  const currentPlayer = nextPlayer(previousOffers, nextOffers, props.players);
   return {
     ...props,
     currentPlayer: currentPlayer,
     previousOffers: previousOffers,
     nextOffers: nextOffers,
     remainingTiles: remainingTiles,
+    nextAction: nextAction,
   };
+}
+
+function isEndOfGame(
+  previousOffers: TileOffers | undefined,
+  nextOffers: TileOffers | undefined
+) {
+  if (nextOffers != undefined) {
+    return false;
+  }
+  return previousOffers?.offers.every((offer) => !offer.hasTile());
+}
+
+function isEndOfRound(
+  previousOffers: TileOffers | undefined,
+  nextOffers: TileOffers | undefined
+) {
+  // If there are new offers and they're all claimed, the round is over
+  if (nextOffers != undefined) {
+    return nextOffers.offers.every((offer) => offer.isClaimed());
+  }
+  // Otherwise it's the last round which is over when all previous offers are placed
+  return requireDefined(
+    previousOffers,
+    `No previous offers in the last round`
+  ).offers.every((offer) => !offer.hasTile());
 }
 
 function nextPlayer(
@@ -285,6 +284,7 @@ function nextPlayer(
     }
     const playerIndex = getConfiguration(players.players.length)
       .firstRoundTurnOrder[claimCount];
+    // console.log("Using starting turn order");
     return players.players[playerIndex];
   }
   // Non-first round: return the player with the first offer that still has a
@@ -292,7 +292,8 @@ function nextPlayer(
   // it could run in the middle of a turn (between claim and placement) it
   // wouldn't work as written.
   for (const offer of previousOffers.offers) {
-    if (offer.tileNumber != undefined) {
+    if (offer.hasTile()) {
+      console.log("Using next claim");
       return requireDefined(
         players.players.find(
           (player) =>
@@ -305,19 +306,4 @@ function nextPlayer(
     }
   }
   throw new Error("No cases matched");
-}
-
-function isEndOfRound(
-  previousOffers: TileOffers | undefined,
-  nextOffers: TileOffers | undefined
-) {
-  // If there are new offers and they're all claimed, the round is over
-  if (nextOffers != undefined) {
-    return nextOffers.offers.every((offer) => offer.isClaimed());
-  }
-  // Otherwise it's the last round which is over when all previous offers are placed
-  return requireDefined(
-    previousOffers,
-    `No previous offers in the last round`
-  ).offers.every((offer) => !offer.hasTile());
 }
