@@ -19,11 +19,11 @@ const derek = new Player("derek", "Derek");
 test("newGame: board has castle in center", () => {
   const players = new Players([alice, bob]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
   for (let player of players.players) {
     assert(
-      state.locationState(player, new Vector2(centerX, centerY)).terrain ==
+      episode.currentState.locationState(player, new Vector2(centerX, centerY)).terrain ==
         Terrain.TERRAIN_CENTER
     );
   }
@@ -32,114 +32,133 @@ test("newGame: board has castle in center", () => {
 test("newGame: current player is first in list", () => {
   const players = new Players([alice, bob]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.currentPlayer() == alice, "first player should be alice");
+  assert(episode.currentState.currentPlayer() == alice, "first player should be alice");
 });
 
 test("newGame: previous offers is undefined", () => {
   const players = new Players([alice, bob]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.props.previousOffers == undefined);
+  assert(episode.currentState.props.previousOffers == undefined);
 });
 
 test("newGame: two players: offer has four tiles", () => {
   const players = new Players([alice, bob]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.props.nextOffers?.offers.size == 4);
+  assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
 
 test("newGame: three players: offer has three tiles", () => {
   const players = new Players([alice, bob, cecile]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.props.nextOffers?.offers.size == 3);
+  assert(episode.currentState.props.nextOffers?.offers.size == 3);
 });
 
 test("newGame: four players: offer has four tiles", () => {
   const players = new Players([alice, bob, cecile, derek]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.props.nextOffers?.offers.size == 4);
+  assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
 
 test("newGame: no previous offers", () => {
   const players = new Players([alice, bob, cecile, derek]);
 
-  const state = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  assert(state.props.previousOffers == undefined);
+  assert(episode.currentState.props.previousOffers == undefined);
+});
+
+test("newGame: next action is claim", () => {
+  const players = new Players([alice, bob, cecile, derek]);
+
+  const episode = kingdomino.newGame(players);
+
+  assert.equal(episode.currentState.nextAction, NextAction.CLAIM);
 });
 
 test("currentPlayer: after one action: returns second player", () => {
   const players = new Players([alice, bob]);
-  const before = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  const after = claim(1).apply(before);
+  episode.apply(claim(alice, 1));
 
-  assert.equal(after.currentPlayer(), bob);
+  assert.equal(episode.currentState.currentPlayer(), bob);
 });
 
 test("currentPlayer: second round: returns player with first claim", () => {
   const players = new Players([alice, bob, cecile]);
-  const before = kingdomino.newGame(players);
-  const after = unroll(before, [claim(2), claim(1), claim(0)]);
+  const episode = kingdomino.newGame(players);
+  unroll(episode, [
+    claim(alice, 2),
+    claim(bob, 1),
+    claim(cecile, 0),
+  ]);
 
-  console.log(`Next action is ${after.nextAction}`);
-  assert.equal(after.currentPlayer(), cecile);
+  // console.log(`Next action is ${after.nextAction}`);
+  assert.equal(episode.currentState.currentPlayer(), cecile);
 });
 
 test("claimTile: first round: next action is claim", () => {
   const players = new Players([alice, bob, cecile]);
-  const before = kingdomino.newGame(players);
-  const after = unroll(before, [claim(2)]);
+  const episode = kingdomino.newGame(players);
+  unroll(episode, [claim(alice, 2)]);
 
-  assert.equal(after.nextAction, NextAction.CLAIM);
+  assert.equal(episode.currentState.nextAction, NextAction.CLAIM);
 });
 
 test("claimTile: second round: next action is place", () => {
   const players = new Players([alice, bob, cecile]);
-  const before = kingdomino.newGame(players);
-  const after = unroll(before, [
-    claim(2),
-    claim(1),
-    claim(0),
+  const episode = kingdomino.newGame(players);
+  unroll(episode, [
+    claim(alice, 2),
+    claim(bob, 1),
+    claim(cecile, 0),
     new KingdominoAction({
+      player: cecile,
       placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-      claimTile: new ClaimTile(0)
+      claimTile: new ClaimTile(0),
     }),
   ]);
 
-  assert.equal(after.nextAction, NextAction.PLACE);
+  assert.equal(episode.currentState.nextAction, NextAction.PLACE);
 });
 
 test("placeTile: end of game: next action is undefined", () => {
   const players = new Players([alice, bob, cecile]);
-  const before = kingdomino.newGame(players, _.range(1, 4));
-  const after = unroll(before, [
-    claim(0),
-    claim(1),
-    claim(2),
+  const episode = kingdomino.newGame(players, _.range(1, 4));
+  unroll(episode, [
+    claim(alice, 0),
+    claim(bob, 1),
+    claim(cecile, 2),
     new KingdominoAction({
+      player: alice,
       placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
     }),
     new KingdominoAction({
+      player: bob,
       placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
     }),
     new KingdominoAction({
+      player: cecile,
       placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
     }),
   ]);
 
-  assert.equal(after.nextAction, undefined);
+  assert.equal(episode.currentState.nextAction, undefined);
 });
 
-function claim(offerIndex: number) {
-  return new KingdominoAction({ claimTile: { offerIndex: offerIndex } });
+function claim(player: Player, offerIndex: number) {
+  return new KingdominoAction({
+    player: player,
+    claimTile: { offerIndex: offerIndex },
+  });
 }

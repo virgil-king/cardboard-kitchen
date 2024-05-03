@@ -70,10 +70,10 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
 });
 
 test("possiblePlacements: returns all options for first tile", () => {
-  const state = kingdomino.newGame(new Players([alice, bob, cecile]));
-  const startOfSecondRound = unroll(state, [claim(0), claim(1), claim(2)]);
+  const episode = kingdomino.newGame(new Players([alice, bob, cecile]));
+  unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);
 
-  const placements = Set(possiblePlacements(startOfSecondRound));
+  const placements = Set(possiblePlacements(episode.currentState));
 
   assert.equal(placements.count(), 24);
   const check = (x: number, y: number, direction: Direction) => {
@@ -113,43 +113,53 @@ test("possiblePlacements: returns all options for first tile", () => {
 test("possiblePlacements: does not return out of bounds placements", () => {
   // Arrange the tiles so that tiles with the same offer index in the first
   // two rounds have matching terrain
-  const state = kingdomino.newGame(
+  const episode = kingdomino.newGame(
     new Players([alice, bob, cecile]),
     [1, 3, 7, 2, 4, 8, 10, 11, 12].reverse()
   );
-  const startOfSecondRound = unroll(state, [claim(0), claim(1), claim(2)]);
+  unroll(episode, [
+    claim(alice, 0),
+    claim(bob, 1),
+    claim(cecile, 2),
+  ]);
   const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);
-  const startOfThirdRound = unroll(startOfSecondRound, [
+  unroll(episode, [
     new KingdominoAction({
+      player: alice,
       claimTile: new ClaimTile(0),
       placeTile: firstTilePlacement,
     }),
     new KingdominoAction({
+      player: bob,
       claimTile: new ClaimTile(1),
       placeTile: firstTilePlacement,
     }),
     new KingdominoAction({
+      player: cecile,
       claimTile: new ClaimTile(2),
       placeTile: firstTilePlacement,
     }),
   ]);
   const secondTilePlacement = new PlaceTile(new Vector2(3, 0), Direction.RIGHT);
-  const startOfFourthRound = unroll(startOfThirdRound, [
+  unroll(episode, [
     new KingdominoAction({
+      player: alice,
       claimTile: new ClaimTile(0),
       placeTile: secondTilePlacement,
     }),
     new KingdominoAction({
+      player: bob,
       claimTile: new ClaimTile(1),
       placeTile: secondTilePlacement,
     }),
     new KingdominoAction({
+      player: cecile,
       claimTile: new ClaimTile(2),
       placeTile: secondTilePlacement,
     }),
   ]);
 
-  const placements = Set(possiblePlacements(startOfFourthRound));
+  const placements = Set(possiblePlacements(episode.currentState));
 
   assert.isTrue(
     placements.every((placement) => {
@@ -161,8 +171,11 @@ test("possiblePlacements: does not return out of bounds placements", () => {
   );
 });
 
-function claim(offerIndex: number) {
-  return new KingdominoAction({ claimTile: new ClaimTile(offerIndex) });
+function claim(player: Player, offerIndex: number) {
+  return new KingdominoAction({
+    player: player,
+    claimTile: new ClaimTile(offerIndex),
+  });
 }
 
 test("streamingRandom: returns some item", () => {

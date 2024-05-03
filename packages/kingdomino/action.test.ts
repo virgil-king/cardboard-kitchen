@@ -16,93 +16,107 @@ const derek = new Player("derek", "Derek");
 
 test("apply: includes claim: adds claim", () => {
   const players = new Players([alice, bob]);
-  const before = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
-  const after = claim(1).apply(before);
+  episode.apply(claim(alice, 1));
 
-  assert(
-    after.props.nextOffers?.offers?.get(1)?.claim?.playerId ==
-      before.requireCurrentPlayer().id
+  assert.equal(
+    episode.currentState.props.nextOffers?.offers?.get(1)?.claim?.playerId,
+    "alice"
   );
 });
 
 test("apply: includes place on first round: throws", () => {
   const players = new Players([alice, bob]);
-  const before = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
 
   expect(() =>
-    new KingdominoAction({
-      placeTile: new PlaceTile(new Vector2(0, 0), Direction.UP),
-    }).apply(before)
+    episode.apply(
+      new KingdominoAction({
+        player: alice,
+        placeTile: new PlaceTile(new Vector2(0, 0), Direction.UP),
+      })
+    )
   ).toThrowError();
 });
 
 test("apply: no claim in non-final round: throws", () => {
   const players = new Players([alice, bob]);
-  const state = unroll(kingdomino.newGame(players), [claim(1), claim(0)]);
+  const episode = unroll(kingdomino.newGame(players), [
+    claim(alice, 1),
+    claim(bob, 0),
+  ]);
 
   expect(() =>
-    new KingdominoAction({
-      placeTile: new PlaceTile(new Vector2(4, 3), Direction.DOWN),
-    }).apply(state)
+    episode.apply(
+      new KingdominoAction({
+        player: bob,
+        placeTile: new PlaceTile(new Vector2(4, 3), Direction.DOWN),
+      })
+    )
   ).toThrowError();
 });
 
 test("apply: placement out of bounds: throws", () => {
   const players = new Players([alice, bob, cecile]);
-  const state = unroll(kingdomino.newGame(players), [
-    claim(1),
-    claim(0),
-    claim(2),
+  const episode = unroll(kingdomino.newGame(players), [
+    claim(alice, 1),
+    claim(bob, 0),
+    claim(cecile, 2),
   ]);
 
   expect(() =>
-    new KingdominoAction({
-      claimTile: { offerIndex: 0 },
-      placeTile: new PlaceTile(new Vector2(25, 25), Direction.DOWN),
-    }).apply(state)
+    episode.apply(
+      new KingdominoAction({
+        player: bob,
+        claimTile: { offerIndex: 0 },
+        placeTile: new PlaceTile(new Vector2(25, 25), Direction.DOWN),
+      })
+    )
   ).toThrowError();
 });
 
 test("apply: no matching terrain: throws", () => {
   const players = new Players([alice, bob, cecile]);
-  const state = unroll(kingdomino.newGame(players), [
-    claim(1),
-    claim(0),
-    claim(2),
+  const episode = unroll(kingdomino.newGame(players), [
+    claim(alice, 1),
+    claim(bob, 0),
+    claim(cecile, 2),
   ]);
 
   expect(() =>
-    new KingdominoAction({
-      claimTile: { offerIndex: 0 },
-      placeTile: new PlaceTile(new Vector2(0, 0), Direction.DOWN),
-    }).apply(state)
+    episode.apply(
+      new KingdominoAction({
+        player: bob,
+        claimTile: { offerIndex: 0 },
+        placeTile: new PlaceTile(new Vector2(0, 0), Direction.DOWN),
+      })
+    )
   ).toThrowError();
 });
 
 test("apply: updates player board", () => {
   const players = new Players([alice, bob, cecile]);
-  const initialState = kingdomino.newGame(players);
+  const episode = kingdomino.newGame(players);
   // Capture the first offer tile here since that's the one we'll place later
   const tileNumber = requireDefined(
-    initialState.props.nextOffers?.offers?.get(0)?.tileNumber
+    episode.currentState.props.nextOffers?.offers?.get(0)?.tileNumber
   ) as number;
   const tile = Tile.withNumber(tileNumber);
-  const startOfSecondRound = unroll(initialState, [
-    claim(1),
-    claim(0),
-    claim(2),
-  ]);
+  unroll(episode, [claim(alice, 1), claim(bob, 0), claim(cecile, 2)]);
 
-  const after = new KingdominoAction({
-    claimTile: { offerIndex: 0 },
-    placeTile: new PlaceTile(
-      PlayerBoard.center.plus(Direction.DOWN.offset),
-      Direction.DOWN
-    ),
-  }).apply(startOfSecondRound);
+  const after = episode.apply(
+    new KingdominoAction({
+      player: bob,
+      claimTile: { offerIndex: 0 },
+      placeTile: new PlaceTile(
+        PlayerBoard.center.plus(Direction.DOWN.offset),
+        Direction.DOWN
+      ),
+    })
+  );
 
-  console.log(`Expected tile is ${JSON.stringify(tile)}`);
+  // console.log(`Expected tile is ${JSON.stringify(tile)}`);
   // Bob claimed the first tile
   const square0Location = PlayerBoard.center.plus(Direction.DOWN.offset);
   assert.equal(after.locationState(bob, square0Location), tile.properties[0]);
@@ -110,6 +124,9 @@ test("apply: updates player board", () => {
   assert.equal(after.locationState(bob, square1Location), tile.properties[1]);
 });
 
-function claim(offerIndex: number) {
-  return new KingdominoAction({ claimTile: { offerIndex: offerIndex } });
+function claim(player: Player, offerIndex: number) {
+  return new KingdominoAction({
+    player: player,
+    claimTile: { offerIndex: offerIndex },
+  });
 }

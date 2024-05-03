@@ -1,15 +1,12 @@
-import { GameState, Player, PlayerResult, Players } from "game";
-import { LocationProperties, Terrain, Tile } from "./tile.js";
+import { Action, GameState, Player, PlayerResult, Players } from "game";
+import { LocationProperties, Tile } from "./tile.js";
 import {
   Configuration,
   PlaceTile,
   PlayerBoard,
   TileOffers,
-  adjacentExternalLocations,
   dealOffer,
   getConfiguration,
-  maxKingdomSize,
-  run,
 } from "./base.js";
 import { Vector2, assertDefined, requireDefined } from "./util.js";
 
@@ -28,7 +25,7 @@ export enum NextAction {
   PLACE,
 }
 
-type Props = {
+export type Props = {
   readonly configuration: Configuration;
   readonly players: Players;
   readonly playerIdToState: Map<string, PlayerState>;
@@ -42,7 +39,7 @@ type Props = {
 /**
  * Invariant: every instance of this class is a valid game state resulting from a sequence of public method calls.
  */
-export class KingdominoState implements GameState<KingdominoState> {
+export class KingdominoState implements GameState {
   constructor(readonly props: Props) {}
 
   private playerCount(): number {
@@ -58,7 +55,10 @@ export class KingdominoState implements GameState<KingdominoState> {
   }
 
   result(): PlayerResult[] | undefined {
-    throw new Error("Method not implemented.");
+    if (this.props.nextAction != undefined) {
+      return undefined;
+    }
+    return new Array<PlayerResult>();
   }
 
   currentPlayer(): Player | undefined {
@@ -202,14 +202,14 @@ function handleEndOfTurn(props: Props): Props {
     configuration,
   } = props;
   if (isEndOfGame(previousOffers, nextOffers)) {
-    console.log("End of game");
+    // console.log("End of game");
     currentPlayer = undefined;
     nextAction = undefined;
     previousOffers = undefined;
     // TODO compute player results here
   } else {
     if (isEndOfRound(previousOffers, nextOffers)) {
-      console.log("End of round");
+      // console.log("End of round");
       // Update offers if it's the end of a round
       previousOffers = nextOffers;
       if (props.remainingTiles.size == 0) {
@@ -293,7 +293,7 @@ function nextPlayer(
   // wouldn't work as written.
   for (const offer of previousOffers.offers) {
     if (offer.hasTile()) {
-      console.log("Using next claim");
+      // console.log("Using next claim");
       return requireDefined(
         players.players.find(
           (player) =>
