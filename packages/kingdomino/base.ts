@@ -216,25 +216,6 @@ export class TileOffers {
   }
 }
 
-/**
- * Returns an offer consisting of `turnCount` tiles from the end of
- * `tileNumbers` and the new set of remaining tiles.
- */
-export function dealOffer(
-  turnCount: number,
-  remainingTiles: List<number>
-): [TileOffers, List<number>] {
-  let offers = List<TileOffer>();
-  for (let i = 0; i < turnCount; i++) {
-    const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
-    offers = offers.push(new TileOffer(tileNumber));
-  }
-  return [
-    new TileOffers(offers),
-    remainingTiles.slice(0, remainingTiles.size - turnCount),
-  ];
-}
-
 /** Returns the  */
 export function otherSquareIndex(squareIndex: number) {
   switch (squareIndex) {

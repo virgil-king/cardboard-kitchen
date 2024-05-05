@@ -30,21 +30,21 @@ export interface Endomorphism<T> {
   apply(value: T): T;
 }
 
+export interface JsonSerializable {
+  toJson(): string;
+}
+
 // TODO add serializable
 // TODO add vector-able
-export interface Action<StateT extends GameState>
-  extends Endomorphism<StateT> {}
+export interface Action extends JsonSerializable {}
 
-export interface Agent<
-  StateT extends GameState,
-  ActionT extends Action<StateT>
-> {
+export interface Agent<StateT extends GameState, ActionT extends Action> {
   act(state: StateT): ActionT;
 }
 
 // TODO add serializable
 // TODO add vector-able
-export interface GameState {
+export interface GameState extends JsonSerializable {
   result(): PlayerResult[] | undefined;
   currentPlayer(): Player | undefined;
 }
@@ -53,36 +53,24 @@ export interface GameState {
 //   constructor(readonly action: ActionT, readonly state: StateT) {}
 // }
 
-export class Transcript<
-  StateT extends GameState,
-  ActionT extends Action<StateT>
-> {
+export class Transcript<StateT extends GameState, ActionT extends Action> {
   readonly steps: Array<[ActionT, StateT]> = new Array();
   constructor(readonly initialState: StateT) {}
 }
 
-export interface Episode<
-  StateT extends GameState,
-  ActionT extends Action<StateT>
-> {
+export interface Episode<StateT extends GameState, ActionT extends Action> {
   transcript: Transcript<StateT, ActionT>;
   /** Equals the last state in {@link transcript} */
   currentState: StateT;
   apply(action: ActionT): StateT;
 }
 
-export interface Game<
-  StateT extends GameState,
-  ActionT extends Action<StateT>
-> {
+export interface Game<StateT extends GameState, ActionT extends Action> {
   playerCounts: number[];
   newGame(players: Players): Episode<StateT, ActionT>;
 }
 
-export function unroll<
-  StateT extends GameState,
-  ActionT extends Action<StateT>
->(
+export function unroll<StateT extends GameState, ActionT extends Action>(
   episode: Episode<StateT, ActionT>,
   actions: ReadonlyArray<ActionT>
 ): Episode<StateT, ActionT> {

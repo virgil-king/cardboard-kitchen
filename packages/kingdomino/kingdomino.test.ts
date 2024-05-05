@@ -19,45 +19,23 @@ test("placeTile: end of game: next action is undefined", () => {
     claim(alice, 0),
     claim(bob, 1),
     claim(cecile, 2),
-    new KingdominoAction({
-      player: alice,
-      placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-    }),
-    new KingdominoAction({
-      player: bob,
-      placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-    }),
-    new KingdominoAction({
-      player: cecile,
-      placeTile: new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-    }),
+    KingdominoAction.placeTile(
+      alice,
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      bob,
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      cecile,
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
   ]);
 
   assert.equal(episode.currentState.nextAction, undefined);
 });
 
-// function unrollGenerator<InT, OutT>(
-//   generator: Generator<OutT, OutT, InT>,
-//   inputs: Array<InT>
-// ): OutT {
-//   let first = generator.next();
-// //   console.log(`first=${JSON.stringify(first)}`);
-//   let result = first.value;
-//   for (const input of inputs) {
-//     let step = generator.next(input);
-//     // console.log(`step=${JSON.stringify(step)}`);
-//     result = step.value;
-//     if (step.done == true) {
-//     //   console.log(`done=true`);
-//       break;
-//     }
-//   }
-//   return result;
-// }
-
 function claim(player: Player, offerIndex: number) {
-  return new KingdominoAction({
-    player: player,
-    claimTile: { offerIndex: offerIndex },
-  });
+  return KingdominoAction.claimTile(player, { offerIndex: offerIndex });
 }
