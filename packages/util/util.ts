@@ -1,11 +1,11 @@
 /**
  * @param low inclusive lower bound
- * @param high inclusive upper bound
- * @returns a random number between `low` and `high`
+ * @param high exclusive upper bound
+ * @returns a random number >= low and < high
  */
-// function randomBetween(low: number, high: number): number {
-//   return low + Math.floor(Math.random() * (high + 1 - low));
-// }
+export function randomBetween(low: number, high: number): number {
+  return low + Math.floor(Math.random() * (high - low));
+}
 
 // export function shuffle<T>(items: ReadonlyArray<T>): Array<T> {
 //   const length = items.length;

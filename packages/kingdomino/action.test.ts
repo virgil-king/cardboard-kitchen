@@ -6,7 +6,8 @@ import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
 import { assert } from "chai";
-import { PlaceTile, PlayerBoard } from "./base.js";
+import { PlaceTile } from "./base.js";
+import { PlayerBoard } from "./board.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -16,7 +17,7 @@ const derek = new Player("derek", "Derek");
 
 test("apply: includes claim: adds claim", () => {
   const players = new Players([alice, bob]);
-  const episode = kingdomino.newGame(players);
+  const episode = kingdomino.newEpisode(players);
 
   episode.apply(claim(alice, 1));
 
@@ -28,7 +29,7 @@ test("apply: includes claim: adds claim", () => {
 
 test("apply: includes place on first round: throws", () => {
   const players = new Players([alice, bob]);
-  const episode = kingdomino.newGame(players);
+  const episode = kingdomino.newEpisode(players);
 
   expect(() =>
     episode.apply(
@@ -42,7 +43,7 @@ test("apply: includes place on first round: throws", () => {
 
 test("apply: place before claim in non-final round: throws", () => {
   const players = new Players([alice, bob]);
-  const episode = unroll(kingdomino.newGame(players), [
+  const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
   ]);
@@ -59,7 +60,7 @@ test("apply: place before claim in non-final round: throws", () => {
 
 test("apply: placement out of bounds: throws", () => {
   const players = new Players([alice, bob, cecile]);
-  const episode = unroll(kingdomino.newGame(players), [
+  const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
     claim(cecile, 2),
@@ -77,7 +78,7 @@ test("apply: placement out of bounds: throws", () => {
 
 test("apply: no matching terrain: throws", () => {
   const players = new Players([alice, bob, cecile]);
-  const episode = unroll(kingdomino.newGame(players), [
+  const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
     claim(cecile, 2),
@@ -95,7 +96,7 @@ test("apply: no matching terrain: throws", () => {
 
 test("apply: updates player board", () => {
   const players = new Players([alice, bob, cecile]);
-  const episode = kingdomino.newGame(players);
+  const episode = kingdomino.newEpisode(players);
   // Capture the first offer tile here since that's the one we'll place later
   const tileNumber = requireDefined(
     episode.currentState.props.nextOffers?.offers?.get(0)?.tileNumber

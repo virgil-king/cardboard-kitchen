@@ -1,23 +1,27 @@
-import { GameState, Player, PlayerResult, Players } from "game";
+import { GameState, Player, PlayerState, Players } from "game";
 import { LocationProperties, Tile, tiles } from "./tile.js";
 import {
   ClaimTile,
   Configuration,
   PlaceTile,
-  PlayerBoard,
   TileOffer,
   TileOffers,
   getConfiguration,
 } from "./base.js";
-import { Vector2, assertDefined, requireDefined } from "./util.js";
+import { Vector2, requireDefined } from "./util.js";
 
 import { List, Map } from "immutable";
 import _ from "lodash";
+import { PlayerBoard } from "./board.js";
 
-export class PlayerState {
-  constructor(readonly player: Player, readonly board: PlayerBoard) {}
-  withBoard(board: PlayerBoard): PlayerState {
-    return new PlayerState(this.player, board);
+export class KingdominoPlayerState {
+  constructor(
+    readonly player: Player,
+    readonly gameState: PlayerState,
+    readonly board: PlayerBoard
+  ) {}
+  withBoard(board: PlayerBoard): KingdominoPlayerState {
+    return new KingdominoPlayerState(this.player, this.gameState.withScore(board.score()), board);
   }
 }
 
@@ -29,7 +33,7 @@ export enum NextAction {
 export type Props = {
   readonly configuration: Configuration;
   readonly players: Players;
-  readonly playerIdToState: Map<string, PlayerState>;
+  readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
   readonly nextAction?: NextAction;
   readonly remainingTiles: List<number>;
@@ -66,7 +70,11 @@ export class KingdominoState implements GameState {
       playerIdToState: Map(
         players.players.map((player) => [
           player.id,
-          new PlayerState(player, new PlayerBoard(Map())),
+          new KingdominoPlayerState(
+            player,
+            new PlayerState(0),
+            new PlayerBoard(Map())
+          ),
         ])
       ),
       currentPlayer: players.players[0],
@@ -77,6 +85,14 @@ export class KingdominoState implements GameState {
   }
 
   constructor(readonly props: Props) {}
+
+  get gameOver(): boolean {
+    return this.nextAction == undefined;
+  }
+
+  playerState(playerId: string): PlayerState {
+    return this.requirePlayerState(this.requirePlayer(playerId)).gameState;
+  }
 
   private playerCount(): number {
     return this.props.playerIdToState.size;
@@ -90,14 +106,7 @@ export class KingdominoState implements GameState {
     return this.configuration().firstRoundTurnOrder.length;
   }
 
-  result(): PlayerResult[] | undefined {
-    if (this.props.nextAction != undefined) {
-      return undefined;
-    }
-    return new Array<PlayerResult>();
-  }
-
-  currentPlayer(): Player | undefined {
+  get currentPlayer(): Player | undefined {
     return this.props.currentPlayer;
   }
 
@@ -106,14 +115,14 @@ export class KingdominoState implements GameState {
   }
 
   requireCurrentPlayer(): Player {
-    const result = this.currentPlayer();
+    const result = this.currentPlayer;
     if (result == undefined) {
       throw new Error(`Current player was undefined`);
     }
     return result;
   }
 
-  requirePlayerState(player: Player): PlayerState {
+  requirePlayerState(player: Player): KingdominoPlayerState {
     const result = this.props.playerIdToState.get(player.id);
     if (result == undefined) {
       throw new Error(`Player state not found`);
@@ -121,7 +130,7 @@ export class KingdominoState implements GameState {
     return result;
   }
 
-  requireCurrentPlayerState(): PlayerState {
+  requireCurrentPlayerState(): KingdominoPlayerState {
     return this.requirePlayerState(this.requireCurrentPlayer());
   }
 
@@ -145,54 +154,64 @@ export class KingdominoState implements GameState {
     return new KingdominoState({ ...this.props, nextAction: nextAction });
   }
 
-  withClaim(claimTile: ClaimTile): KingdominoState {
+  withClaim(player: Player, claimTile: ClaimTile): KingdominoState {
+    const nextOffers = requireDefined(this.props.nextOffers);
+    if (nextOffers.offers.get(claimTile.offerIndex)?.isClaimed()) {
+      throw new Error(
+        `Tried to claim already claimed offer ${claimTile.offerIndex}`
+      );
+    }
     return new KingdominoState({
       ...this.props,
-      nextOffers: requireDefined(this.props.nextOffers)?.withTileClaimed(
-        claimTile.offerIndex,
-        requireDefined(this.props.currentPlayer)
-      ),
+      nextOffers: nextOffers.withTileClaimed(claimTile.offerIndex, player),
     });
   }
 
   /**
-   * Returns {@link props} updated by removing the placed tile from previous offers and
+   * Returns `this` updated by removing the previous offer with index {@link offerIndex}
+   */
+  withPreviousOfferRemoved(offerIndex: number) {
+    let previousOffers = requireDefined(this.props.previousOffers);
+    previousOffers = previousOffers.withTileRemoved(offerIndex);
+    return new KingdominoState({
+      ...this.props,
+      previousOffers: previousOffers,
+    });
+  }
+
+  /**
+   * Returns `this` updated by removing the placed tile from previous offers and
    * applying it to the current player's board state
    */
-  withPlacement(placement: PlaceTile, offerIndex: number): KingdominoState {
-    let previousOffers = requireDefined(this.props.previousOffers);
-    const tileNumber = requireDefined(
-      previousOffers.offers.get(offerIndex)?.tileNumber
-    );
+  withPlacement(
+    player: Player,
+    placement: PlaceTile,
+    tileNumber: number
+  ): KingdominoState {
     const tile = Tile.withNumber(tileNumber);
-    const currentPlayer = requireDefined(this.props.currentPlayer);
-    const currentPlayerState = requireDefined(
-      this.props.playerIdToState.get(currentPlayer.id)
+    // const currentPlayer = requireDefined(this.props.currentPlayer);
+    const playerState = requireDefined(
+      this.props.playerIdToState.get(player.id)
     );
-    const currentPlayerBoard = currentPlayerState.board;
+    const currentPlayerBoard = playerState.board;
 
     // Check placement legality
     if (!currentPlayerBoard.isPlacementAllowed(placement, tile)) {
       throw Error(`Invalid placement: ${placement}`);
     }
 
-    // Successful placement! Remove the tile from the next unplaced offer.
-    previousOffers = previousOffers.withTileRemoved(offerIndex);
-
-    // Update the two board locations
-    let board = currentPlayerBoard.withLocationStateFromTile(
+    // Update the board
+    let board = currentPlayerBoard.withTile(
       placement,
-      tileNumber,
-      0
+      tileNumber
     );
-    board = board.withLocationStateFromTile(placement, tileNumber, 1);
+    // const score = board.score();
     const playerIdToState = this.props.playerIdToState.set(
-      currentPlayer.id,
-      currentPlayerState.withBoard(board)
+      player.id,
+      playerState.withBoard(board)
     );
     return new KingdominoState({
       ...this.props,
-      previousOffers: previousOffers,
       playerIdToState: playerIdToState,
     });
   }

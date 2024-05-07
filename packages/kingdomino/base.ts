@@ -27,116 +27,6 @@ export class LocationState {
   }
 }
 
-export class PlayerBoard {
-  constructor(readonly locationStates: Map<Vector2, LocationState>) {}
-
-  getLocationState(location: Vector2): LocationProperties {
-    if (location.x == centerX && location.y == centerY) {
-      return centerLocationProperties;
-    }
-    const locationState = this.locationStates.get(location);
-    if (locationState == undefined) {
-      return defaultLocationProperties;
-    }
-    return locationState.properties();
-  }
-
-  static center: Vector2 = new Vector2(centerX, centerY);
-
-  withLocationStateFromTile(
-    placement: PlaceTile,
-    tileNumber: number,
-    tileLocationIndex: number
-  ): PlayerBoard {
-    const location = placement.squareLocation(tileLocationIndex);
-    const state = new LocationState(tileNumber, tileLocationIndex);
-    return this.withLocationState(location, state);
-  }
-
-  withLocationState(location: Vector2, value: LocationState): PlayerBoard {
-    return new PlayerBoard(this.locationStates.set(location, value));
-  }
-
-  occupiedRectangle(): Rectangle {
-    const isEmpty = (x: number, y: number) => {
-      return (
-        this.getLocationState(new Vector2(x, y)).terrain ==
-        Terrain.TERRAIN_EMPTY
-      );
-    };
-    const left = this.lastOccupiedLine(centerX - 1, 0, -1, (a, b) =>
-      isEmpty(a, b)
-    );
-    const top = this.lastOccupiedLine(centerY + 1, playAreaSize, 1, (a, b) =>
-      isEmpty(b, a)
-    );
-    const right = this.lastOccupiedLine(centerX + 1, playAreaSize, 1, (a, b) =>
-      isEmpty(a, b)
-    );
-    const bottom = this.lastOccupiedLine(centerY - 1, 0, -1, (a, b) =>
-      isEmpty(b, a)
-    );
-    return new Rectangle(left, top, right, bottom);
-  }
-
-  /**
-   * Returns the last occupied row or column between start (inclusive) and end (exclusive).
-   */
-  lastOccupiedLine(
-    start: number,
-    end: number,
-    increment: number,
-    isEmpty: (a: number, b: number) => boolean
-  ) {
-    const result = Seq(Range(start, end, increment)).find((a) =>
-      Seq(Range(0, playAreaSize)).every((b) => isEmpty(a, b))
-    );
-    if (result != undefined) {
-      return result - increment;
-    }
-    return end - increment;
-  }
-
-  isPlacementAllowed(placement: PlaceTile, tile: Tile): boolean {
-    const occupied = this.occupiedRectangle();
-    // Each square of the tile must be:
-    for (let i = 0; i < 2; i++) {
-      const location = placement.squareLocation(i);
-      // Not already occupied:
-      if (this.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
-        return false;
-      }
-      // Not make the kingdom too tall or wide:
-      const updatedRectangle = occupied.extend(location);
-      if (
-        updatedRectangle.width > maxKingdomSize ||
-        updatedRectangle.height > maxKingdomSize
-      ) {
-        return false;
-      }
-    }
-
-    // At least one adjacent square must have matching terrain or be the center
-    // square:
-    for (let i = 0; i < 2; i++) {
-      const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
-        .terrain;
-      for (let location of adjacentExternalLocations(placement, i)) {
-        const adjacentTerrain = this.getLocationState(location).terrain;
-        if (
-          adjacentTerrain == tileSquareTerrain ||
-          adjacentTerrain == Terrain.TERRAIN_CENTER
-        ) {
-          return true;
-        }
-      }
-    }
-
-    // No terrain matches found
-    return false;
-  }
-}
-
 export const defaultLocationProperties: LocationProperties = {
   terrain: Terrain.TERRAIN_EMPTY,
   crowns: 0,
@@ -207,7 +97,7 @@ export class TileOffers {
     return new TileOffers(this.offers.set(offerIndex, offer));
   }
 
-  withTileRemoved(offerIndex: number) {
+  withTileRemoved(offerIndex: number): TileOffers {
     const offer = this.offers.get(offerIndex)?.withTileRemoved();
     if (offer == undefined) {
       throw new Error(`Offer index out of bounds: ${offerIndex}`);
@@ -310,3 +200,7 @@ export class PlaceTile implements ValueObject {
     ]);
   }
 }
+
+// export class DiscardTile {
+//   static instance = new DiscardTile();
+// }

@@ -3,10 +3,9 @@ import { combineHashes } from "studio-util";
 import { Seq, ValueObject } from "immutable";
 
 export class Vector2 implements ValueObject {
-  constructor(readonly x: number, readonly y: number) {
-    this.x = x;
-    this.y = y;
-  }
+  constructor(readonly x: number, readonly y: number) {}
+
+  static origin = new Vector2(0, 0);
 
   plus(other: Vector2) {
     return new Vector2(this.x + other.x, this.y + other.y);
@@ -103,11 +102,11 @@ export class Rectangle implements ValueObject {
   }
 }
 
-export function assertDefined<T>(val: T): asserts val is NonNullable<T> {
-  if (val === undefined || val === null) {
-    throw new Error(`Expected 'val' to be defined, but received ${val}`);
-  }
-}
+// export function assertDefined<T>(val: T): asserts val is NonNullable<T> {
+//   if (val === undefined || val === null) {
+//     throw new Error(`Expected 'val' to be defined, but received ${val}`);
+//   }
+// }
 
 export function requireDefined<T>(
   val: T,

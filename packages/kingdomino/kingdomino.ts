@@ -15,7 +15,7 @@ export class Kingdomino implements Game<KingdominoState, KingdominoAction> {
   /**
    * @param shuffledTileNumbers shuffled tiles to use instead of a random shuffle of all tiles
    */
-  newGame(
+  newEpisode(
     players: Players,
     shuffledTileNumbers?: Array<number>
   ): KingdominoEpisode {

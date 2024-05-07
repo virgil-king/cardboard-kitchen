@@ -1,6 +1,6 @@
-import { KingdominoAction } from "./action.js";
+import { ActionCase, KingdominoAction } from "./action.js";
 import { KingdominoState, NextAction } from "./state.js";
-import { Episode, Players, Transcript } from "game";
+import { Episode, Player, Players, Transcript } from "game";
 import { requireDefined } from "./util.js";
 import _ from "lodash";
 
@@ -30,19 +30,22 @@ export class KingdominoEpisode
   ): Generator<KingdominoState, KingdominoState, KingdominoAction> {
     let state = KingdominoState.newGame(players, shuffledTileNumbers);
 
+    // console.log(`First offers: ${JSON.stringify(state.props.nextOffers)}`);
     // First round
     for (const playerIndex of state.configuration().firstRoundTurnOrder) {
       const player = state.props.players.players[playerIndex];
       state = state.withCurrentPlayer(player);
       const action = yield state;
-      if (
-        !action.player.equals(player) ||
-        !action.claimTile ||
-        action.placeTile
-      ) {
-        throw new Error(`Invalid action ${JSON.stringify(action)}`);
-      }
-      state = state.withClaim(action.claimTile);
+      state = this.handleClaim(state, player, action);
+      // const actionData = action.data;
+      // if (action.player.equals(player) && actionData.case == ActionCase.CLAIM) {
+      //   console.log(
+      //     `Claiming ${actionData.data.offerIndex} for ${player.name}`
+      //   );
+      //   state = state.withClaim(player, actionData.data);
+      // } else {
+      //   throw new Error(`Invalid action ${JSON.stringify(action)}`);
+      // }
     }
 
     // Non-final rounds
@@ -51,9 +54,14 @@ export class KingdominoEpisode
         .withPreviousOffers(requireDefined(state.props.nextOffers))
         .withNewNextOffers();
 
+      // console.log(
+      //   `Previous offers: ${JSON.stringify(state.props.previousOffers)}`
+      // );
+      // console.log(`Next offers: ${JSON.stringify(state.props.nextOffers)}`);
       for (const [offerIndex, offer] of requireDefined(
         state.props.previousOffers?.offers
       ).entries()) {
+        // console.log(`Offer is ${JSON.stringify(offer)}`);
         const player = state.requirePlayer(
           requireDefined(offer.claim?.playerId)
         );
@@ -61,17 +69,35 @@ export class KingdominoEpisode
           .withCurrentPlayer(player)
           .withNextAction(NextAction.PLACE);
         let action = yield state;
-        if (!action.player.equals(player) || !action.placeTile) {
-          throw new Error(`Invalid action ${JSON.stringify(action)}`);
-        }
-        state = state
-          .withPlacement(action.placeTile, offerIndex)
-          .withNextAction(NextAction.CLAIM);
+        // if (!action.player.equals(player)) {
+        //   throw new Error(`Invalid action ${JSON.stringify(action)}`);
+        // }
+        // const tileNumber = requireDefined(
+        //   state.props.previousOffers?.offers.get(offerIndex)?.tileNumber
+        // );
+        // state = state.withPreviousOfferRemoved(offerIndex);
+        // let actionData = action.data;
+        // switch (actionData.case) {
+        //   case ActionCase.PLACE:
+        //     state = state.withPlacement(player, actionData.data, tileNumber);
+        //     break;
+        //   case ActionCase.DISCARD:
+        //     break;
+        //   default:
+        //     throw new Error(`Invalid action ${JSON.stringify(action)}`);
+        // }
+        state = this.handlePlacement(state, player, action, offerIndex);
+        state = state.withNextAction(NextAction.CLAIM);
         action = yield state;
-        if (!action.player.equals(player) || !action.claimTile) {
-          throw new Error(`Invalid action ${JSON.stringify(action)}`);
-        }
-        state = state.withClaim(action.claimTile);
+        state = this.handleClaim(state, player, action);
+        // const actionData = action.data;
+        // if (
+        //   !action.player.equals(player) ||
+        //   actionData.case != ActionCase.CLAIM
+        // ) {
+        //   throw new Error(`Invalid action ${JSON.stringify(action)}`);
+        // }
+        // state = state.withClaim(player, actionData.data);
       }
     }
 
@@ -85,19 +111,64 @@ export class KingdominoEpisode
       const player = state.requirePlayer(requireDefined(offer.claim?.playerId));
       state = state.withCurrentPlayer(player);
       const action = yield state;
-      if (
-        !action.player.equals(player) ||
-        !action.placeTile ||
-        action.claimTile
-      ) {
-        throw new Error(`Invalid action ${JSON.stringify(action)}`);
-      }
-      state = state.withPlacement(action.placeTile, offerIndex);
+      state = this.handlePlacement(state, player, action, offerIndex);
+      // const actionData = action.data;
+      // if (!action.player.equals(player)) {
+      //   throw new Error(`Invalid action ${JSON.stringify(action)}`);
+      // }
+      // switch (actionData.case) {
+      // }
+      // state = state.withPlacement(player, action.placeTile, offerIndex);
     }
 
     // TODO compute scores
     state = state.withNextAction(undefined);
 
     return state;
+  }
+
+  /**
+   * Returns {@link state} updated by handling {@link action} which should
+   * be a placement or discard of {@link offerIndex}
+   */
+  private handlePlacement(
+    state: KingdominoState,
+    player: Player,
+    action: KingdominoAction,
+    offerIndex: number
+  ): KingdominoState {
+    if (!action.player.equals(player)) {
+      throw new Error(`Invalid action ${JSON.stringify(action)}`);
+    }
+    const tileNumber = requireDefined(
+      state.props.previousOffers?.offers.get(offerIndex)?.tileNumber
+    );
+    state = state.withPreviousOfferRemoved(offerIndex);
+    let actionData = action.data;
+    switch (actionData.case) {
+      case ActionCase.PLACE:
+        state = state.withPlacement(player, actionData.data, tileNumber);
+        break;
+      case ActionCase.DISCARD:
+        break;
+      default:
+        throw new Error(`Invalid action ${JSON.stringify(action)}`);
+    }
+    return state;
+  }
+
+  /**
+   * Returns {@link state} updated by handling {@link action} which should be a claim
+   */
+  private handleClaim(
+    state: KingdominoState,
+    player: Player,
+    action: KingdominoAction
+  ): KingdominoState {
+    const actionData = action.data;
+    if (!action.player.equals(player) || actionData.case != ActionCase.CLAIM) {
+      throw new Error(`Invalid action ${JSON.stringify(action)}`);
+    }
+    return state.withClaim(player, actionData.data);
   }
 }

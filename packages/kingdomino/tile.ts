@@ -1,9 +1,4 @@
-// import * as Proto from "kingdomino-proto";
-
-import { Vector2, Direction } from "./util.js";
-
 export enum Terrain {
-  // TERRAIN_UNKNOWN,
   TERRAIN_EMPTY,
   TERRAIN_CENTER,
   TERRAIN_FOREST,
@@ -60,4 +55,20 @@ export const tiles = [
   create(10, Terrain.TERRAIN_PASTURE, 0, Terrain.TERRAIN_PASTURE, 0),
   create(11, Terrain.TERRAIN_PASTURE, 0, Terrain.TERRAIN_PASTURE, 0),
   create(12, Terrain.TERRAIN_SWAMP, 0, Terrain.TERRAIN_SWAMP, 0),
+  create(13, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_FOREST, 0),
+  create(14, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_WATER, 0),
+  create(15, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_PASTURE, 0),
+  create(16, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_SWAMP, 0),
+  create(17, Terrain.TERRAIN_FOREST, 0, Terrain.TERRAIN_WATER, 0),
+  create(18, Terrain.TERRAIN_FOREST, 0, Terrain.TERRAIN_PASTURE, 0),
+  create(19, Terrain.TERRAIN_HAY, 1, Terrain.TERRAIN_FOREST, 0),
+  create(20, Terrain.TERRAIN_HAY, 1, Terrain.TERRAIN_WATER, 0),
+  create(21, Terrain.TERRAIN_HAY, 1, Terrain.TERRAIN_PASTURE, 0),
+  create(22, Terrain.TERRAIN_HAY, 1, Terrain.TERRAIN_SWAMP, 0),
+  create(23, Terrain.TERRAIN_HAY, 1, Terrain.TERRAIN_MINE, 0),
+  create(24, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
+  create(25, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
+  create(26, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
+  create(27, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
+  create(28, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_WATER, 0),
 ];

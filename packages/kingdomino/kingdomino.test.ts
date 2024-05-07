@@ -14,7 +14,7 @@ const cecile = new Player("cecile", "Cecile");
 
 test("placeTile: end of game: next action is undefined", () => {
   const players = new Players([alice, bob, cecile]);
-  const episode = kingdomino.newGame(players, _.range(1, 4));
+  const episode = kingdomino.newEpisode(players, _.range(1, 4));
   unroll(episode, [
     claim(alice, 0),
     claim(bob, 1),
