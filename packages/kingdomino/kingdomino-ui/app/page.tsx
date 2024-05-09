@@ -1,5 +1,7 @@
+"use client";
+
 import _ from "lodash";
-import { Episode, Player, PlayerState, Players, runEpisode } from "game";
+import { Episode, Player, Players, runEpisode } from "game";
 import {
   Kingdomino,
   RandomKingdominoAgent,
@@ -13,28 +15,67 @@ import { Vector2, requireDefined } from "kingdomino/out/util";
 import styles from "./page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
+import { useState } from "react";
+
+const s_spacing = "9pt";
+const m_spacing = "18pt";
+const l_spacing = "36pt";
 
 const kingdomino: Kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
-const players = new Players([alice, bob]);
+const cecile = new Player("cecile", "Cecile");
+const players = new Players([alice, bob, cecile]);
 const randomAgent = new RandomKingdominoAgent();
 const agents = new Map([
   [alice.id, randomAgent],
   [bob.id, randomAgent],
+  [cecile.id, randomAgent],
 ]);
 
-export default function Home() {
-  const episode: Episode<KingdominoState, KingdominoAction> = runEpisode(
-    kingdomino,
-    players,
-    agents
-  );
-  const state = episode.currentState;
-  const playerComponents = state.props.players.players.map((player) => {
-    return <PlayerComponent playerState={state.requirePlayerState(player)} />;
-  });
+// function intersperse<T>(array: Array<T>, value: T) {
+//   return array.flatMap((item, index, array) => {
+//     if (index == array.length - 1) {
+//       return [item];
+//     }
+//     return [item, value];
+//   });
+// }
 
+export default function Home() {
+  const [episode, setEpisode] = useState<
+    Episode<KingdominoState, KingdominoAction> | undefined
+  >(undefined);
+  function play() {
+    setEpisode(runEpisode(kingdomino, players, agents));
+  }
+
+  let content: JSX.Element;
+  if (episode == undefined) {
+    content = <></>;
+  } else {
+    content = <GameComponent episode={episode} />;
+  }
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <button onClick={play} style={{ margin: s_spacing }}>
+        Start
+      </button>
+      {content}
+    </div>
+  );
+}
+
+type GameProps = {
+  episode: Episode<KingdominoState, KingdominoAction>;
+};
+
+function GameComponent(props: GameProps) {
+  const state = props.episode.currentState;
+  const playerComponents = state?.props.players.players.map((player) => {
+    return <PlayerComponent playerState={state.requirePlayerState(player)}/>;
+  });
   return <div className={styles.horizontalFlex}>{playerComponents}</div>;
 }
 
@@ -44,11 +85,12 @@ type PlayerProps = {
 
 function PlayerComponent(props: PlayerProps) {
   return (
-    <div className={styles.verticalFlex}>
+    <div className={styles.verticalFlex} style={{padding: s_spacing}}>
       <div style={{ textAlign: "center" }}>{props.playerState.player.name}</div>
       <div style={{ textAlign: "center" }}>
         Score: {props.playerState.gameState.score}
       </div>
+      <div style={{ height: s_spacing }} />
       <div>
         <BoardComponent board={props.playerState.board} />
       </div>
@@ -74,7 +116,10 @@ function BoardComponent(props: BoardProps) {
   });
 
   return (
-    <table className={styles.center}>
+    <table
+      className={styles.center}
+      style={{ border: "1pt solid gray", padding: s_spacing }}
+    >
       <tbody>{rows}</tbody>
     </table>
   );
@@ -90,7 +135,7 @@ type TerrainRenderingInfo = {
   textContent?: string;
 };
 
-const terrainToRenderingInfo = new Map([
+const terrainToRenderingInfo = new Map<Terrain, TerrainRenderingInfo>([
   [
     Terrain.TERRAIN_CENTER,
     { styleName: styles.center, textContent: String.fromCodePoint(0x1f3f0) },
@@ -111,101 +156,9 @@ function Square(props: SquareProps) {
   if (renderingInfo.textContent != undefined) {
     text = renderingInfo.textContent;
   } else if (props.crowns > 0) {
-    text = Array(props.crowns).fill(String.fromCodePoint(0x1F451)).join("");
+    text = Array(props.crowns).fill(String.fromCodePoint(0x1f451)).join("");
   } else {
     text = "";
   }
   return <td className={classNames}>{text}</td>;
 }
-
-// return (
-//   <main className={styles.main}>
-//     <div className={styles.description}>
-//       <p>
-//         Get started by editing&nbsp;
-//         <code className={styles.code}>app/page.tsx</code>
-//       </p>
-//       <div>
-//         <a
-//           href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           By{" "}
-//           <Image
-//             src="/vercel.svg"
-//             alt="Vercel Logo"
-//             className={styles.vercelLogo}
-//             width={100}
-//             height={24}
-//             priority
-//           />
-//         </a>
-//       </div>
-//     </div>
-
-//     <div className={styles.center}>
-//       <Image
-//         className={styles.logo}
-//         src="/next.svg"
-//         alt="Next.js Logo"
-//         width={180}
-//         height={37}
-//         priority
-//       />
-//     </div>
-
-//     <div className={styles.grid}>
-//       <a
-//         href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//         className={styles.card}
-//         target="_blank"
-//         rel="noopener noreferrer"
-//       >
-//         <h2>
-//           Docs <span>-&gt;</span>
-//         </h2>
-//         <p>Find in-depth information about Next.js features and API.</p>
-//       </a>
-
-//       <a
-//         href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//         className={styles.card}
-//         target="_blank"
-//         rel="noopener noreferrer"
-//       >
-//         <h2>
-//           Learn <span>-&gt;</span>
-//         </h2>
-//         <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-//       </a>
-
-//       <a
-//         href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//         className={styles.card}
-//         target="_blank"
-//         rel="noopener noreferrer"
-//       >
-//         <h2>
-//           Templates <span>-&gt;</span>
-//         </h2>
-//         <p>Explore starter templates for Next.js.</p>
-//       </a>
-
-//       <a
-//         href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-//         className={styles.card}
-//         target="_blank"
-//         rel="noopener noreferrer"
-//       >
-//         <h2>
-//           Deploy <span>-&gt;</span>
-//         </h2>
-//         <p>
-//           Instantly deploy your Next.js site to a shareable URL with Vercel.
-//         </p>
-//       </a>
-//     </div>
-//   </main>
-// );
-// }
