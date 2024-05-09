@@ -136,22 +136,22 @@ export function* adjacentExternalLocations(
   );
   for (const adjacentLocation of neighbors(location)) {
     if (
-      !_.isEqual(adjacentLocation, otherSquareLocation) &&
-      isInBounds(adjacentLocation)
+      !_.isEqual(adjacentLocation, otherSquareLocation) // &&
+      // isInBounds(adjacentLocation)
     ) {
       yield adjacentLocation;
     }
   }
 }
 
-export function isInBounds(location: Vector2): boolean {
-  return (
-    location.x >= 0 &&
-    location.x < playAreaSize &&
-    location.y >= 0 &&
-    location.y < playAreaSize
-  );
-}
+// export function isInBounds(location: Vector2): boolean {
+//   return (
+//     location.x >= 0 &&
+//     location.x < playAreaSize &&
+//     location.y >= 0 &&
+//     location.y < playAreaSize
+//   );
+// }
 
 export function run<T>(f: () => T) {
   return f();

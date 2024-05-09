@@ -13,6 +13,10 @@ import {
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import { Vector2, Rectangle, Direction } from "./util.js";
 
+/**
+ * Coordinates in this class refer to lines between tiles. A tile at [x,y]
+ * has its bottom left corner at [x,y].
+ */
 export class PlayerBoard {
   constructor(readonly locationStates: Map<Vector2, LocationState>) {}
 
@@ -29,13 +33,14 @@ export class PlayerBoard {
 
   static center: Vector2 = new Vector2(centerX, centerY);
 
+  toAssociationList(): Array<[Vector2, LocationState]> {
+    return [...this.locationStates.entries()];
+  }
+
   /**
    * Returns `this` updated by placing {@link tileNumber} according to {@link placement}
    */
-  withTile(
-    placement: PlaceTile,
-    tileNumber: number
-  ): PlayerBoard {
+  withTile(placement: PlaceTile, tileNumber: number): PlayerBoard {
     let result: PlayerBoard = this;
     for (const tileLocationIndex of [0, 1]) {
       const squareLocation = placement.squareLocation(tileLocationIndex);
@@ -65,18 +70,17 @@ export class PlayerBoard {
       -1,
       (a, b) => isEmpty(a, b)
     );
-    const top = this.lastOccupiedLine(
-      centerY + 1,
-      playAreaRadius + 1,
-      1,
-      (a, b) => isEmpty(b, a)
-    );
-    const right = this.lastOccupiedLine(
-      centerX + 1,
-      playAreaRadius + 1,
-      1,
-      (a, b) => isEmpty(a, b)
-    );
+    // Top and right are on the end (+1) side of the row or column
+    const top =
+      1 +
+      this.lastOccupiedLine(centerY + 1, playAreaRadius + 1, 1, (a, b) =>
+        isEmpty(b, a)
+      );
+    const right =
+      1 +
+      this.lastOccupiedLine(centerX + 1, playAreaRadius + 1, 1, (a, b) =>
+        isEmpty(a, b)
+      );
     const bottom = this.lastOccupiedLine(
       centerY - 1,
       -playAreaRadius - 1,
@@ -95,6 +99,7 @@ export class PlayerBoard {
     increment: number,
     isEmpty: (a: number, b: number) => boolean
   ) {
+    // Find the first unoccupied row or column and then rewind by one step
     const result = Seq(Range(start, end, increment)).find((a) =>
       Seq(Range(-playAreaRadius, playAreaRadius + 1)).every((b) =>
         isEmpty(a, b)
@@ -107,20 +112,23 @@ export class PlayerBoard {
   }
 
   isPlacementAllowed(placement: PlaceTile, tile: Tile): boolean {
+    // console.log(JSON.stringify(this.toAssociationList()));
     const occupied = this.occupiedRectangle();
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
       const location = placement.squareLocation(i);
       // Not already occupied:
       if (this.getLocationState(location).terrain != Terrain.TERRAIN_EMPTY) {
+        // console.log(`Not empty`);
         return false;
       }
       // Not make the kingdom too tall or wide:
-      const updatedRectangle = occupied.extend(location);
+      const updatedRectangle = extend(occupied, location);
       if (
         updatedRectangle.width > maxKingdomSize ||
         updatedRectangle.height > maxKingdomSize
       ) {
+        // console.log(`Would make kingdom too big`);
         return false;
       }
     }
@@ -128,8 +136,7 @@ export class PlayerBoard {
     // At least one adjacent square must have matching terrain or be the center
     // square:
     for (let i = 0; i < 2; i++) {
-      const tileSquareTerrain = Tile.withNumber(tile.number).properties[i]
-        .terrain;
+      const tileSquareTerrain = tile.properties[i].terrain;
       for (let location of adjacentExternalLocations(placement, i)) {
         const adjacentTerrain = this.getLocationState(location).terrain;
         if (
@@ -142,6 +149,7 @@ export class PlayerBoard {
     }
 
     // No terrain matches found
+    // console.log(`No terrain matches`);
     return false;
   }
 
@@ -243,3 +251,16 @@ type VisitResult = {
   /** Non-terrain-matching locations discovered during the visit */
   queue: Set<Vector2>;
 };
+
+/**
+ * Returns {@link rect} modified to extends its lower left and upper right corners
+ * to include {@link square}
+ */
+export function extend(rect: Rectangle, square: Vector2): Rectangle {
+  return new Rectangle(
+    Math.min(rect.left, square.x),
+    Math.max(rect.top, square.y + 1),
+    Math.max(rect.right, square.x + 1),
+    Math.min(rect.bottom, square.y)
+  );
+}

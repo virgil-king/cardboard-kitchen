@@ -4,7 +4,7 @@ import { test } from "vitest";
 import { assert } from "chai";
 import { Map } from "immutable";
 import { LocationState, PlaceTile, centerX, centerY } from "./base.js";
-import { PlayerBoard } from "./board.js";
+import { PlayerBoard, extend } from "./board.js";
 import { Tile } from "./tile.js";
 
 test("occupiedRectangle: tiles reach top right of play area: result includes edges", () => {
@@ -21,10 +21,12 @@ test("occupiedRectangle: tiles reach top right of play area: result includes edg
     ])
   );
 
-  const expected = new Rectangle(centerX, centerY + 4, centerX + 4, centerY);
+  const expected = new Rectangle(centerX, centerY + 5, centerX + 5, centerY);
   assert.isTrue(
     board.occupiedRectangle().equals(expected),
-    `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(board.occupiedRectangle())}`
+    `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(
+      board.occupiedRectangle()
+    )}`
   );
 });
 
@@ -42,12 +44,36 @@ test("occupiedRectangle: tiles reach bottom left of play area: result includes e
     ])
   );
 
-  const expected = new Rectangle(centerX - 4, centerY, centerX, centerY - 4);
+  const expected = new Rectangle(
+    centerX - 4,
+    centerY + 1,
+    centerX + 1,
+    centerY - 4
+  );
   assert.isTrue(
     board.occupiedRectangle().equals(expected),
-    `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(board.occupiedRectangle())}`
+    `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(
+      board.occupiedRectangle()
+    )}`
   );
 });
+
+test("occupiedRectangle: empty board: returns rectangle around center tile", () => {
+  const occupiedRectangle = new PlayerBoard(Map()).occupiedRectangle();
+
+  const expected = new Rectangle(0, 1, 1, 0);
+  assert.isTrue(
+    occupiedRectangle.equals(expected),
+    `Expected ${expected} but got ${occupiedRectangle}`
+  );
+});
+
+// test("occupiedRectangle: empty board: dimensions are one", () => {
+//   const occupiedRectangle = new PlayerBoard(Map()).occupiedRectangle();
+
+//   assert.equal(occupiedRectangle.width, 1);
+//   assert.equal(occupiedRectangle.height, 1);
+// });
 
 test("isPlacementAllowed: can't place on center square", () => {
   const board = new PlayerBoard(Map());
@@ -56,6 +82,32 @@ test("isPlacementAllowed: can't place on center square", () => {
     board.isPlacementAllowed(
       new PlaceTile(new Vector2(0, 0), Direction.RIGHT),
       Tile.withNumber(1)
+    )
+  );
+});
+
+test("isPlacementAllowed: would make kingdom too big (negative direction)", () => {
+  const board = new PlayerBoard(Map())
+    .withTile(new PlaceTile(new Vector2(-1, 0), Direction.LEFT), 3)
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 4);
+
+  assert.isFalse(
+    board.isPlacementAllowed(
+      new PlaceTile(new Vector2(-2, 1), Direction.LEFT),
+      Tile.withNumber(5)
+    )
+  );
+});
+
+test("isPlacementAllowed: would make kingdom too big (positive direction)", () => {
+  const board = new PlayerBoard(Map())
+    .withTile(new PlaceTile(new Vector2(-1, 0), Direction.LEFT), 3)
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 4);
+
+  assert.isFalse(
+    board.isPlacementAllowed(
+      new PlaceTile(new Vector2(2, 1), Direction.RIGHT),
+      Tile.withNumber(5)
     )
   );
 });
@@ -80,68 +132,35 @@ test("score: counts one crown", () => {
 
 test("score: two point territory", () => {
   const board = new PlayerBoard(Map())
-    .withTile(
-      new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-      19
-    )
-    .withTile(
-      new PlaceTile(new Vector2(1, 1), Direction.RIGHT),
-      14
-    );
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 19)
+    .withTile(new PlaceTile(new Vector2(1, 1), Direction.RIGHT), 14);
 
   assert.equal(board.score(), 2);
 });
 
 test("score: four point territory", () => {
   const board = new PlayerBoard(Map())
-    .withTile(
-      new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-      19
-    )
-    .withTile(
-      new PlaceTile(new Vector2(1, 1), Direction.RIGHT),
-      20
-    );
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 19)
+    .withTile(new PlaceTile(new Vector2(1, 1), Direction.RIGHT), 20);
 
   assert.equal(board.score(), 4);
 });
 
 test("score: two four point territories", () => {
   const board = new PlayerBoard(Map())
-    .withTile(
-      new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-      19
-    )
-    .withTile(
-      new PlaceTile(new Vector2(1, 1), Direction.RIGHT),
-      20
-    )
-    .withTile(
-      new PlaceTile(new Vector2(-1, 0), Direction.LEFT),
-      24
-    )
-    .withTile(
-      new PlaceTile(new Vector2(-1, 1), Direction.LEFT),
-      25
-    );
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 19)
+    .withTile(new PlaceTile(new Vector2(1, 1), Direction.RIGHT), 20)
+    .withTile(new PlaceTile(new Vector2(-1, 0), Direction.LEFT), 24)
+    .withTile(new PlaceTile(new Vector2(-1, 1), Direction.LEFT), 25);
 
   assert.equal(board.score(), 8);
 });
 
 test("score: territory not connected to center", () => {
   const board = new PlayerBoard(Map())
-    .withTile(
-      new PlaceTile(new Vector2(-1, 0), Direction.LEFT),
-      1
-    )
-    .withTile(
-      new PlaceTile(new Vector2(-4, 0), Direction.RIGHT),
-      24
-    )
-    .withTile(
-      new PlaceTile(new Vector2(-4, 1), Direction.LEFT),
-      25
-    );
+    .withTile(new PlaceTile(new Vector2(-1, 0), Direction.LEFT), 1)
+    .withTile(new PlaceTile(new Vector2(-4, 0), Direction.RIGHT), 24)
+    .withTile(new PlaceTile(new Vector2(-4, 1), Direction.LEFT), 25);
 
   assert.equal(board.score(), 4);
 });
@@ -151,27 +170,35 @@ test("score: ring shape", () => {
     //   W F F H
     // W W     H
     //   C H H H
-    .withTile(
-      new PlaceTile(new Vector2(1, 0), Direction.RIGHT),
-      1
-    )
+    .withTile(new PlaceTile(new Vector2(1, 0), Direction.RIGHT), 1)
 
-    .withTile(
-      new PlaceTile(new Vector2(3, 0), Direction.UP),
-      2
-    )
-    .withTile(
-      new PlaceTile(new Vector2(2, 2), Direction.RIGHT),
-      24
-    )
-    .withTile(
-      new PlaceTile(new Vector2(1, 2), Direction.LEFT),
-      17
-    )
-    .withTile(
-      new PlaceTile(new Vector2(0, 1), Direction.LEFT),
-      7
-    );
+    .withTile(new PlaceTile(new Vector2(3, 0), Direction.UP), 2)
+    .withTile(new PlaceTile(new Vector2(2, 2), Direction.RIGHT), 24)
+    .withTile(new PlaceTile(new Vector2(1, 2), Direction.LEFT), 17)
+    .withTile(new PlaceTile(new Vector2(0, 1), Direction.LEFT), 7);
 
   assert.equal(board.score(), 2);
+});
+
+test("extend: extends bottom left", () => {
+  const rect = new Rectangle(0, 1, 2, -1);
+  const extended = extend(rect, new Vector2(-2, -3));
+
+  assert.equal(extended.left, -2);
+  assert.equal(extended.bottom, -3);
+});
+
+test("extend: extends top right", () => {
+  const rect = new Rectangle(0, 1, 2, -1);
+  const extended = extend(rect, new Vector2(2, 2));
+
+  assert.equal(extended.top, 3);
+  assert.equal(extended.right, 3);
+});
+
+test("extend: already included: unchanged", () => {
+  const rect = new Rectangle(0, 3, 3, 0);
+  const extended = extend(rect, new Vector2(1, 1));
+
+  assert.isTrue(extended.equals(rect));
 });

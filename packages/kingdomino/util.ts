@@ -69,14 +69,6 @@ export class Rectangle implements ValueObject {
       throw new Error(`Invalid rectangle: ${left}/${top}/${right}/${bottom}`);
     }
   }
-  extend(location: Vector2) {
-    return new Rectangle(
-      Math.min(this.left, location.x),
-      Math.max(this.top, location.y),
-      Math.max(this.right, location.x),
-      Math.min(this.bottom, location.y)
-    );
-  }
 
   get height() {
     return this.top - this.bottom;

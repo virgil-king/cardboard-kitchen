@@ -1,6 +1,6 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "include": ["*.ts"],
+  "include": ["*.ts", "ui.tsx"],
   "exclude": ["*.test.ts"],
   "compilerOptions": {
     "outDir": "out",

@@ -1,0 +1,51 @@
+.boardsquare {
+  width: 36pt;
+  height: 36pt;
+  text-align: center;
+}
+
+.center {
+  background-color: white;
+}
+
+.empty {
+  background-color: white;
+}
+
+.hay {
+  background-color: gold;
+}
+
+.forest {
+  background-color: darkgreen;
+}
+
+.water {
+  background-color: royalblue;
+}
+
+.pasture {
+  background-color: lawngreen;
+}
+
+.mine {
+  background-color: dimgray;
+}
+
+.swamp {
+  background-color: tan;
+}
+
+.horizontalFlex {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.verticalFlex {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+}

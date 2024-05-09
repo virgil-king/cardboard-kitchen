@@ -4,11 +4,10 @@ import { Direction, Vector2, requireDefined } from "./util.js";
 import { Terrain, Tile } from "./tile.js";
 import { PlayerBoard } from "./board.js";
 import { KingdominoAction } from "./action.js";
-import { Agent, Player } from "game";
+import { Agent } from "game";
 import { randomBetween } from "studio-util";
 
 import { Seq, Set } from "immutable";
-import { random } from "lodash";
 
 export class RandomKingdominoAgent
   implements Agent<KingdominoState, KingdominoAction>

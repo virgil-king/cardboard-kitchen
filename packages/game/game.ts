@@ -16,14 +16,12 @@ export class Player implements ValueObject {
   }
 }
 
-// TODO add non-final score
 export class Players {
   constructor(readonly players: Player[]) {}
 }
 
 export class PlayerState {
   constructor(
-    // readonly player: Player,
     readonly score: number
   ) {}
 
@@ -57,10 +55,6 @@ export interface GameState extends JsonSerializable {
   /** Returns the current player or undefined if the game is over */
   currentPlayer: Player | undefined;
 }
-
-// class ActionState<StateT extends GameState, ActionT extends Action<StateT>> {
-//   constructor(readonly action: ActionT, readonly state: StateT) {}
-// }
 
 export class Transcript<StateT extends GameState, ActionT extends Action> {
   readonly steps: Array<[ActionT, StateT]> = new Array();

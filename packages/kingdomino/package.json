@@ -3,9 +3,9 @@
     "version": "1.0.0",
     "author": "Virgil King <virgilking@gmail.com>",
     "type": "module",
-    "main": "out/kingdomino.js",
+    "main": "out/export.js",
     "scripts": {
-        "build": "pnpm exec tsc",
+        "build": "pnpm exec tsc --jsx react",
         "clean": "rm -rf out/*",
         "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
     },
@@ -16,11 +16,15 @@
         "immutable": "5.0.0-beta.5",
         "kingdomino-proto": "workspace:*",
         "lodash": "^4.17.21",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
         "seedrandom": "^3.0.5",
         "studio-util": "workspace:^"
     },
     "devDependencies": {
         "@types/lodash": "^4.17.1",
+        "@types/react": "^18.3.1",
+        "@types/react-dom": "^18.3.0",
         "@vitest/coverage-v8": "^1.6.0",
         "protobufjs": "^7.2.6",
         "ts-proto": "^1.174.0",
