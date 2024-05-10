@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "chai": "^5.1.0",
+        "effection": "^3.0.3",
         "game": "workspace:*",
         "immer": "^10.1.1",
         "immutable": "5.0.0-beta.5",

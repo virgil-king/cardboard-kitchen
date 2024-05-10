@@ -71,4 +71,12 @@ export const tiles = [
   create(26, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
   create(27, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_HAY, 0),
   create(28, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_WATER, 0),
+  create(29, Terrain.TERRAIN_FOREST, 1, Terrain.TERRAIN_PASTURE, 0),
+  create(30, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_HAY, 0),
+  create(31, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_HAY, 0),
+  create(32, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
+  create(33, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
+  create(34, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
+  create(35, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
+  create(36, Terrain.TERRAIN_PASTURE, 1, Terrain.TERRAIN_HAY, 0),
 ];

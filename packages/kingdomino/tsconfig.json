@@ -3,6 +3,7 @@
   "include": ["*.ts", "ui.tsx"],
   "exclude": ["*.test.ts"],
   "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
     "outDir": "out",
     "composite": true
   },

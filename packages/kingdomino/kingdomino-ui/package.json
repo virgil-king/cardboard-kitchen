@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "effection": "^3.0.3",
     "game": "workspace:^",
     "kingdomino": "workspace:^",
     "next": "14.2.3",

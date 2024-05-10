@@ -1,12 +1,11 @@
 "use client";
 
 import _ from "lodash";
-import { Episode, Player, Players, runEpisode } from "game";
+import { Player, Players, generateEpisode } from "game";
 import {
   Kingdomino,
   RandomKingdominoAgent,
   KingdominoState,
-  KingdominoAction,
   Terrain,
 } from "kingdomino";
 import { playAreaRadius } from "kingdomino/out/base";
@@ -15,7 +14,8 @@ import { Vector2, requireDefined } from "kingdomino/out/util";
 import styles from "./page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createScope, Operation, sleep, Task } from "effection";
 
 const s_spacing = "9pt";
 const m_spacing = "18pt";
@@ -24,42 +24,59 @@ const l_spacing = "36pt";
 const kingdomino: Kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
-const cecile = new Player("cecile", "Cecile");
-const players = new Players([alice, bob, cecile]);
+const carol = new Player("carol", "Carol");
+const players = new Players([alice, bob, carol]);
 const randomAgent = new RandomKingdominoAgent();
 const agents = new Map([
   [alice.id, randomAgent],
   [bob.id, randomAgent],
-  [cecile.id, randomAgent],
+  [carol.id, randomAgent],
 ]);
 
-// function intersperse<T>(array: Array<T>, value: T) {
-//   return array.flatMap((item, index, array) => {
-//     if (index == array.length - 1) {
-//       return [item];
-//     }
-//     return [item, value];
-//   });
-// }
+let startCount = 0;
 
 export default function Home() {
-  const [episode, setEpisode] = useState<
-    Episode<KingdominoState, KingdominoAction> | undefined
-  >(undefined);
-  function play() {
-    setEpisode(runEpisode(kingdomino, players, agents));
+  let [gameState, setGameState] = useState<KingdominoState | undefined>();
+  let [[scope, destroyScope], _] = useState(createScope());
+  let [task, setTask] = useState<Task<void> | undefined>();
+  useEffect(() => {
+    return () => {
+      destroyScope();
+    };
+  });
+
+  function* play(): Operation<void> {
+    console.log(`play`);
+    startCount++;
+    let myStartCount = startCount;
+    for (let state of generateEpisode(kingdomino, players, agents)) {
+      console.log(`Updating state from ${myStartCount}`);
+      setGameState(state);
+      yield* sleep(10);
+    }
+  }
+
+  function start() {
+    const previousTask = task;
+    const newTask = scope.run(function* () {
+      if (previousTask != undefined) {
+        yield* previousTask.halt();
+      }
+      yield *play();
+    });
+    setTask(newTask);
   }
 
   let content: JSX.Element;
-  if (episode == undefined) {
+  if (gameState == undefined) {
     content = <></>;
   } else {
-    content = <GameComponent episode={episode} />;
+    content = <GameComponent state={gameState} />;
   }
 
   return (
     <div style={{ textAlign: "center" }}>
-      <button onClick={play} style={{ margin: s_spacing }}>
+      <button onClick={start} style={{ margin: s_spacing }}>
         Start
       </button>
       {content}
@@ -68,13 +85,17 @@ export default function Home() {
 }
 
 type GameProps = {
-  episode: Episode<KingdominoState, KingdominoAction>;
+  state: KingdominoState;
 };
 
 function GameComponent(props: GameProps) {
-  const state = props.episode.currentState;
-  const playerComponents = state?.props.players.players.map((player) => {
-    return <PlayerComponent playerState={state.requirePlayerState(player)}/>;
+  const playerComponents = props.state?.props.players.players.map((player) => {
+    return (
+      <PlayerComponent
+        key={player.id}
+        playerState={props.state.requirePlayerState(player)}
+      />
+    );
   });
   return <div className={styles.horizontalFlex}>{playerComponents}</div>;
 }
@@ -85,7 +106,7 @@ type PlayerProps = {
 
 function PlayerComponent(props: PlayerProps) {
   return (
-    <div className={styles.verticalFlex} style={{padding: s_spacing}}>
+    <div className={styles.verticalFlex} style={{ padding: s_spacing }}>
       <div style={{ textAlign: "center" }}>{props.playerState.player.name}</div>
       <div style={{ textAlign: "center" }}>
         Score: {props.playerState.gameState.score}
@@ -109,7 +130,11 @@ function BoardComponent(props: BoardProps) {
         new Vector2(column, row)
       );
       return (
-        <Square terrain={locationState.terrain} crowns={locationState.crowns} />
+        <Square
+          key={column.toString()}
+          terrain={locationState.terrain}
+          crowns={locationState.crowns}
+        />
       );
     });
     return <tr key={row}>{cells}</tr>;
@@ -126,6 +151,7 @@ function BoardComponent(props: BoardProps) {
 }
 
 type SquareProps = {
+  key: string;
   terrain: Terrain;
   crowns: number;
 };

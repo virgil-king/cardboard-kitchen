@@ -57,8 +57,8 @@ export class KingdominoState implements GameState {
     if (shuffledTileNumbers) {
       shuffledTiles = shuffledTileNumbers;
     } else {
-      const allTileNumbers = _.range(1, tiles.length + 1);
-      shuffledTiles = _.shuffle(allTileNumbers);
+      const allTileNumbers = _.range(1, tiles.length);
+      shuffledTiles = _.shuffle(allTileNumbers).slice(0, config.tileCount);
     }
     const [firstOffer, remainingTiles] = dealOffer(
       config.firstRoundTurnOrder.length,
@@ -252,6 +252,6 @@ export function dealOffer(
   }
   return [
     new TileOffers(offers),
-    remainingTiles.slice(0, remainingTiles.size - turnCount),
+    remainingTiles.slice(0, -turnCount),
   ];
 }

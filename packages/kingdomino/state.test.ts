@@ -56,12 +56,28 @@ test("newGame: two players: offer has four tiles", () => {
   assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
 
+test("newGame: two players: 20 remaining tiles", () => {
+  const players = new Players([alice, bob]);
+
+  const episode = kingdomino.newEpisode(players);
+
+  assert.equal(episode.currentState.props.remainingTiles.size, 20);
+});
+
 test("newGame: three players: offer has three tiles", () => {
   const players = new Players([alice, bob, cecile]);
 
   const episode = kingdomino.newEpisode(players);
 
   assert(episode.currentState.props.nextOffers?.offers.size == 3);
+});
+
+test("newGame: three players: 33 remaining tiles", () => {
+  const players = new Players([alice, bob, cecile]);
+
+  const episode = kingdomino.newEpisode(players);
+
+  assert.equal(episode.currentState.props.remainingTiles.size, 32);
 });
 
 test("newGame: four players: offer has four tiles", () => {
@@ -71,6 +87,14 @@ test("newGame: four players: offer has four tiles", () => {
 
   assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
+
+// test("newGame: four players: 44 remaining tiles", () => {
+//   const players = new Players([alice, bob, cecile, derek]);
+
+//   const episode = kingdomino.newEpisode(players);
+
+//   assert.equal(episode.currentState.props.remainingTiles.size, 44);
+// });
 
 test("newGame: no previous offers", () => {
   const players = new Players([alice, bob, cecile, derek]);
