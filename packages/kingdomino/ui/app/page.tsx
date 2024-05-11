@@ -25,7 +25,7 @@ const kingdomino: Kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const carol = new Player("carol", "Carol");
-const players = new Players([alice, bob, carol]);
+const players = new Players([alice, bob]);
 const randomAgent = new RandomKingdominoAgent();
 const agents = new Map([
   [alice.id, randomAgent],
@@ -52,7 +52,7 @@ export default function Home() {
     for (let state of generateEpisode(kingdomino, players, agents)) {
       console.log(`Updating state from ${myStartCount}`);
       setGameState(state);
-      yield* sleep(10);
+      yield* sleep(20);
     }
   }
 

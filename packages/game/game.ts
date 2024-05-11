@@ -111,6 +111,30 @@ export function runEpisode<StateT extends GameState, ActionT extends Action>(
   return episode;
 }
 
+export function *generateEpisode<StateT extends GameState, ActionT extends Action>(
+  game: Game<StateT, ActionT>,
+  players: Players,
+  playerIdToAgent: Map<string, Agent<StateT, ActionT>>
+) {
+  const episode = game.newEpisode(players);
+  let state = episode.currentState;
+  yield state;
+  while (!state.gameOver) {
+    const currentPlayer = state.currentPlayer;
+    if (currentPlayer == undefined) {
+      throw new Error(`Current player is undefined but game isn't over`);
+    }
+    const agent = playerIdToAgent.get(currentPlayer.id);
+    if (agent == undefined) {
+      throw new Error(`No agent for ${currentPlayer.id}`);
+    }
+    const action = agent.act(state);
+    state = episode.apply(action);
+    yield state;
+  }
+  return episode.currentState;
+}
+
 // export function unroll<T>(initialState: T, actions: Array<Endomorphism<T>>): T {
 //   return actions.reduce(
 //     (newState: T, newAction: Endomorphism<T>) => newAction.apply(newState),

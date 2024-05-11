@@ -10,7 +10,7 @@
         "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
     },
     "dependencies": {
-        "chai": "^5.1.0",
+        "chai": "^5.1.1",
         "effection": "^3.0.3",
         "game": "workspace:*",
         "immer": "^10.1.1",
@@ -27,7 +27,7 @@
         "@types/react": "^18.3.1",
         "@types/react-dom": "^18.3.0",
         "@vitest/coverage-v8": "^1.6.0",
-        "protobufjs": "^7.2.6",
+        "protobufjs": "^7.3.0",
         "ts-proto": "^1.174.0",
         "tsconfig": "workspace:*",
         "typescript": "^5.4.5",
