@@ -4,6 +4,7 @@
     "outDir": "out",
     "composite": true,
     "declaration": true,
+    "skipLibCheck": true
   },
   "include": ["*.ts"],
 }

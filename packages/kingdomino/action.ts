@@ -1,6 +1,7 @@
 import { Action, Player } from "game";
 
 import { ClaimTile, PlaceTile } from "./base.js";
+import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 
 export enum ActionCase {
   CLAIM,
@@ -26,6 +27,9 @@ export type ActionData = Claim | Place | Discard;
 
 export class KingdominoAction implements Action {
   private constructor(readonly player: Player, readonly data: ActionData) {}
+  asTensor(): Tensor<Rank> {
+    throw new Error("Method not implemented.");
+  }
 
   static claimTile(player: Player, claimTile: ClaimTile) {
     return new KingdominoAction(player, {

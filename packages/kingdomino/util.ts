@@ -100,12 +100,3 @@ export class Rectangle implements ValueObject {
 //   }
 // }
 
-export function requireDefined<T>(
-  val: T,
-  message: string = "Unexpected undefined value"
-): NonNullable<T> {
-  if (val == undefined) {
-    throw new Error(message);
-  }
-  return val;
-}

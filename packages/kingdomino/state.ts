@@ -13,6 +13,7 @@ import { Vector2, requireDefined } from "./util.js";
 import { List, Map, Set } from "immutable";
 import _, { shuffle } from "lodash";
 import { PlayerBoard } from "./board.js";
+import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
 
 export class KingdominoPlayerState {
   constructor(
@@ -75,6 +76,9 @@ export class KingdominoState implements GameState {
   }
 
   constructor(readonly props: Props) {}
+  asTensor(): Tensor<Rank> {
+    throw new Error("Method not implemented.");
+  }
 
   get gameOver(): boolean {
     return this.nextAction == undefined;

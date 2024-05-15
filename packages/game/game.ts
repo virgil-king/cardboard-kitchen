@@ -1,7 +1,8 @@
 import { combineHashes } from "studio-util";
 
-import { hash, List, ValueObject } from "immutable";
+import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
+import tf from "@tensorflow/tfjs-node-gpu";
 
 export class Player implements ValueObject {
   constructor(readonly id: string, readonly name: string) {}
@@ -50,12 +51,43 @@ export class PlayerState implements ValueObject {
   }
 }
 
+export class GameResult {
+  playerIdOrder: Array<string>;
+  constructor(playerIdToState: Map<string, PlayerState>) {
+    this.playerIdOrder = playerIdToState
+      .entrySeq()
+      .sort(([id0, state0], [id1, state1]) => state1.score - state0.score)
+      .map(([id, _]) => id)
+      .toArray();
+  }
+  position(playerId: string) {
+    const result = this.playerIdOrder.indexOf(playerId);
+    if (result == undefined) {
+      throw new Error(`Unknown player ID ${playerId}`);
+    }
+    return result;
+  }
+  /**
+   * Returns the number of players who {@link playerId} defeated
+   */
+  value(playerId: string) {
+    return this.playerIdOrder.length - 1 - this.position(playerId);
+  }
+}
+
+/** A unary function from some type to the same type */
+// export interface Endomorphism<T> {
+//   apply(value: T): T;
+// }
+
 export interface JsonSerializable {
   toJson(): string;
 }
 
 // TODO add vector-able
-export interface Action extends JsonSerializable {}
+export interface Action extends JsonSerializable, ValueObject {
+  asTensor(): tf.Tensor;
+}
 
 export interface Agent<StateT extends GameState, ActionT extends Action> {
   act(state: StateT): ActionT;
@@ -67,8 +99,10 @@ export interface GameState extends JsonSerializable {
   gameOver: boolean;
   /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
   playerState(playerId: String): PlayerState;
+  result: GameResult | undefined;
   /** Returns the current player or undefined if the game is over */
   currentPlayer: Player | undefined;
+  asTensor(): tf.Tensor;
 }
 
 export class Transcript<StateT extends GameState, ActionT extends Action> {
@@ -86,6 +120,16 @@ export interface Episode<StateT extends GameState, ActionT extends Action> {
 export interface Game<StateT extends GameState, ActionT extends Action> {
   playerCounts: number[];
   newEpisode(players: Players): Episode<StateT, ActionT>;
+  tensorToAction(tensor: tf.Tensor): ActionT;
+}
+
+/** Map from player ID to expected value at {@link state} */
+export type PlayerExpectedValues = Map<string, number>;
+
+export interface Model<StateT extends GameState, ActionT extends Action> {
+  /** Map from action to expected value at {@link state} */
+  policy(state: StateT): Map<ActionT, number>;
+  value(state: StateT): PlayerExpectedValues;
 }
 
 export function unroll<StateT extends GameState, ActionT extends Action>(

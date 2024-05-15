@@ -10,6 +10,7 @@
         "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
     },
     "dependencies": {
+        "@tensorflow/tfjs-node-gpu": "^4.19.0",
         "chai": "^5.1.1",
         "effection": "^3.0.3",
         "game": "workspace:*",
