@@ -35,7 +35,6 @@ export enum NextAction {
 }
 
 export type Props = {
-  readonly configuration: Configuration;
   readonly players: Players;
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
@@ -55,10 +54,9 @@ export class KingdominoState implements GameState {
   static newGame(
     players: Players
   ): KingdominoState {
-    const playerCount = players.players.length;
+    const playerCount = players.players.count();
     const config = getConfiguration(playerCount);
     return new KingdominoState({
-      configuration: config,
       players: players,
       playerIdToState: Map(
         players.players.map((player) => [
@@ -70,7 +68,7 @@ export class KingdominoState implements GameState {
           ),
         ])
       ),
-      currentPlayer: players.players[0],
+      currentPlayer: players.players.get(0),
       nextAction: NextAction.CLAIM,
       drawnTileNumbers: Set(),
     });
@@ -242,14 +240,14 @@ export class KingdominoState implements GameState {
  * Returns an offer consisting of `turnCount` tiles from the end of
  * `tileNumbers` and the new set of remaining tiles.
  */
-export function dealOffer(
-  turnCount: number,
-  remainingTiles: List<number>
-): [TileOffers, List<number>] {
-  let offers = List<TileOffer>();
-  for (let i = 0; i < turnCount; i++) {
-    const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
-    offers = offers.push(new TileOffer(tileNumber));
-  }
-  return [new TileOffers(offers), remainingTiles.slice(0, -turnCount)];
-}
+// export function dealOffer(
+//   turnCount: number,
+//   remainingTiles: List<number>
+// ): [TileOffers, List<number>] {
+//   let offers = List<TileOffer>();
+//   for (let i = 0; i < turnCount; i++) {
+//     const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
+//     offers = offers.push(new TileOffer(tileNumber));
+//   }
+//   return [new TileOffers(offers), remainingTiles.slice(0, -turnCount)];
+// }

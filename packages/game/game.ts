@@ -1,6 +1,6 @@
 import { combineHashes } from "studio-util";
 
-import { hash, ValueObject } from "immutable";
+import { hash, List, ValueObject } from "immutable";
 import _ from "lodash";
 
 export class Player implements ValueObject {
@@ -12,28 +12,43 @@ export class Player implements ValueObject {
     return this.id == other.id && this.name == other.name;
   }
   hashCode(): number {
-    return combineHashes([hash(this.id), hash(this.name)]);
+    return combineHashes(hash(this.id), hash(this.name));
   }
 }
 
-export class Players {
-  constructor(readonly players: Player[]) {}
+export class Players implements ValueObject {
+  players: List<Player>;
+  constructor(...playerArray: Array<Player>) {
+    this.players = List(playerArray);
+  }
+  equals(other: unknown): boolean {
+    if (!(other instanceof Players)) {
+      return false;
+    }
+    return this.players.equals(other.players);
+  }
+  hashCode(): number {
+    return this.players.hashCode();
+  }
 }
 
-export class PlayerState {
-  constructor(
-    readonly score: number
-  ) {}
+export class PlayerState implements ValueObject {
+  constructor(readonly score: number) {}
 
   withScore(score: number): PlayerState {
     return new PlayerState(score);
   }
-}
 
-/** A unary function from some type to the same type */
-// export interface Endomorphism<T> {
-//   apply(value: T): T;
-// }
+  equals(other: unknown): boolean {
+    if (!(other instanceof PlayerState)) {
+      return false;
+    }
+    return this.score == other.score;
+  }
+  hashCode(): number {
+    return hash(this.score);
+  }
+}
 
 export interface JsonSerializable {
   toJson(): string;
@@ -86,7 +101,7 @@ export function unroll<StateT extends GameState, ActionT extends Action>(
 
 /**
  * Runs a new episode to completion using {@link playerIdToAgent} to act for {@link players}.
- * 
+ *
  * @returns the episode in completed state
  */
 export function runEpisode<StateT extends GameState, ActionT extends Action>(
@@ -111,7 +126,10 @@ export function runEpisode<StateT extends GameState, ActionT extends Action>(
   return episode;
 }
 
-export function *generateEpisode<StateT extends GameState, ActionT extends Action>(
+export function* generateEpisode<
+  StateT extends GameState,
+  ActionT extends Action
+>(
   game: Game<StateT, ActionT>,
   players: Players,
   playerIdToAgent: Map<string, Agent<StateT, ActionT>>

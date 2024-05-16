@@ -7,7 +7,7 @@ import { Task, createScope, sleep } from "effection";
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
-const players = new Players([alice, bob]);
+const players = new Players(alice, bob);
 const randomAgent = new RandomKingdominoAgent();
 const agents = new Map([
   [alice.id, randomAgent],

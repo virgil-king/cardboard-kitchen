@@ -68,13 +68,6 @@ test("occupiedRectangle: empty board: returns rectangle around center tile", () 
   );
 });
 
-// test("occupiedRectangle: empty board: dimensions are one", () => {
-//   const occupiedRectangle = new PlayerBoard(Map()).occupiedRectangle();
-
-//   assert.equal(occupiedRectangle.width, 1);
-//   assert.equal(occupiedRectangle.height, 1);
-// });
-
 test("isPlacementAllowed: can't place on center square", () => {
   const board = new PlayerBoard(Map());
 
@@ -201,4 +194,26 @@ test("extend: already included: unchanged", () => {
   const extended = extend(rect, new Vector2(1, 1));
 
   assert.isTrue(extended.equals(rect));
+});
+
+test("equals: equal: returns true", () => {
+  const a = new PlayerBoard(
+    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+  );
+  const b = new PlayerBoard(
+    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+  );
+
+  assert.isTrue(a.equals(b));
+});
+
+test("equals: not equal: returns false", () => {
+  const a = new PlayerBoard(
+    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+  );
+  const b = new PlayerBoard(
+    Map([[new Vector2(3, 2), new LocationState(2, 0)]])
+  );
+
+  assert.isFalse(a.equals(b));
 });

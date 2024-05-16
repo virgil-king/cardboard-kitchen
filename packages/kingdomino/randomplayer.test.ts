@@ -9,7 +9,7 @@ import { assert } from "chai";
 import { Kingdomino } from "./kingdomino.js";
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
-import { Map, Set } from "immutable";
+import { List, Map, Set } from "immutable";
 import { Direction, Vector2, requireDefined } from "./util.js";
 import {
   ClaimTile,
@@ -70,7 +70,7 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
 });
 
 test("possiblePlacements: returns all options for first tile", () => {
-  const episode = kingdomino.newEpisode(new Players([alice, bob, cecile]));
+  const episode = kingdomino.newEpisode(new Players(alice, bob, cecile));
   unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);
 
   const placements = Set(possiblePlacements(episode.currentState));
@@ -114,7 +114,7 @@ test("possiblePlacements: does not return out of bounds placements", () => {
   // Arrange the tiles so that tiles with the same offer index in the first
   // two rounds have matching terrain
   const episode = kingdomino.newEpisode(
-    new Players([alice, bob, cecile]),
+    new Players(alice, bob, cecile),
     [1, 3, 7, 2, 4, 8, 10, 11, 12].reverse()
   );
   unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);

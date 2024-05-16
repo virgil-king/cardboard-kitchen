@@ -17,13 +17,25 @@ export const playAreaRadius = Math.floor(playAreaSize / 2);
 export const centerX = 0;
 export const centerY = centerX;
 
-export class LocationState {
+export class LocationState implements ValueObject {
   constructor(
     readonly tileNumber: number,
     readonly tileLocationIndex: number
   ) {}
   properties(): LocationProperties {
     return Tile.withNumber(this.tileNumber).properties[this.tileLocationIndex];
+  }
+  equals(other: unknown): boolean {
+    if (!(other instanceof LocationState)) {
+      return false;
+    }
+    return (
+      this.tileNumber == other.tileNumber &&
+      this.tileLocationIndex == other.tileLocationIndex
+    );
+  }
+  hashCode(): number {
+    return combineHashes(this.tileNumber, this.tileLocationIndex);
   }
 }
 
@@ -137,21 +149,11 @@ export function* adjacentExternalLocations(
   for (const adjacentLocation of neighbors(location)) {
     if (
       !_.isEqual(adjacentLocation, otherSquareLocation) // &&
-      // isInBounds(adjacentLocation)
     ) {
       yield adjacentLocation;
     }
   }
 }
-
-// export function isInBounds(location: Vector2): boolean {
-//   return (
-//     location.x >= 0 &&
-//     location.x < playAreaSize &&
-//     location.y >= 0 &&
-//     location.y < playAreaSize
-//   );
-// }
 
 export function run<T>(f: () => T) {
   return f();
@@ -194,13 +196,9 @@ export class PlaceTile implements ValueObject {
     );
   }
   hashCode(): number {
-    return combineHashes([
+    return combineHashes(
       this.location.hashCode(),
-      this.direction.offset.hashCode(),
-    ]);
+      this.direction.offset.hashCode()
+    );
   }
 }
-
-// export class DiscardTile {
-//   static instance = new DiscardTile();
-// }

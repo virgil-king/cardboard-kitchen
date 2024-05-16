@@ -19,7 +19,7 @@ const cecile = new Player("cecile", "Cecile");
 const derek = new Player("derek", "Derek");
 
 test("newGame: board has castle in center", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -32,7 +32,7 @@ test("newGame: board has castle in center", () => {
 });
 
 test("newGame: current player is first in list", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -43,7 +43,7 @@ test("newGame: current player is first in list", () => {
 });
 
 test("newGame: previous offers is undefined", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -51,7 +51,7 @@ test("newGame: previous offers is undefined", () => {
 });
 
 test("newGame: two players: offer has four tiles", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -59,7 +59,7 @@ test("newGame: two players: offer has four tiles", () => {
 });
 
 test("newGame: three players: offer has three tiles", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -67,7 +67,7 @@ test("newGame: three players: offer has three tiles", () => {
 });
 
 test("newGame: four players: offer has four tiles", () => {
-  const players = new Players([alice, bob, cecile, derek]);
+  const players = new Players(alice, bob, cecile, derek);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -75,7 +75,7 @@ test("newGame: four players: offer has four tiles", () => {
 });
 
 test("newGame: no previous offers", () => {
-  const players = new Players([alice, bob, cecile, derek]);
+  const players = new Players(alice, bob, cecile, derek);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -83,7 +83,7 @@ test("newGame: no previous offers", () => {
 });
 
 test("newGame: next action is claim", () => {
-  const players = new Players([alice, bob, cecile, derek]);
+  const players = new Players(alice, bob, cecile, derek);
 
   const episode = kingdomino.newEpisode(players);
 
@@ -91,7 +91,7 @@ test("newGame: next action is claim", () => {
 });
 
 test("withNewNextOffers: adds new offer tiles to drawnTileNumbers", () => {
-  const players = new Players([alice, bob, cecile, derek]);
+  const players = new Players(alice, bob, cecile, derek);
 
   const state = KingdominoState.newGame(players).withNewNextOffers();
 
@@ -104,7 +104,7 @@ test("withNewNextOffers: adds new offer tiles to drawnTileNumbers", () => {
 });
 
 test("currentPlayer: after one action: returns second player", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
   const episode = kingdomino.newEpisode(players);
 
   episode.apply(claim(alice, 1));
@@ -113,7 +113,7 @@ test("currentPlayer: after one action: returns second player", () => {
 });
 
 test("currentPlayer: second round: returns player with first claim", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players);
   unroll(episode, [claim(alice, 2), claim(bob, 1), claim(cecile, 0)]);
 
@@ -121,7 +121,7 @@ test("currentPlayer: second round: returns player with first claim", () => {
 });
 
 test("claimTile: first round: next action is claim", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players);
   unroll(episode, [claim(alice, 2)]);
 
@@ -129,7 +129,7 @@ test("claimTile: first round: next action is claim", () => {
 });
 
 test("claimTile: already claimed: throws", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players);
   const state = unroll(episode, [claim(alice, 2)]);
 
@@ -139,7 +139,7 @@ test("claimTile: already claimed: throws", () => {
 });
 
 test("claimTile: second round: next action is place", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players);
   unroll(episode, [
     claim(alice, 2),
@@ -156,7 +156,7 @@ test("claimTile: second round: next action is place", () => {
 });
 
 test("placeTile: end of game: next action is undefined", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players, _.range(1, 4));
   unroll(episode, [
     claim(alice, 0),

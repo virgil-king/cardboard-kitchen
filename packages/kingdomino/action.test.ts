@@ -16,7 +16,7 @@ const cecile = new Player("cecile", "Cecile");
 const derek = new Player("derek", "Derek");
 
 test("apply: includes claim: adds claim", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
   const episode = kingdomino.newEpisode(players);
 
   episode.apply(claim(alice, 1));
@@ -28,7 +28,7 @@ test("apply: includes claim: adds claim", () => {
 });
 
 test("apply: includes place on first round: throws", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
   const episode = kingdomino.newEpisode(players);
 
   expect(() =>
@@ -42,7 +42,7 @@ test("apply: includes place on first round: throws", () => {
 });
 
 test("apply: place before claim in non-final round: throws", () => {
-  const players = new Players([alice, bob]);
+  const players = new Players(alice, bob);
   const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
@@ -59,7 +59,7 @@ test("apply: place before claim in non-final round: throws", () => {
 });
 
 test("apply: placement out of bounds: throws", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
@@ -77,7 +77,7 @@ test("apply: placement out of bounds: throws", () => {
 });
 
 test("apply: no matching terrain: throws", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = unroll(kingdomino.newEpisode(players), [
     claim(alice, 1),
     claim(bob, 0),
@@ -95,7 +95,7 @@ test("apply: no matching terrain: throws", () => {
 });
 
 test("apply: updates player board", () => {
-  const players = new Players([alice, bob, cecile]);
+  const players = new Players(alice, bob, cecile);
   const episode = kingdomino.newEpisode(players);
   // Capture the first offer tile here since that's the one we'll place later
   const tileNumber = requireDefined(

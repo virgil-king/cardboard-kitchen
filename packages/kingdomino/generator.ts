@@ -63,7 +63,7 @@ export class KingdominoEpisode
 
     // First round
     for (const playerIndex of state.configuration().firstRoundTurnOrder) {
-      const player = state.props.players.players[playerIndex];
+      const player = requireDefined(state.props.players.players.get(playerIndex));
       state = state.withCurrentPlayer(player);
       const action = yield state;
       state = this.handleClaim(state, player, action);

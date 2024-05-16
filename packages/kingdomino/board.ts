@@ -1,4 +1,4 @@
-import { Map, Range, Seq, Set } from "immutable";
+import { Map, Range, Seq, Set, ValueObject } from "immutable";
 import {
   LocationState,
   centerX,
@@ -17,7 +17,7 @@ import { Vector2, Rectangle, Direction } from "./util.js";
  * Coordinates in this class refer to lines between tiles. A tile at [x,y]
  * has its bottom left corner at [x,y].
  */
-export class PlayerBoard {
+export class PlayerBoard implements ValueObject {
   constructor(readonly locationStates: Map<Vector2, LocationState>) {}
 
   getLocationState(location: Vector2): LocationProperties {
@@ -240,6 +240,16 @@ export class PlayerBoard {
       scored: scored,
       queue: queue,
     };
+  }
+
+  equals(other: unknown): boolean {
+    if (!(other instanceof PlayerBoard)) {
+      return false;
+    }
+    return this.locationStates.equals(other.locationStates);
+  }
+  hashCode(): number {
+    return this.locationStates.hashCode();
   }
 }
 

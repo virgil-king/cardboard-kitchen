@@ -25,7 +25,7 @@ const kingdomino: Kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const carol = new Player("carol", "Carol");
-const players = new Players([alice, bob]);
+const players = new Players(alice, bob);
 const randomAgent = new RandomKingdominoAgent();
 const agents = new Map([
   [alice.id, randomAgent],

@@ -1,6 +1,6 @@
 import { combineHashes } from "studio-util";
 
-import { Seq, ValueObject } from "immutable";
+import { Seq, ValueObject, hash } from "immutable";
 
 export class Vector2 implements ValueObject {
   constructor(readonly x: number, readonly y: number) {}
@@ -23,7 +23,7 @@ export class Vector2 implements ValueObject {
   }
 
   hashCode(): number {
-    return combineHashes([(this.x, this.y)]);
+    return combineHashes(hash(this.x), hash(this.y));
   }
 }
 
@@ -90,7 +90,7 @@ export class Rectangle implements ValueObject {
     );
   }
   hashCode(): number {
-    return combineHashes([this.left, this.top, this.right, this.bottom]);
+    return combineHashes(hash(this.left), hash(this.top), hash(this.right), hash(this.bottom));
   }
 }
 
