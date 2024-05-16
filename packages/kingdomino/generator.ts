@@ -25,11 +25,41 @@ export class KingdominoEpisode
     return result;
   }
 
+  /**
+   * @param shuffledTileNumbers The list of tile numbers to use for the whole game
+   */
   *play(
     players: Players,
     shuffledTileNumbers?: Array<number>
   ): Generator<KingdominoState, KingdominoState, KingdominoAction> {
-    let state = KingdominoState.newGame(players, shuffledTileNumbers);
+    let state = KingdominoState.newGame(players);
+
+    const nextOffers = function (): Array<number> | undefined {
+      if (shuffledTileNumbers != undefined) {
+        const result = shuffledTileNumbers.slice(
+          -state.configuration().turnsPerRound
+        );
+        shuffledTileNumbers = shuffledTileNumbers.slice(
+          0,
+          -state.configuration().turnsPerRound
+        );
+        return result;
+      } else {
+        return undefined;
+      }
+    };
+
+    const canDealNewOffer = function (): boolean {
+      if (shuffledTileNumbers != undefined) {
+        return (
+          shuffledTileNumbers.length >= state.configuration().turnsPerRound
+        );
+      } else {
+        return state.canDealNewOffer();
+      }
+    };
+
+    state = state.withNewNextOffers(nextOffers());
 
     // First round
     for (const playerIndex of state.configuration().firstRoundTurnOrder) {
@@ -40,10 +70,10 @@ export class KingdominoEpisode
     }
 
     // Non-final rounds
-    while (!state.props.remainingTiles.isEmpty()) {
+    while (canDealNewOffer()) {
       state = state
         .withPreviousOffers(requireDefined(state.props.nextOffers))
-        .withNewNextOffers();
+        .withNewNextOffers(nextOffers());
 
       for (const [offerIndex, offer] of requireDefined(
         state.props.previousOffers?.offers
@@ -102,7 +132,9 @@ export class KingdominoEpisode
     switch (actionData.case) {
       case ActionCase.PLACE:
         state = state.withPlacement(player, actionData.data, tileNumber);
-        const width = state.requirePlayerState(player).board.occupiedRectangle().width;
+        const width = state
+          .requirePlayerState(player)
+          .board.occupiedRectangle().width;
         if (width > maxKingdomSize) {
           throw new Error(`Kingdom became too wide (${width})`);
         }

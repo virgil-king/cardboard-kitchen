@@ -43,7 +43,7 @@ export class Configuration {
     readonly firstRoundTurnOrder: number[]
   ) {}
 
-  turnCount(): number {
+  get turnsPerRound(): number {
     return this.firstRoundTurnOrder.length;
   }
 }

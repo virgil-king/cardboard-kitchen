@@ -1,14 +1,16 @@
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
-import { Direction, Vector2 } from "./util.js";
+import { Direction, Vector2, requireDefined } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
-import { Terrain, Tile } from "./tile.js";
+import { Terrain } from "./tile.js";
 import { ClaimTile, PlaceTile, centerX, centerY } from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
+import { RandomKingdominoAgent } from "./randomplayer.js";
+import { Set } from "immutable";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -56,28 +58,12 @@ test("newGame: two players: offer has four tiles", () => {
   assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
 
-test("newGame: two players: 20 remaining tiles", () => {
-  const players = new Players([alice, bob]);
-
-  const episode = kingdomino.newEpisode(players);
-
-  assert.equal(episode.currentState.props.remainingTiles.size, 20);
-});
-
 test("newGame: three players: offer has three tiles", () => {
   const players = new Players([alice, bob, cecile]);
 
   const episode = kingdomino.newEpisode(players);
 
   assert(episode.currentState.props.nextOffers?.offers.size == 3);
-});
-
-test("newGame: three players: 33 remaining tiles", () => {
-  const players = new Players([alice, bob, cecile]);
-
-  const episode = kingdomino.newEpisode(players);
-
-  assert.equal(episode.currentState.props.remainingTiles.size, 32);
 });
 
 test("newGame: four players: offer has four tiles", () => {
@@ -87,14 +73,6 @@ test("newGame: four players: offer has four tiles", () => {
 
   assert(episode.currentState.props.nextOffers?.offers.size == 4);
 });
-
-// test("newGame: four players: 44 remaining tiles", () => {
-//   const players = new Players([alice, bob, cecile, derek]);
-
-//   const episode = kingdomino.newEpisode(players);
-
-//   assert.equal(episode.currentState.props.remainingTiles.size, 44);
-// });
 
 test("newGame: no previous offers", () => {
   const players = new Players([alice, bob, cecile, derek]);
@@ -112,6 +90,19 @@ test("newGame: next action is claim", () => {
   assert.equal(episode.currentState.nextAction, NextAction.CLAIM);
 });
 
+test("withNewNextOffers: adds new offer tiles to drawnTileNumbers", () => {
+  const players = new Players([alice, bob, cecile, derek]);
+
+  const state = KingdominoState.newGame(players).withNewNextOffers();
+
+  assert.equal(state.props.drawnTileNumbers.size, 4);
+  for (const offer of requireDefined(state.props.nextOffers).offers) {
+    assert.isTrue(
+      state.props.drawnTileNumbers.contains(requireDefined(offer.tileNumber))
+    );
+  }
+});
+
 test("currentPlayer: after one action: returns second player", () => {
   const players = new Players([alice, bob]);
   const episode = kingdomino.newEpisode(players);
@@ -126,7 +117,6 @@ test("currentPlayer: second round: returns player with first claim", () => {
   const episode = kingdomino.newEpisode(players);
   unroll(episode, [claim(alice, 2), claim(bob, 1), claim(cecile, 0)]);
 
-  // console.log(`Next action is ${after.nextAction}`);
   assert.equal(episode.currentState.currentPlayer, cecile);
 });
 
@@ -143,7 +133,9 @@ test("claimTile: already claimed: throws", () => {
   const episode = kingdomino.newEpisode(players);
   const state = unroll(episode, [claim(alice, 2)]);
 
-  assert.throws(() => {state.apply(claim(bob, 2))});
+  assert.throws(() => {
+    state.apply(claim(bob, 2));
+  });
 });
 
 test("claimTile: second round: next action is place", () => {
@@ -185,16 +177,6 @@ test("placeTile: end of game: next action is undefined", () => {
   ]);
 
   assert.equal(episode.currentState.nextAction, undefined);
-});
-
-test("withNewNextOffers: removes offered tiles from remaining tiles", () => {
-  const players = new Players([alice, bob, cecile]);
-  let state = KingdominoState.newGame(
-    players,
-    [1, 2, 3, 4, 5, 6]
-  ).withNewNextOffers();
-
-  assert.equal(state.props.remainingTiles.count(), 0);
 });
 
 function claim(player: Player, offerIndex: number) {

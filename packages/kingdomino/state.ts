@@ -1,5 +1,5 @@
 import { GameState, Player, PlayerState, Players } from "game";
-import { LocationProperties, Tile, tiles } from "./tile.js";
+import { LocationProperties, Tile, tileNumbersSet } from "./tile.js";
 import {
   ClaimTile,
   Configuration,
@@ -10,8 +10,8 @@ import {
 } from "./base.js";
 import { Vector2, requireDefined } from "./util.js";
 
-import { List, Map } from "immutable";
-import _ from "lodash";
+import { List, Map, Set } from "immutable";
+import _, { shuffle } from "lodash";
 import { PlayerBoard } from "./board.js";
 
 export class KingdominoPlayerState {
@@ -21,7 +21,11 @@ export class KingdominoPlayerState {
     readonly board: PlayerBoard
   ) {}
   withBoard(board: PlayerBoard): KingdominoPlayerState {
-    return new KingdominoPlayerState(this.player, this.gameState.withScore(board.score()), board);
+    return new KingdominoPlayerState(
+      this.player,
+      this.gameState.withScore(board.score()),
+      board
+    );
   }
 }
 
@@ -36,7 +40,8 @@ export type Props = {
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
   readonly nextAction?: NextAction;
-  readonly remainingTiles: List<number>;
+  /** Tiles that have been drawn from the tile supply */
+  readonly drawnTileNumbers: Set<number>;
   readonly previousOffers?: TileOffers;
   readonly nextOffers?: TileOffers;
 };
@@ -48,22 +53,10 @@ export type Props = {
  */
 export class KingdominoState implements GameState {
   static newGame(
-    players: Players,
-    shuffledTileNumbers?: Array<number>
+    players: Players
   ): KingdominoState {
     const playerCount = players.players.length;
     const config = getConfiguration(playerCount);
-    let shuffledTiles: Array<number>;
-    if (shuffledTileNumbers) {
-      shuffledTiles = shuffledTileNumbers;
-    } else {
-      const allTileNumbers = _.range(1, tiles.length);
-      shuffledTiles = _.shuffle(allTileNumbers).slice(0, config.tileCount);
-    }
-    const [firstOffer, remainingTiles] = dealOffer(
-      config.firstRoundTurnOrder.length,
-      List(shuffledTiles)
-    );
     return new KingdominoState({
       configuration: config,
       players: players,
@@ -79,8 +72,7 @@ export class KingdominoState implements GameState {
       ),
       currentPlayer: players.players[0],
       nextAction: NextAction.CLAIM,
-      nextOffers: firstOffer,
-      remainingTiles: remainingTiles,
+      drawnTileNumbers: Set(),
     });
   }
 
@@ -189,7 +181,6 @@ export class KingdominoState implements GameState {
     tileNumber: number
   ): KingdominoState {
     const tile = Tile.withNumber(tileNumber);
-    // const currentPlayer = requireDefined(this.props.currentPlayer);
     const playerState = requireDefined(
       this.props.playerIdToState.get(player.id)
     );
@@ -201,11 +192,7 @@ export class KingdominoState implements GameState {
     }
 
     // Update the board
-    let board = currentPlayerBoard.withTile(
-      placement,
-      tileNumber
-    );
-    // const score = board.score();
+    let board = currentPlayerBoard.withTile(placement, tileNumber);
     const playerIdToState = this.props.playerIdToState.set(
       player.id,
       playerState.withBoard(board)
@@ -221,19 +208,33 @@ export class KingdominoState implements GameState {
   }
 
   /**
-   * Returns a copy with a new set of offers removed from
+   * Returns a copy with new offers
    */
-  withNewNextOffers(): KingdominoState {
-    const turnCount = this.configuration().turnCount();
-    let [offers, remainingTiles] = dealOffer(
-      turnCount,
-      this.props.remainingTiles
+  withNewNextOffers(
+    tileNumbers: Array<number> | undefined = undefined
+  ): KingdominoState {
+    const turnCount = this.configuration().turnsPerRound;
+    if (tileNumbers == undefined) {
+      const remainingTiles = shuffle(
+        tileNumbersSet.subtract(this.props.drawnTileNumbers).toArray()
+      );
+      tileNumbers = remainingTiles.slice(0, this.configuration().turnsPerRound);
+    }
+    const offers = new TileOffers(
+      List(tileNumbers.map((tileNumber) => new TileOffer(tileNumber)))
     );
     return new KingdominoState({
       ...this.props,
       nextOffers: offers,
-      remainingTiles: remainingTiles,
+      drawnTileNumbers: this.props.drawnTileNumbers.union(tileNumbers),
     });
+  }
+
+  canDealNewOffer(): boolean {
+    const config = this.configuration();
+    const remainingTileCount =
+      config.tileCount - this.props.drawnTileNumbers.size;
+    return remainingTileCount >= config.turnsPerRound;
   }
 }
 
@@ -250,8 +251,5 @@ export function dealOffer(
     const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
     offers = offers.push(new TileOffer(tileNumber));
   }
-  return [
-    new TileOffers(offers),
-    remainingTiles.slice(0, -turnCount),
-  ];
+  return [new TileOffers(offers), remainingTiles.slice(0, -turnCount)];
 }

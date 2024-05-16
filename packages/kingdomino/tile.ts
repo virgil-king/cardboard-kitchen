@@ -1,3 +1,5 @@
+import { Set } from "immutable";
+
 export enum Terrain {
   TERRAIN_EMPTY,
   TERRAIN_CENTER,
@@ -80,3 +82,5 @@ export const tiles = [
   create(35, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
   create(36, Terrain.TERRAIN_PASTURE, 1, Terrain.TERRAIN_HAY, 0),
 ];
+
+export const tileNumbersSet = Set(tiles.map(tile => tile.number));
