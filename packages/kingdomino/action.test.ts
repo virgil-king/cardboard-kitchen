@@ -1,7 +1,7 @@
 import { Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
-import { Direction, Vector2, requireDefined } from "./util.js";
+import { Direction, Vector2 } from "./util.js";
 import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";

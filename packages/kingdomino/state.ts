@@ -36,7 +36,7 @@ export enum NextAction {
 }
 
 export type Props = {
-  readonly players: Players;
+  // readonly players: Players;
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
   readonly nextAction?: NextAction;
@@ -58,7 +58,7 @@ export class KingdominoState implements GameState {
     const playerCount = players.players.count();
     const config = getConfiguration(playerCount);
     return new KingdominoState({
-      players: players,
+      // players: players,
       playerIdToState: Map(
         players.players.map((player) => [
           player.id,
