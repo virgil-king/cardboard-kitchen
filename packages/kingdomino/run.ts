@@ -1,4 +1,4 @@
-import { Player, Players, runEpisode } from "game";
+import { Player, Players } from "game";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import _ from "lodash";
@@ -16,7 +16,7 @@ const agents = new Map([
 const start = Date.now();
 const episodeCount = 100;
 for (let i = 0; i < episodeCount; i++) {
-  const episode = runEpisode(kingdomino, players, agents);
+  // const episode = runEpisode(kingdomino, players, agents);
   // console.log(
   //   JSON.stringify(episode.currentState.props.playerIdToState, undefined, 2)
   // );

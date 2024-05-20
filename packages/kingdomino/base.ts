@@ -4,7 +4,7 @@ import { LocationProperties, Terrain, Tile } from "./tile.js";
 
 import { List, Map, Range, Seq, ValueObject } from "immutable";
 import _ from "lodash";
-import { combineHashes } from "studio-util";
+import { combineHashes, requireDefined } from "studio-util";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -49,30 +49,46 @@ export const centerLocationProperties: LocationProperties = {
   crowns: 0,
 };
 
-export class Configuration {
+export class KingdominoConfiguration {
+  readonly tileCount: number;
+  /** Indexes are turn indexes and values are player indexes */
+  readonly firstRoundTurnOrder: Array<number>;
   constructor(
-    readonly tileCount: number,
-    readonly firstRoundTurnOrder: number[]
-  ) {}
+    readonly playerCount: number,
+    readonly shuffledTileNumbers: Array<number> | undefined = undefined
+  ) {
+    ({
+      tileCount: this.tileCount,
+      firstRoundTurnOrder: this.firstRoundTurnOrder,
+    } = requireDefined(playerCountToConfiguration.get(playerCount)));
+  }
 
   get turnsPerRound(): number {
     return this.firstRoundTurnOrder.length;
   }
 }
 
-export const playerCountToConfiguration = Map([
-  [2, new Configuration(24, [0, 1, 0, 1])],
-  [3, new Configuration(36, [0, 1, 2])],
-  [4, new Configuration(48, [0, 1, 2, 3])],
+type PlayerDependentConfiguration = {
+  tileCount: number;
+  firstRoundTurnOrder: Array<number>;
+};
+
+export const playerCountToConfiguration = Map<
+  number,
+  PlayerDependentConfiguration
+>([
+  [2, { tileCount: 24, firstRoundTurnOrder: [0, 1, 0, 1] }],
+  [3, { tileCount: 36, firstRoundTurnOrder: [0, 1, 2] }],
+  [4, { tileCount: 48, firstRoundTurnOrder: [0, 1, 2, 3] }],
 ]);
 
-export function getConfiguration(playerCount: number): Configuration {
-  const result = playerCountToConfiguration.get(playerCount);
-  if (result == undefined) {
-    throw new Error(`Invalid player count ${playerCount}`);
-  }
-  return result;
-}
+// export function getConfiguration(playerCount: number): Configuration {
+//   const result = playerCountToConfiguration.get(playerCount);
+//   if (result == undefined) {
+//     throw new Error(`Invalid player count ${playerCount}`);
+//   }
+//   return result;
+// }
 
 export class TileClaim {
   constructor(readonly playerId: string) {}

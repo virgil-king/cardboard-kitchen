@@ -19,6 +19,8 @@
         "immutable": "5.0.0-beta.5",
         "kingdomino-proto": "workspace:*",
         "lodash": "^4.17.21",
+        "long": "^5.2.3",
+        "pnpm": "^9.1.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "seedrandom": "^3.0.5",

@@ -1,15 +1,18 @@
-import { prng_alea } from "esm-seedrandom";
+import { create, RandomSeed } from "random-seed";
 
 interface Pseudorandom {
-  float(): number;
+  random(): number;
 }
 
-class AleaPseudorandom implements Pseudorandom {
-  readonly alea: prng_alea;
+class RandomSeedPseudorandom implements Pseudorandom {
+  readonly prng: RandomSeed;
   constructor(seed: string) {
-    this.alea = prng_alea(seed);
+    this.prng = create(seed);
   }
-  float(): number {
-    return this.alea();
+  /**
+   * Returns a random number between 0 and 1
+   */
+  random(): number {
+    return this.prng.random();
   }
 }

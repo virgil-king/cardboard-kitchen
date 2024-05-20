@@ -1,29 +1,29 @@
-import { GameState, Player, PlayerState, Players } from "game";
+import { EpisodeConfiguration, GameState, Player, PlayerState } from "game";
 import { LocationProperties, Tile, tileNumbersSet } from "./tile.js";
 import {
   ClaimTile,
-  Configuration,
+  KingdominoConfiguration,
   PlaceTile,
   TileOffer,
   TileOffers,
-  getConfiguration,
 } from "./base.js";
-import { Vector2, requireDefined } from "./util.js";
+import { Vector2 } from "./util.js";
 
 import { List, Map, Set } from "immutable";
 import _, { shuffle } from "lodash";
 import { PlayerBoard } from "./board.js";
 import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
+import { requireDefined } from "studio-util";
 
 export class KingdominoPlayerState {
   constructor(
-    readonly player: Player,
+    // readonly player: Player,
     readonly gameState: PlayerState,
     readonly board: PlayerBoard
   ) {}
   withBoard(board: PlayerBoard): KingdominoPlayerState {
     return new KingdominoPlayerState(
-      this.player,
+      // this.player,
       this.gameState.withScore(board.score()),
       board
     );
@@ -36,7 +36,6 @@ export enum NextAction {
 }
 
 export type Props = {
-  // readonly players: Players;
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
   readonly nextAction?: NextAction;
@@ -52,30 +51,33 @@ export type Props = {
  * It is not responsible for maintaining state invariants.
  */
 export class KingdominoState implements GameState {
+  /**
+   * Returns initial state for an episode with the given configuration.
+   * 
+   * Does not populate the initial offers.
+   */
   static newGame(
-    players: Players
+    episodeConfiguration: EpisodeConfiguration
   ): KingdominoState {
-    const playerCount = players.players.count();
-    const config = getConfiguration(playerCount);
+    const playerCount = episodeConfiguration.players.players.count();
     return new KingdominoState({
-      // players: players,
       playerIdToState: Map(
-        players.players.map((player) => [
+        episodeConfiguration.players.players.map((player) => [
           player.id,
           new KingdominoPlayerState(
-            player,
             new PlayerState(0),
             new PlayerBoard(Map())
           ),
         ])
       ),
-      currentPlayer: players.players.get(0),
+      currentPlayer: episodeConfiguration.players.players.get(0),
       nextAction: NextAction.CLAIM,
       drawnTileNumbers: Set(),
     });
   }
 
   constructor(readonly props: Props) {}
+
   asTensor(): Tensor<Rank> {
     throw new Error("Method not implemented.");
   }
@@ -85,19 +87,11 @@ export class KingdominoState implements GameState {
   }
 
   playerState(playerId: string): PlayerState {
-    return this.requirePlayerState(this.requirePlayer(playerId)).gameState;
+    return requireDefined(this.props.playerIdToState.get(playerId)).gameState;
   }
 
   private playerCount(): number {
     return this.props.playerIdToState.size;
-  }
-
-  configuration(): Configuration {
-    return getConfiguration(this.playerCount());
-  }
-
-  turnCount(): number {
-    return this.configuration().firstRoundTurnOrder.length;
   }
 
   get currentPlayer(): Player | undefined {
@@ -128,9 +122,9 @@ export class KingdominoState implements GameState {
     return this.requirePlayerState(this.requireCurrentPlayer());
   }
 
-  requirePlayer(playerId: string): Player {
-    return requireDefined(this.props.playerIdToState.get(playerId)).player;
-  }
+  // requirePlayer(playerId: string): Player {
+  //   return requireDefined(this.props.playerIdToState.get(playerId)).player;
+  // }
 
   toJson(): string {
     throw new Error("Method not implemented.");
@@ -139,6 +133,21 @@ export class KingdominoState implements GameState {
   locationState(player: Player, location: Vector2): LocationProperties {
     return this.requirePlayerState(player).board.getLocationState(location);
   }
+
+  isFirstRound(): boolean {
+    return !this.gameOver && this.props.previousOffers == undefined;
+  }
+
+  isLastRound(): boolean {
+    return !this.gameOver && this.props.nextOffers == undefined;
+  }
+
+  canDealNewOffer(tileCount: number, turnsPerRound: number): boolean {
+    const remainingTileCount = tileCount - this.props.drawnTileNumbers.size;
+    return remainingTileCount >= turnsPerRound;
+  }
+
+  // State updating methods
 
   withCurrentPlayer(player: Player): KingdominoState {
     return new KingdominoState({ ...this.props, currentPlayer: player });
@@ -213,14 +222,15 @@ export class KingdominoState implements GameState {
    * Returns a copy with new offers
    */
   withNewNextOffers(
+    turnCount: number,
     tileNumbers: Array<number> | undefined = undefined
   ): KingdominoState {
-    const turnCount = this.configuration().turnsPerRound;
+    // const turnCount = this.configuration().turnsPerRound;
     if (tileNumbers == undefined) {
       const remainingTiles = shuffle(
         tileNumbersSet.subtract(this.props.drawnTileNumbers).toArray()
       );
-      tileNumbers = remainingTiles.slice(0, this.configuration().turnsPerRound);
+      tileNumbers = remainingTiles.slice(0, turnCount);
     }
     const offers = new TileOffers(
       List(tileNumbers.map((tileNumber) => new TileOffer(tileNumber)))
@@ -230,13 +240,6 @@ export class KingdominoState implements GameState {
       nextOffers: offers,
       drawnTileNumbers: this.props.drawnTileNumbers.union(tileNumbers),
     });
-  }
-
-  canDealNewOffer(): boolean {
-    const config = this.configuration();
-    const remainingTileCount =
-      config.tileCount - this.props.drawnTileNumbers.size;
-    return remainingTileCount >= config.turnsPerRound;
   }
 }
 
@@ -255,3 +258,4 @@ export class KingdominoState implements GameState {
 //   }
 //   return [new TileOffers(offers), remainingTiles.slice(0, -turnCount)];
 // }
+  

@@ -54,7 +54,7 @@ class ActionNode<StateT extends GameState, ActionT extends Action> {
    * Updates the node by applying {@link action} to {@link episode} and then
    * creating or visiting the resulting state node
    */
-  visit(episode: Episode<any, StateT, ActionT>): PlayerValues {
+  visit(episode: Episode<StateT, ActionT>): PlayerValues {
     this.visitCount++;
     const [childState, chanceKey] = episode.apply(this.action);
     let stateNode = this.chanceKeyToChild.get(chanceKey);
@@ -97,7 +97,7 @@ class StateNode<StateT extends GameState, ActionT extends Action> {
   /**
    * Returns values to backpropagate when this node is first reached as a new leaf
    */
-  predictedValues(episode: Episode<any, StateT, ActionT>): PlayerValues {
+  predictedValues(episode: Episode<StateT, ActionT>): PlayerValues {
     const episodeResult = finalScores(episode);
     if (episodeResult != undefined) {
       return episodeResult;
@@ -117,7 +117,7 @@ class StateNode<StateT extends GameState, ActionT extends Action> {
    * Returns player expected values if episode is at a terminal state or
    * otherwise selects an action and visits the resulting action node
    */
-  visit(episode: Episode<any, StateT, ActionT>): PlayerValues {
+  visit(episode: Episode<StateT, ActionT>): PlayerValues {
     this.visitCount++;
 
     const episodeResult = finalScores(episode);
@@ -181,7 +181,7 @@ export function mcts<StateT extends GameState, ActionT extends Action>(
   const currentPlayer = requireDefined(state.currentPlayer);
   const root = new StateNode(config, model, state);
   for (let step = 0; step < config.simulationCount; step++) {
-    root.
+    // root.
   }
   return root.actionToChild.map((node) =>
     node.playerExpectedValues.get(currentPlayer.id)

@@ -1,11 +1,11 @@
 import { ClaimTile, PlaceTile, TileOffers, centerX, centerY } from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
-import { Direction, Vector2, requireDefined } from "./util.js";
+import { Direction, Vector2 } from "./util.js";
 import { Terrain, Tile } from "./tile.js";
 import { PlayerBoard } from "./board.js";
 import { KingdominoAction } from "./action.js";
 import { Agent } from "game";
-import { randomBetween } from "studio-util";
+import { randomBetween, requireDefined } from "studio-util";
 
 import { Seq, Set } from "immutable";
 

@@ -27,10 +27,6 @@ export type ActionData = Claim | Place | Discard;
 
 export class KingdominoAction implements Action {
   private constructor(readonly player: Player, readonly data: ActionData) {}
-  asTensor(): Tensor<Rank> {
-    throw new Error("Method not implemented.");
-  }
-
   static claimTile(player: Player, claimTile: ClaimTile) {
     return new KingdominoAction(player, {
       case: ActionCase.CLAIM,
@@ -51,6 +47,16 @@ export class KingdominoAction implements Action {
 
   get case(): ActionCase {
     return this.data.case;
+  }
+
+  equals(other: unknown): boolean {
+    throw new Error("Method not implemented.");
+  }
+  hashCode(): number {
+    throw new Error("Method not implemented.");
+  }
+  asTensor(): Tensor<Rank> {
+    throw new Error("Method not implemented.");
   }
 
   toJson(): string {

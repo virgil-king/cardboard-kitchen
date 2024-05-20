@@ -14,5 +14,8 @@
         "ts-proto": "^1.172.0",
         "tsconfig": "workspace:*",
         "typescript": "^5.4.5"
+    },
+    "dependencies": {
+        "pnpm": "^9.1.1"
     }
 }

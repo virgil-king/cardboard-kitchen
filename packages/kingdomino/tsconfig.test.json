@@ -3,11 +3,12 @@
   "include": ["*.test.ts"],
   "compilerOptions": {
     "outDir": "out",
-    "composite": true
+    "composite": true,
+    "skipLibCheck": true
   },
   "references": [
     {
       "path": "./tsconfig.json"
-    },
+    }
   ]
 }

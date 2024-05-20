@@ -1,10 +1,11 @@
-import { Game, Players } from "game";
+import { EpisodeConfiguration, Game, Players } from "game";
 import { KingdominoState } from "./state.js";
 import _ from "lodash";
 
 import { KingdominoAction } from "./action.js";
-import { KingdominoEpisode } from "./generator.js";
+import { KingdominoEpisode } from "./episode.js";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
+import { KingdominoConfiguration } from "./base.js";
 
 export class Kingdomino implements Game<KingdominoState, KingdominoAction> {
   tensorToAction(tensor: Tensor<Rank>): KingdominoAction {
@@ -20,9 +21,15 @@ export class Kingdomino implements Game<KingdominoState, KingdominoAction> {
    * @param shuffledTileNumbers shuffled tiles to use instead of a random shuffle of all tiles
    */
   newEpisode(
-    players: Players,
-    shuffledTileNumbers?: Array<number>
+    config: EpisodeConfiguration,
+    shuffledTileNumbers: Array<number> | undefined = undefined
   ): KingdominoEpisode {
-    return new KingdominoEpisode(players, shuffledTileNumbers);
+    return new KingdominoEpisode(
+      config,
+      new KingdominoConfiguration(
+        config.players.players.count(),
+        shuffledTileNumbers
+      )
+    );
   }
 }

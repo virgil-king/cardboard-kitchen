@@ -1,4 +1,4 @@
-import { Player, Players, unroll } from "game";
+import { Episode, EpisodeConfiguration, Player, Players, unroll } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { Direction, Vector2 } from "./util.js";
@@ -8,6 +8,8 @@ import { expect, test } from "vitest";
 import { assert } from "chai";
 import { PlaceTile } from "./base.js";
 import { PlayerBoard } from "./board.js";
+import { KingdominoState } from "./state.js";
+import { requireDefined } from "studio-util";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -17,7 +19,7 @@ const derek = new Player("derek", "Derek");
 
 test("apply: includes claim: adds claim", () => {
   const players = new Players(alice, bob);
-  const episode = kingdomino.newEpisode(players);
+  const episode = episodeWithPlayers(players);
 
   episode.apply(claim(alice, 1));
 
@@ -29,7 +31,7 @@ test("apply: includes claim: adds claim", () => {
 
 test("apply: includes place on first round: throws", () => {
   const players = new Players(alice, bob);
-  const episode = kingdomino.newEpisode(players);
+  const episode = episodeWithPlayers(players);
 
   expect(() =>
     episode.apply(
@@ -43,7 +45,7 @@ test("apply: includes place on first round: throws", () => {
 
 test("apply: place before claim in non-final round: throws", () => {
   const players = new Players(alice, bob);
-  const episode = unroll(kingdomino.newEpisode(players), [
+  const episode = unroll(episodeWithPlayers(players), [
     claim(alice, 1),
     claim(bob, 0),
   ]);
@@ -60,7 +62,7 @@ test("apply: place before claim in non-final round: throws", () => {
 
 test("apply: placement out of bounds: throws", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = unroll(kingdomino.newEpisode(players), [
+  const episode = unroll(episodeWithPlayers(players), [
     claim(alice, 1),
     claim(bob, 0),
     claim(cecile, 2),
@@ -78,7 +80,7 @@ test("apply: placement out of bounds: throws", () => {
 
 test("apply: no matching terrain: throws", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = unroll(kingdomino.newEpisode(players), [
+  const episode = unroll(episodeWithPlayers(players), [
     claim(alice, 1),
     claim(bob, 0),
     claim(cecile, 2),
@@ -96,7 +98,7 @@ test("apply: no matching terrain: throws", () => {
 
 test("apply: updates player board", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = kingdomino.newEpisode(players);
+  const episode = episodeWithPlayers(players);
   // Capture the first offer tile here since that's the one we'll place later
   const tileNumber = requireDefined(
     episode.currentState.props.nextOffers?.offers?.get(0)?.tileNumber
@@ -104,7 +106,7 @@ test("apply: updates player board", () => {
   const tile = Tile.withNumber(tileNumber);
   unroll(episode, [claim(alice, 1), claim(bob, 0), claim(cecile, 2)]);
 
-  const after = episode.apply(
+  const [after, ] = episode.apply(
     KingdominoAction.placeTile(
       bob,
       new PlaceTile(
@@ -120,6 +122,17 @@ test("apply: updates player board", () => {
   const square1Location = square0Location.plus(Direction.DOWN.offset);
   assert.equal(after.locationState(bob, square1Location), tile.properties[1]);
 });
+
+
+function episodeWithPlayers(
+  players: Players,
+  shuffledTileNumbers: Array<number> | undefined = undefined
+): Episode<KingdominoState, KingdominoAction> {
+  return kingdomino.newEpisode(
+    new EpisodeConfiguration(players),
+    shuffledTileNumbers
+  );
+}
 
 function claim(player: Player, offerIndex: number) {
   return KingdominoAction.claimTile(player, { offerIndex: offerIndex });

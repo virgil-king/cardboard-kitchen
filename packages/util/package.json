@@ -16,6 +16,8 @@
         "vitest": "^1.6.0"
     },
     "dependencies": {
-        "esm-seedrandom": "^3.0.5"
+        "@types/random-seed": "^0.3.5",
+        "pnpm": "^9.1.1",
+        "random-seed": "^0.3.0"
     }
 }

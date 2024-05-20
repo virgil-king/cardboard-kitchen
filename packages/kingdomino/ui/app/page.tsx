@@ -1,7 +1,7 @@
 "use client";
 
 import _ from "lodash";
-import { Player, Players, generateEpisode } from "game";
+import { EpisodeConfiguration, Player, Players, generateEpisode } from "game";
 import {
   Kingdomino,
   RandomKingdominoAgent,
@@ -9,13 +9,15 @@ import {
   Terrain,
 } from "kingdomino";
 import { playAreaRadius } from "kingdomino/out/base";
-import { Vector2, requireDefined } from "kingdomino/out/util";
+import { Vector2 } from "kingdomino/out/util";
+import { Map } from "immutable";
 
 import styles from "./page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
 import { useEffect, useState } from "react";
 import { createScope, Operation, sleep, Task } from "effection";
+import { requireDefined } from "studio-util";
 
 const s_spacing = "9pt";
 const m_spacing = "18pt";
@@ -27,7 +29,7 @@ const bob = new Player("bob", "Bob");
 const carol = new Player("carol", "Carol");
 const players = new Players(alice, bob);
 const randomAgent = new RandomKingdominoAgent();
-const agents = new Map([
+const agents = Map([
   [alice.id, randomAgent],
   [bob.id, randomAgent],
   [carol.id, randomAgent],
@@ -49,7 +51,11 @@ export default function Home() {
     console.log(`play`);
     startCount++;
     let myStartCount = startCount;
-    for (let state of generateEpisode(kingdomino, players, agents)) {
+    for (let state of generateEpisode(
+      kingdomino,
+      new EpisodeConfiguration(players),
+      agents
+    )) {
       console.log(`Updating state from ${myStartCount}`);
       setGameState(state);
       yield* sleep(20);
@@ -62,7 +68,7 @@ export default function Home() {
       if (previousTask != undefined) {
         yield* previousTask.halt();
       }
-      yield *play();
+      yield* play();
     });
     setTask(newTask);
   }
@@ -161,7 +167,7 @@ type TerrainRenderingInfo = {
   textContent?: string;
 };
 
-const terrainToRenderingInfo = new Map<Terrain, TerrainRenderingInfo>([
+const terrainToRenderingInfo = Map<Terrain, TerrainRenderingInfo>([
   [
     Terrain.TERRAIN_CENTER,
     { styleName: styles.center, textContent: String.fromCodePoint(0x1f3f0) },

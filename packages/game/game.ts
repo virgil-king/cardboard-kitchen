@@ -3,7 +3,6 @@ import { combineHashes, requireDefined } from "studio-util";
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
 import tf from "@tensorflow/tfjs-node-gpu";
-import exp from "constants";
 
 export class Player implements ValueObject {
   constructor(readonly id: string, readonly name: string) {}
@@ -120,21 +119,20 @@ export class Transcript<StateT extends GameState, ActionT extends Action> {
  */
 export type ChanceKey = any;
 
-export class EpisodeConfiguration<GameConfigurationT> {
+export class EpisodeConfiguration {
   constructor(
     readonly players: Players,
-    readonly randomSeed: string,
-    readonly gameConfiguration: GameConfigurationT
+    // readonly randomSeed: string,
+    // readonly gameConfiguration: GameConfigurationT
   ) {}
 }
 
 export interface Episode<
-  GameConfigurationT,
   StateT extends GameState,
   ActionT extends Action
 > {
-  configuration: EpisodeConfiguration<GameConfigurationT>;
-  transcript: Transcript<StateT, ActionT>;
+  configuration: EpisodeConfiguration;
+  // transcript: Transcript<StateT, ActionT>;
   /** Equals the last state in {@link transcript} */
   currentState: StateT;
   /**
@@ -146,7 +144,7 @@ export interface Episode<
 }
 
 export function finalScores(
-  episode: Episode<any, any, any>
+  episode: Episode<any, any>
 ): PlayerValues | undefined {
   const state = episode.currentState;
   if (!state.gameOver) {
@@ -163,14 +161,14 @@ export function finalScores(
 }
 
 export interface Game<
-  GameConfigurationT,
+  // GameConfigurationT,
   StateT extends GameState,
   ActionT extends Action
 > {
   playerCounts: number[];
   newEpisode(
-    config: EpisodeConfiguration<GameConfigurationT>
-  ): Episode<GameConfigurationT, StateT, ActionT>;
+    config: EpisodeConfiguration
+  ): Episode<StateT, ActionT>;
   tensorToAction(tensor: tf.Tensor): ActionT;
 }
 
@@ -204,9 +202,9 @@ export interface Model<StateT extends GameState, ActionT extends Action> {
 }
 
 export function unroll<StateT extends GameState, ActionT extends Action>(
-  episode: Episode<any, StateT, ActionT>,
+  episode: Episode<StateT, ActionT>,
   actions: ReadonlyArray<ActionT>
-): Episode<any, StateT, ActionT> {
+): Episode<StateT, ActionT> {
   let result = episode.apply(actions[0]);
   for (const action of actions.slice(1)) {
     result = episode.apply(action);
@@ -242,12 +240,12 @@ export function unroll<StateT extends GameState, ActionT extends Action>(
 // }
 
 export function* generateEpisode<
-  GameConfigurationT,
+  // GameConfigurationT,
   StateT extends GameState,
   ActionT extends Action
 >(
-  game: Game<GameConfigurationT, StateT, ActionT>,
-  config: EpisodeConfiguration<GameConfigurationT>,
+  game: Game<StateT, ActionT>,
+  config: EpisodeConfiguration,
   playerIdToAgent: Map<string, Agent<StateT, ActionT>>
 ) {
   const episode = game.newEpisode(config);
