@@ -116,7 +116,7 @@ test("possiblePlacements: does not return out of bounds placements", () => {
   // two rounds have matching terrain
   const episode = episodeWithPlayers(
     new Players(alice, bob, cecile),
-    [1, 3, 7, 2, 4, 8, 10, 11, 12].reverse()
+    [1, 3, 7, 2, 4, 8, 10, 11, 12]
   );
   unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);
   const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);

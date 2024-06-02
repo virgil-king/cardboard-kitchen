@@ -13,17 +13,15 @@ import { List, Map, Set } from "immutable";
 import _, { shuffle } from "lodash";
 import { PlayerBoard } from "./board.js";
 import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
-import { requireDefined } from "studio-util";
+import { requireDefined, drawN } from "studio-util";
 
 export class KingdominoPlayerState {
   constructor(
-    // readonly player: Player,
     readonly gameState: PlayerState,
     readonly board: PlayerBoard
   ) {}
   withBoard(board: PlayerBoard): KingdominoPlayerState {
     return new KingdominoPlayerState(
-      // this.player,
       this.gameState.withScore(board.score()),
       board
     );
@@ -31,8 +29,8 @@ export class KingdominoPlayerState {
 }
 
 export enum NextAction {
-  CLAIM,
-  PLACE,
+  CLAIM_OFFER,
+  RESOLVE_OFFER,
 }
 
 export type Props = {
@@ -53,25 +51,20 @@ export type Props = {
 export class KingdominoState implements GameState {
   /**
    * Returns initial state for an episode with the given configuration.
-   * 
+   *
    * Does not populate the initial offers.
    */
-  static newGame(
-    episodeConfiguration: EpisodeConfiguration
-  ): KingdominoState {
+  static newGame(episodeConfiguration: EpisodeConfiguration): KingdominoState {
     const playerCount = episodeConfiguration.players.players.count();
     return new KingdominoState({
       playerIdToState: Map(
         episodeConfiguration.players.players.map((player) => [
           player.id,
-          new KingdominoPlayerState(
-            new PlayerState(0),
-            new PlayerBoard(Map())
-          ),
+          new KingdominoPlayerState(new PlayerState(0), new PlayerBoard(Map())),
         ])
       ),
       currentPlayer: episodeConfiguration.players.players.get(0),
-      nextAction: NextAction.CLAIM,
+      nextAction: NextAction.CLAIM_OFFER,
       drawnTileNumbers: Set(),
     });
   }
@@ -122,10 +115,6 @@ export class KingdominoState implements GameState {
     return this.requirePlayerState(this.requireCurrentPlayer());
   }
 
-  // requirePlayer(playerId: string): Player {
-  //   return requireDefined(this.props.playerIdToState.get(playerId)).player;
-  // }
-
   toJson(): string {
     throw new Error("Method not implemented.");
   }
@@ -140,11 +129,6 @@ export class KingdominoState implements GameState {
 
   isLastRound(): boolean {
     return !this.gameOver && this.props.nextOffers == undefined;
-  }
-
-  canDealNewOffer(tileCount: number, turnsPerRound: number): boolean {
-    const remainingTileCount = tileCount - this.props.drawnTileNumbers.size;
-    return remainingTileCount >= turnsPerRound;
   }
 
   // State updating methods
@@ -199,7 +183,7 @@ export class KingdominoState implements GameState {
 
     // Check placement legality
     if (!currentPlayerBoard.isPlacementAllowed(placement, tile)) {
-      throw Error(`Invalid placement: ${placement}`);
+      throw Error(`Invalid placement: ${JSON.stringify(placement)}`);
     }
 
     // Update the board
@@ -220,42 +204,57 @@ export class KingdominoState implements GameState {
 
   /**
    * Returns a copy with new offers
+   *
+   * @param tileNumbers scripted tile numbers for the new offer or undefined if
+   * tiles are not scripted
    */
   withNewNextOffers(
-    turnCount: number,
-    tileNumbers: Array<number> | undefined = undefined
+    config: KingdominoConfiguration,
+    tileNumbers: Array<number> | undefined
   ): KingdominoState {
-    // const turnCount = this.configuration().turnsPerRound;
-    if (tileNumbers == undefined) {
-      const remainingTiles = shuffle(
-        tileNumbersSet.subtract(this.props.drawnTileNumbers).toArray()
-      );
-      tileNumbers = remainingTiles.slice(0, turnCount);
+    if (tileNumbers != undefined) {
+      if (tileNumbers.length == 0) {
+        return this.withNoNextOffers();
+      } else if (tileNumbers.length != config.turnsPerRound) {
+        throw new Error(
+          "Number of scripted tiles didn't equal turns per round"
+        );
+      } else {
+        return this.withNextOfferTileNumbers(tileNumbers);
+      }
+    } else {
+      const remainingTileCount =
+        config.tileCount - this.props.drawnTileNumbers.count();
+      if (remainingTileCount == 0) {
+        // End of game
+        return this.withNoNextOffers();
+      } else if (remainingTileCount < config.turnsPerRound) {
+        throw new Error("Tile count was not a multiple of turns per round");
+      } else {
+        const remainingTiles = tileNumbersSet
+          .subtract(this.props.drawnTileNumbers)
+          .toArray();
+        tileNumbers = drawN(remainingTiles, config.turnsPerRound);
+        return this.withNextOfferTileNumbers(tileNumbers);
+      }
     }
-    const offers = new TileOffers(
+  }
+
+  withNoNextOffers(): KingdominoState {
+    // console.log(`No next offers`);
+    return new KingdominoState({ ...this.props, nextOffers: undefined });
+  }
+
+  withNextOfferTileNumbers(tileNumbers: Array<number>): KingdominoState {
+    // console.log(`tileNumbers=${JSON.stringify(tileNumbers)}`);
+    let nextOffers = new TileOffers(
       List(tileNumbers.map((tileNumber) => new TileOffer(tileNumber)))
     );
+    let drawnTileNumbers = this.props.drawnTileNumbers.union(tileNumbers);
     return new KingdominoState({
       ...this.props,
-      nextOffers: offers,
-      drawnTileNumbers: this.props.drawnTileNumbers.union(tileNumbers),
+      nextOffers: nextOffers,
+      drawnTileNumbers: drawnTileNumbers,
     });
   }
 }
-
-/**
- * Returns an offer consisting of `turnCount` tiles from the end of
- * `tileNumbers` and the new set of remaining tiles.
- */
-// export function dealOffer(
-//   turnCount: number,
-//   remainingTiles: List<number>
-// ): [TileOffers, List<number>] {
-//   let offers = List<TileOffer>();
-//   for (let i = 0; i < turnCount; i++) {
-//     const tileNumber = remainingTiles.get(remainingTiles.size - 1 - i);
-//     offers = offers.push(new TileOffer(tileNumber));
-//   }
-//   return [new TileOffers(offers), remainingTiles.slice(0, -turnCount)];
-// }
-  

@@ -18,7 +18,7 @@ export class RandomKingdominoAgent
     switch (nextAction) {
       case undefined:
         throw new Error(`No next action`);
-      case NextAction.CLAIM: {
+      case NextAction.CLAIM_OFFER: {
         const offerIndex = randomClaimIndex(
           requireDefined(state.props.nextOffers)
         );
@@ -27,7 +27,7 @@ export class RandomKingdominoAgent
           new ClaimTile(offerIndex)
         );
       }
-      case NextAction.PLACE: {
+      case NextAction.RESOLVE_OFFER: {
         return randomPlacement(state);
       }
       default: {

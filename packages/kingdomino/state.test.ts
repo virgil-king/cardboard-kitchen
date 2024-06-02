@@ -10,6 +10,7 @@ import { ClaimTile, PlaceTile, centerX, centerY } from "./base.js";
 import { NextAction } from "./state.js";
 import _ from "lodash";
 import { requireDefined } from "studio-util";
+import { List } from "immutable";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -64,7 +65,7 @@ test("newGame: three players: offer has three tiles", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.nextOffers?.offers.size , 3);
+  assert.equal(episode.currentState.props.nextOffers?.offers.size, 3);
 });
 
 test("newGame: four players: offer has four tiles", () => {
@@ -72,7 +73,7 @@ test("newGame: four players: offer has four tiles", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.nextOffers?.offers.size , 4);
+  assert.equal(episode.currentState.props.nextOffers?.offers.size, 4);
 });
 
 test("newGame: no previous offers", () => {
@@ -88,13 +89,25 @@ test("newGame: next action is claim", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.nextAction, NextAction.CLAIM);
+  assert.equal(episode.currentState.nextAction, NextAction.CLAIM_OFFER);
+});
+
+test("newGame: scripted tiles: uses scripted tiles", () => {
+  const players = new Players(alice, bob, cecile);
+
+  const episode = episodeWithPlayers(players, [1, 2, 3]);
+
+  assert.isTrue(
+    requireDefined(episode.currentState.props.nextOffers)
+      .offers.map((offer) => requireDefined(offer.tileNumber))
+      .equals(List([1, 2, 3]))
+  );
 });
 
 test("withNewNextOffers: adds new offer tiles to drawnTileNumbers", () => {
   const players = new Players(alice, bob, cecile, derek);
 
-  const state = episodeWithPlayers(players).currentState; // .withNewNextOffers();
+  const state = episodeWithPlayers(players).currentState;
 
   assert.equal(state.props.drawnTileNumbers.size, 4);
   for (const offer of requireDefined(state.props.nextOffers).offers) {
@@ -126,7 +139,7 @@ test("claimTile: first round: next action is claim", () => {
   const episode = episodeWithPlayers(players);
   unroll(episode, [claim(alice, 2)]);
 
-  assert.equal(episode.currentState.nextAction, NextAction.CLAIM);
+  assert.equal(episode.currentState.nextAction, NextAction.CLAIM_OFFER);
 });
 
 test("claimTile: already claimed: throws", () => {
@@ -153,7 +166,23 @@ test("claimTile: second round: next action is place", () => {
     KingdominoAction.claimTile(cecile, new ClaimTile(0)),
   ]);
 
-  assert.equal(episode.currentState.nextAction, NextAction.PLACE);
+  assert.equal(episode.currentState.nextAction, NextAction.RESOLVE_OFFER);
+});
+
+test("placeTile: last round: updates next player", () => {
+  const players = new Players(alice, bob, cecile);
+  const episode = episodeWithPlayers(players, _.range(1, 4));
+  unroll(episode, [
+    claim(alice, 0),
+    claim(bob, 1),
+    claim(cecile, 2),
+    KingdominoAction.placeTile(
+      alice,
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+  ]);
+
+  assert.equal(episode.currentState.currentPlayer, bob);
 });
 
 test("placeTile: end of game: next action is undefined", () => {

@@ -1,21 +1,19 @@
-import { ActionCase, Claim, KingdominoAction } from "./action.js";
+import { ActionCase, KingdominoAction } from "./action.js";
 import { KingdominoState, NextAction } from "./state.js";
 import {
   ChanceKey,
   Episode,
   EpisodeConfiguration,
   Player,
-  Players,
   Transcript,
 } from "game";
-import _, { first } from "lodash";
+import _ from "lodash";
 import {
   ClaimTile,
   KingdominoConfiguration,
   PlaceTile,
   TileOffer,
   TileOffers,
-  maxKingdomSize,
 } from "./base.js";
 import { requireDefined } from "studio-util";
 import { Map } from "immutable";
@@ -25,9 +23,8 @@ export class KingdominoEpisode
 {
   private static NO_CHANCE = [];
   transcript: Transcript<KingdominoState, KingdominoAction>;
-  // currentState: KingdominoState;
-  // generator: Generator<KingdominoState, KingdominoState, KingdominoAction>;
   currentState: KingdominoState;
+  /** The index of the next unused tile in `shuffledTileNumbers` */
   offsetInShuffledTileNumbers = 0;
   playerIdToPlayer: Map<string, Player>;
   constructor(
@@ -37,7 +34,7 @@ export class KingdominoEpisode
     // this.generator = this.play(players, shuffledTileNumbers);
     this.currentState = KingdominoState.newGame(
       configuration
-    ).withNewNextOffers(kingdominoConfig.turnsPerRound, this.nextOffers());
+    ).withNewNextOffers(kingdominoConfig, this.nextOffers());
     this.playerIdToPlayer = Map(
       configuration.players.players.map((player) => [player.id, player])
     );
@@ -46,9 +43,7 @@ export class KingdominoEpisode
   }
 
   apply(action: KingdominoAction): [KingdominoState, ChanceKey] {
-    // const result = this.generator.next(action).value;
-    // this.currentState = result;
-    // this.transcript.steps.push([action, result]);
+    // console.log(`Handling ${JSON.stringify(action)}`);
 
     if (!action.player.equals(this.currentState.currentPlayer)) {
       throw new Error(
@@ -64,8 +59,16 @@ export class KingdominoEpisode
       }
       case ActionCase.PLACE: {
         this.handlePlacement(action.player, actionData.data);
+        break
+      }
+      case ActionCase.DISCARD: {
+        this.handleDiscard(action.player);
+        break;
       }
     }
+    // console.log(
+    //   `Next player is ${JSON.stringify(this.currentState.currentPlayer)}`
+    // );
 
     return [this.currentState, KingdominoEpisode.NO_CHANCE];
   }
@@ -90,15 +93,16 @@ export class KingdominoEpisode
         );
       }
     } else {
-      const nextPlayer = this.playerWithNextClaim(
+      const nextPlayer = this.playerWithNextUnresolvedOffer(
         requireDefined(this.currentState.props.previousOffers)
       );
       if (nextPlayer == undefined) {
         // End of round
+        this.handleEndOfRound();
       } else {
         this.currentState = this.currentState
           .withCurrentPlayer(nextPlayer)
-          .withNextAction(NextAction.PLACE);
+          .withNextAction(NextAction.RESOLVE_OFFER);
       }
     }
   }
@@ -107,9 +111,9 @@ export class KingdominoEpisode
     const nextOffers = requireDefined(this.currentState.props.nextOffers);
     this.currentState = this.currentState
       .withPreviousOffers(nextOffers)
-      .withNewNextOffers(this.kingdominoConfig.turnsPerRound, this.nextOffers())
-      .withCurrentPlayer(requireDefined(this.playerWithNextClaim(nextOffers)))
-      .withNextAction(NextAction.PLACE);
+      .withNewNextOffers(this.kingdominoConfig, this.nextOffers())
+      .withCurrentPlayer(requireDefined(this.playerWithNextUnresolvedOffer(nextOffers)))
+      .withNextAction(NextAction.RESOLVE_OFFER);
   }
 
   handlePlacement(player: Player, placement: PlaceTile) {
@@ -117,230 +121,118 @@ export class KingdominoEpisode
     if (previousOffers == undefined) {
       throw new Error("Tried to place a tile in the first round");
     }
-    const offer = this.nextUnplacedOffer(previousOffers);
-    if (offer == undefined) {
+    const unresolvedOfferInfo = this.nextUnresolvedOffer(previousOffers);
+    if (unresolvedOfferInfo == undefined) {
       throw new Error(
         "Tried to place a tile when there were no unplaced tiles"
       );
     }
-    this.currentState = this.currentState.withPlacement(
-      player,
-      placement,
-      requireDefined(offer.tileNumber)
-    );
+    this.currentState = this.currentState
+      .withPreviousOfferRemoved(unresolvedOfferInfo[0])
+      .withPlacement(
+        player,
+        placement,
+        requireDefined(unresolvedOfferInfo[1].tileNumber)
+      );
+    // console.log(`isLastRound=${this.currentState.isLastRound()}`);
     if (this.currentState.isLastRound()) {
-      const nextUnplacedOffer = this.nextUnplacedOffer(
+      const unresolvedOfferInfo = this.nextUnresolvedOffer(
         requireDefined(this.currentState.props.previousOffers)
       );
-      if (nextUnplacedOffer == undefined) {
+      if (unresolvedOfferInfo == undefined) {
         // End of game
         this.currentState = this.currentState.withNextAction(undefined);
       } else {
-        const nextPlayerId = requireDefined(nextUnplacedOffer.claim).playerId;
+        const nextPlayerId = requireDefined(
+          unresolvedOfferInfo[1].claim
+        ).playerId;
         const nextPlayer = this.requirePlayer(nextPlayerId);
         this.currentState = this.currentState.withCurrentPlayer(nextPlayer);
+        // console.log(`Next player is ${JSON.stringify(nextPlayer)}`);
       }
     } else {
-      this.currentState = this.currentState.withNextAction(NextAction.CLAIM);
+      this.currentState = this.currentState.withNextAction(
+        NextAction.CLAIM_OFFER
+      );
     }
   }
 
   /**
-   * Returns scripted next offer tile numbers if specified or else undefined
+   * Returns scripted next offer tile numbers or undefined if there is no tiles
+   * script or the script is exhausted
    */
   nextOffers(): Array<number> | undefined {
     const shuffledTileNumbers = this.kingdominoConfig.shuffledTileNumbers;
     if (shuffledTileNumbers != undefined) {
-      const result = shuffledTileNumbers.slice(
-        this.offsetInShuffledTileNumbers,
-        this.offsetInShuffledTileNumbers + this.kingdominoConfig.turnsPerRound
-      );
-      this.offsetInShuffledTileNumbers += this.kingdominoConfig.turnsPerRound;
-      return result;
+      const remainingTiles =
+        shuffledTileNumbers.length - this.offsetInShuffledTileNumbers;
+      if (remainingTiles >= this.kingdominoConfig.turnsPerRound) {
+        const result = shuffledTileNumbers.slice(
+          this.offsetInShuffledTileNumbers,
+          this.offsetInShuffledTileNumbers + this.kingdominoConfig.turnsPerRound
+        );
+        this.offsetInShuffledTileNumbers += this.kingdominoConfig.turnsPerRound;
+        return result;
+      } else if (remainingTiles != 0) {
+        throw new Error(
+          "shuffled tile count was not a multiple of turns per round"
+        );
+      } else {
+        // Out of tiles
+        return [];
+      }
     } else {
       return undefined;
     }
   }
 
   /**
-   * Returns the next claimed tile that hasn't been placed yet, or undefined if
-   * there is no such tile.
+   * Returns the next offer index and offer that hasn't been resolved yet, or undefined if
+   * there is no such offer.
    *
    * {@link offers} must not include any unclaimed offers (i.e. it must be
    * previous offers)
    */
-  nextUnplacedOffer(offers: TileOffers): TileOffer | undefined {
-    return offers.offers.find((offer) => offer.hasTile());
+  nextUnresolvedOffer(offers: TileOffers): [number, TileOffer] | undefined {
+    const indexMatch = offers.offers.findIndex((offer) => offer.hasTile());
+    if (indexMatch == -1) {
+      return undefined;
+    }
+    return [indexMatch, requireDefined(offers.offers.get(indexMatch))];
   }
 
   /**
-   * Returns the player with the next claimed tile that hasn't been placed yet,
+   * Returns the player with the next claimed tile that hasn't been resolved yet,
    * or undefined if there is no such tile.
    *
    * {@link offers} must not include any unclaimed offers (i.e. it must be
    * previous offers)
    */
-  playerWithNextClaim(offers: TileOffers): Player | undefined {
-    const firstOfferWithTile = this.nextUnplacedOffer(offers);
-    if (firstOfferWithTile == undefined) {
+  playerWithNextUnresolvedOffer(offers: TileOffers): Player | undefined {
+    const unresolvedOfferInfo = this.nextUnresolvedOffer(offers);
+    if (unresolvedOfferInfo == undefined) {
       return undefined;
     }
     return this.requirePlayer(
-      requireDefined(firstOfferWithTile.claim).playerId
+      requireDefined(unresolvedOfferInfo[1].claim).playerId
     );
-  }
-
-  canDealNewOffer(): boolean {
-    // const gameConfig = this.episodeConfig.gameConfiguration;
-    const shuffledTileNumbers = this.kingdominoConfig.shuffledTileNumbers;
-    if (shuffledTileNumbers != undefined) {
-      return shuffledTileNumbers.length >= this.kingdominoConfig.turnsPerRound;
-    } else {
-      return this.currentState.canDealNewOffer(
-        this.kingdominoConfig.tileCount,
-        this.kingdominoConfig.turnsPerRound
-      );
-    }
   }
 
   requirePlayer(playerId: string): Player {
     return requireDefined(this.playerIdToPlayer.get(playerId));
   }
 
-  /**
-   * @param shuffledTileNumbers The list of tile numbers to use for the whole game
-   */
-  // *play(
-  //   players: Players,
-  //   shuffledTileNumbers?: Array<number>
-  // ): Generator<KingdominoState, KingdominoState, KingdominoAction> {
-  //   let state = KingdominoState.newGame(players);
-
-  // const nextOffers = function (): Array<number> | undefined {
-  //   if (shuffledTileNumbers != undefined) {
-  //     const result = shuffledTileNumbers.slice(
-  //       -state.configuration().turnsPerRound
-  //     );
-  //     shuffledTileNumbers = shuffledTileNumbers.slice(
-  //       0,
-  //       -state.configuration().turnsPerRound
-  //     );
-  //     return result;
-  //   } else {
-  //     return undefined;
-  //   }
-  // };
-
-  // const canDealNewOffer = function (): boolean {
-  //   if (shuffledTileNumbers != undefined) {
-  //     return (
-  //       shuffledTileNumbers.length >= state.configuration().turnsPerRound
-  //     );
-  //   } else {
-  //     return state.canDealNewOffer();
-  //   }
-  // };
-
-  // state = state.withNewNextOffers(nextOffers());
-
-  // // First round
-  // for (const playerIndex of state.configuration().firstRoundTurnOrder) {
-  //   const player = requireDefined(players.players.get(playerIndex));
-  //   state = state.withCurrentPlayer(player);
-  //   const action = yield state;
-  //   state = this.handleClaim(state, player, action);
-  // }
-
-  // // Non-final rounds
-  // while (canDealNewOffer()) {
-  //   state = state
-  //     .withPreviousOffers(requireDefined(state.props.nextOffers))
-  //     .withNewNextOffers(nextOffers());
-
-  //   for (const [offerIndex, offer] of requireDefined(
-  //     state.props.previousOffers?.offers
-  //   ).entries()) {
-  //     const player = state.requirePlayer(
-  //       requireDefined(offer.claim?.playerId)
-  //     );
-  //     state = state
-  //       .withCurrentPlayer(player)
-  //       .withNextAction(NextAction.PLACE);
-  //     let action = yield state;
-  //     state = this.handlePlacement(state, player, action, offerIndex);
-  //     state = state.withNextAction(NextAction.CLAIM);
-  //     action = yield state;
-  //     state = this.handleClaim(state, player, action);
-  //   }
-  // }
-
-  // // Final round
-  // state = state
-  //   .withPreviousOffers(requireDefined(state.props.nextOffers))
-  //   .withNextAction(NextAction.PLACE);
-  // for (const [offerIndex, offer] of requireDefined(
-  //   state.props.previousOffers?.offers
-  // ).entries()) {
-  //   const player = state.requirePlayer(requireDefined(offer.claim?.playerId));
-  //   state = state.withCurrentPlayer(player);
-  //   const action = yield state;
-  //   state = this.handlePlacement(state, player, action, offerIndex);
-  // }
-
-  // // TODO compute bonus scores
-  // state = state.withNextAction(undefined);
-
-  // return state;
-  // }
-
-  /**
-   * Returns {@link state} updated by handling {@link action} which should
-   * be a placement or discard of {@link offerIndex}
-   */
-  // private handlePlacement(
-  //   state: KingdominoState,
-  //   player: Player,
-  //   action: KingdominoAction,
-  //   offerIndex: number
-  // ): KingdominoState {
-  //   if (!action.player.equals(player)) {
-  //     throw new Error(`Invalid action ${JSON.stringify(action)}`);
-  //   }
-  //   const tileNumber = requireDefined(
-  //     state.props.previousOffers?.offers.get(offerIndex)?.tileNumber
-  //   );
-  //   state = state.withPreviousOfferRemoved(offerIndex);
-  //   let actionData = action.data;
-  //   switch (actionData.case) {
-  //     case ActionCase.PLACE:
-  //       state = state.withPlacement(player, actionData.data, tileNumber);
-  //       const width = state
-  //         .requirePlayerState(player)
-  //         .board.occupiedRectangle().width;
-  //       if (width > maxKingdomSize) {
-  //         throw new Error(`Kingdom became too wide (${width})`);
-  //       }
-  //       break;
-  //     case ActionCase.DISCARD:
-  //       break;
-  //     default:
-  //       throw new Error(`Invalid action ${JSON.stringify(action)}`);
-  //   }
-  //   return state;
-  // }
-
-  /**
-   * Returns {@link state} updated by handling {@link action} which should be a claim
-   */
-  // private handleClaim(
-  //   state: KingdominoState,
-  //   player: Player,
-  //   action: KingdominoAction
-  // ): KingdominoState {
-  //   const actionData = action.data;
-  //   if (!action.player.equals(player) || actionData.case != ActionCase.CLAIM) {
-  //     throw new Error(`Invalid action ${JSON.stringify(action)}`);
-  //   }
-  //   return state.withClaim(player, actionData.data);
-  // }
+  handleDiscard(player: Player) {
+    const previousOffers = this.currentState.props.previousOffers;
+    if (previousOffers == undefined) {
+      throw new Error("Can't discard in the first round");
+    }
+    const offerToResolve = this.nextUnresolvedOffer(previousOffers);
+    if (offerToResolve == undefined) {
+      throw new Error("No unresolved offer to discard");
+    }
+    this.currentState = this.currentState.withPreviousOfferRemoved(
+      offerToResolve[0]
+    );
+  }
 }
