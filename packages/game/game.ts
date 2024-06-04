@@ -1,4 +1,4 @@
-import { combineHashes, requireDefined } from "studio-util";
+import { combineHashes } from "studio-util";
 
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
@@ -34,7 +34,11 @@ export class Players implements ValueObject {
 }
 
 export class PlayerState implements ValueObject {
-  constructor(readonly score: number) {}
+  constructor(
+    /** "Victory points". Consider removing since not all gaves have this
+     * concept. */
+    readonly score: number
+  ) {}
 
   withScore(score: number): PlayerState {
     return new PlayerState(score);
@@ -51,29 +55,58 @@ export class PlayerState implements ValueObject {
   }
 }
 
-export class GameResult {
-  playerIdOrder: Array<string>;
-  constructor(playerIdToState: Map<string, PlayerState>) {
-    this.playerIdOrder = playerIdToState
-      .entrySeq()
-      .sort(([, state0], [, state1]) => state1.score - state0.score)
-      .map(([id, _]) => id)
-      .toArray();
-  }
-  position(playerId: string) {
-    const result = this.playerIdOrder.indexOf(playerId);
-    if (result == undefined) {
-      throw new Error(`Unknown player ID ${playerId}`);
-    }
-    return result;
-  }
-  /**
-   * Returns the number of players who {@link playerId} defeated
-   */
-  value(playerId: string) {
-    return this.playerIdOrder.length - 1 - this.position(playerId);
-  }
+export interface PlayerValues {
+  readonly playerIdToValue: Map<string, number>;
 }
+
+/** Returns a {@link PlayerValues} with values defined by position in the provided tiers. */
+export function tiersToPlayerValues(
+  /** Tiers of player IDs. Tiers are ordered by finishing position (earlier is
+   * better). Players in the same tier are tied */
+  playerIds: Array<Array<string>>
+) {
+  let playerIdToValue = Map<string, number>();
+  let laterTiersSize = 0;
+  for (let tierIndex = playerIds.length - 1; tierIndex >= 0; tierIndex--) {
+    const tier = playerIds[tierIndex];
+    const thisTierSize = tier.length;
+    // Value in this tier is one for all players in lower tiers plus half for
+    // other players in this tier
+    const thisTierValue = laterTiersSize + (thisTierSize - 1) * 0.5;
+    for (const playerId of tier) {
+      playerIdToValue = playerIdToValue.set(playerId, thisTierValue);
+    }
+    laterTiersSize += thisTierSize;
+  }
+  return { playerIdToValue: playerIdToValue };
+}
+
+/** Returns a {@link PlayerValues} defined by a mapping from player to victory
+ * points. Applicable for games where victory points are the only criteria in
+ * finishing position (i.e. there are no tiebreak conditions).*/
+export function scoresToPlayerValues(playerIdToScore: Map<string, number>): PlayerValues {
+  if (playerIdToScore.count() == 0) {
+    return { playerIdToValue: Map() };
+  }
+  const entryArray = playerIdToScore.toArray();
+  // Sort high to low
+  entryArray.sort(([, leftScore], [, rightScore]) => rightScore - leftScore);
+  const tiers = new Array<Array<string>>();
+  let currentTier = new Array<string>();
+  let currentScore = entryArray[0][1];
+  for (const [playerId, score] of entryArray) {
+    if (score == currentScore) {
+      currentTier.push(playerId);
+    } else {
+      tiers.push(currentTier);
+      currentTier = [playerId];
+      currentScore = score;
+    }
+  }
+  tiers.push(currentTier);
+  return tiersToPlayerValues(tiers);
+}
+// }
 
 /** A unary function from some type to the same type */
 // export interface Endomorphism<T> {
@@ -97,6 +130,7 @@ export interface Agent<StateT extends GameState, ActionT extends Action> {
 export interface GameState extends JsonSerializable {
   /** Returns whether the game is over */
   gameOver: boolean;
+  result: PlayerValues | undefined;
   /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
   playerState(playerId: String): PlayerState;
   // result: GameResult | undefined;
@@ -121,16 +155,11 @@ export type ChanceKey = any;
 
 export class EpisodeConfiguration {
   constructor(
-    readonly players: Players,
-    // readonly randomSeed: string,
-    // readonly gameConfiguration: GameConfigurationT
+    readonly players: Players // readonly randomSeed: string, // readonly gameConfiguration: GameConfigurationT
   ) {}
 }
 
-export interface Episode<
-  StateT extends GameState,
-  ActionT extends Action
-> {
+export interface Episode<StateT extends GameState, ActionT extends Action> {
   configuration: EpisodeConfiguration;
   // transcript: Transcript<StateT, ActionT>;
   /** Equals the last state in {@link transcript} */
@@ -143,56 +172,14 @@ export interface Episode<
   apply(action: ActionT): [StateT, ChanceKey];
 }
 
-export function finalScores(
-  episode: Episode<any, any>
-): PlayerValues | undefined {
-  const state = episode.currentState;
-  if (!state.gameOver) {
-    return undefined;
-  }
-  return new PlayerValues(
-    Map(
-      episode.configuration.players.players.map((player) => [
-        player.id,
-        state.playerState(player.id).score,
-      ])
-    )
-  );
-}
-
 export interface Game<
   // GameConfigurationT,
   StateT extends GameState,
   ActionT extends Action
 > {
   playerCounts: number[];
-  newEpisode(
-    config: EpisodeConfiguration
-  ): Episode<StateT, ActionT>;
+  newEpisode(config: EpisodeConfiguration): Episode<StateT, ActionT>;
   tensorToAction(tensor: tf.Tensor): ActionT;
-}
-
-/** Map from player ID to expected value at {@link state} */
-export class PlayerValues {
-  playerIdToValue: Map<string, number>;
-  constructor(playerIdToValue: Map<string, number> = Map()) {
-    this.playerIdToValue = playerIdToValue;
-  }
-  add(other: PlayerValues, scale: number = 1) {
-    if (this.playerIdToValue.isEmpty()) {
-      this.playerIdToValue = other.playerIdToValue.map(
-        (value) => value * scale
-      );
-    } else {
-      this.playerIdToValue = this.playerIdToValue.map(
-        (value, playerId) =>
-          value + scale * requireDefined(other.playerIdToValue.get(playerId))
-      );
-    }
-  }
-  get(playerId: string): number {
-    return requireDefined(this.playerIdToValue.get(playerId));
-  }
 }
 
 export interface Model<StateT extends GameState, ActionT extends Action> {
@@ -239,45 +226,29 @@ export function unroll<StateT extends GameState, ActionT extends Action>(
 //   return episode;
 // }
 
-export function* generateEpisode<
-  // GameConfigurationT,
-  StateT extends GameState,
-  ActionT extends Action
->(
-  game: Game<StateT, ActionT>,
-  config: EpisodeConfiguration,
-  playerIdToAgent: Map<string, Agent<StateT, ActionT>>
-) {
-  const episode = game.newEpisode(config);
-  let state = episode.currentState;
-  yield state;
-  while (!state.gameOver) {
-    const currentPlayer = state.currentPlayer;
-    if (currentPlayer == undefined) {
-      throw new Error(`Current player is undefined but game isn't over`);
-    }
-    const agent = playerIdToAgent.get(currentPlayer.id);
-    if (agent == undefined) {
-      throw new Error(`No agent for ${currentPlayer.id}`);
-    }
-    const action = agent.act(state);
-    [state] = episode.apply(action);
-    yield state;
-  }
-  return episode.currentState;
-}
-
-// export function unroll<T>(initialState: T, actions: Array<Endomorphism<T>>): T {
-//   return actions.reduce(
-//     (newState: T, newAction: Endomorphism<T>) => newAction.apply(newState),
-//     initialState
-//   );
-// }
-
-/**
- * Generator version of game logic: a generator that yields game states, consumes actions,
- * and returns game results.
- */
-// export interface GameGenerator<StateT extends GameState<any>, ActionT extends Action<StateT>> {
-//   play(): Generator<StateT, Array<PlayerResult>, ActionT>
+// export function* generateEpisode<
+//   StateT extends GameState,
+//   ActionT extends Action
+// >(
+//   game: Game<StateT, ActionT>,
+//   config: EpisodeConfiguration,
+//   playerIdToAgent: Map<string, Agent<StateT, ActionT>>
+// ) {
+//   const episode = game.newEpisode(config);
+//   let state = episode.currentState;
+//   yield state;
+//   while (!state.gameOver) {
+//     const currentPlayer = state.currentPlayer;
+//     if (currentPlayer == undefined) {
+//       throw new Error(`Current player is undefined but game isn't over`);
+//     }
+//     const agent = playerIdToAgent.get(currentPlayer.id);
+//     if (agent == undefined) {
+//       throw new Error(`No agent for ${currentPlayer.id}`);
+//     }
+//     const action = agent.act(state);
+//     [state] = episode.apply(action);
+//     yield state;
+//   }
+//   return episode.currentState;
 // }

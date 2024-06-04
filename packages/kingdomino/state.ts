@@ -1,4 +1,11 @@
-import { EpisodeConfiguration, GameState, Player, PlayerState } from "game";
+import {
+  EpisodeConfiguration,
+  GameState,
+  Player,
+  PlayerState,
+  PlayerValues,
+  scoresToPlayerValues,
+} from "game";
 import { LocationProperties, Tile, tileNumbersSet } from "./tile.js";
 import {
   ClaimTile,
@@ -16,10 +23,7 @@ import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
 import { requireDefined, drawN } from "studio-util";
 
 export class KingdominoPlayerState {
-  constructor(
-    readonly gameState: PlayerState,
-    readonly board: PlayerBoard
-  ) {}
+  constructor(readonly gameState: PlayerState, readonly board: PlayerBoard) {}
   withBoard(board: PlayerBoard): KingdominoPlayerState {
     return new KingdominoPlayerState(
       this.gameState.withScore(board.score()),
@@ -77,6 +81,15 @@ export class KingdominoState implements GameState {
 
   get gameOver(): boolean {
     return this.nextAction == undefined;
+  }
+
+  get result(): PlayerValues | undefined {
+    if (!this.gameOver) {
+      return undefined;
+    }
+    return scoresToPlayerValues(
+      this.props.playerIdToState.map((state) => state.gameState.score)
+    );
   }
 
   playerState(playerId: string): PlayerState {

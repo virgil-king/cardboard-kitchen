@@ -2,12 +2,11 @@ import {
   Action,
   ChanceKey,
   Episode,
+  PlayerValues,
   GameState,
   Model,
-  PlayerValues,
-  finalScores,
 } from "./game.js";
-import { Map } from "immutable";
+import { Map as ImmutableMap } from "immutable";
 import { requireDefined } from "studio-util";
 
 class MctsConfig {
@@ -36,14 +35,19 @@ class MctsStats {
 }
 
 /**
- * A node in a UCT search tree uniquely corresponding to a preceding sequence of
- * actions and random outcomes
+ * A node in a UCT search tree uniquely corresponding to an action following a
+ * previous state. Action nodes' children correspond to possible chance outcomes
+ * following that action.
  */
 class ActionNode<StateT extends GameState, ActionT extends Action> {
   visitCount = 0;
   // TODO constrain the size of this map
-  chanceKeyToChild = Map<ChanceKey, StateNode<StateT, ActionT>>();
-  readonly playerExpectedValues = new PlayerValues();
+  readonly chanceKeyToChild = new Map<ChanceKey, StateNode<StateT, ActionT>>();
+  /**
+   * Weighted average values across the possible states resulting from this
+   * node's action due to chance
+   */
+  readonly playerExpectedValues = new NodeValues();
   constructor(
     readonly config: MctsConfig,
     readonly model: Model<StateT, ActionT>,
@@ -62,32 +66,33 @@ class ActionNode<StateT extends GameState, ActionT extends Action> {
     if (stateNode == undefined) {
       // New child
       stateNode = new StateNode(this.config, this.model, childState);
-      this.chanceKeyToChild = this.chanceKeyToChild.set(chanceKey, stateNode);
+      this.chanceKeyToChild.set(chanceKey, stateNode);
       result = stateNode.predictedValues(episode);
     } else {
       // Existing child: continue the search into a grandchild node
       result = stateNode.visit(episode);
     }
-    this.playerExpectedValues.add(result);
+    this.playerExpectedValues.mergeExpectedValues(result);
     return result;
   }
 }
 
 /**
- * A node in a UCT search tree uniquely corresponding to a game state.
+ * A node in a UCT search tree uniquely corresponding to a game state. State
+ * nodes' children correspond to possible actions following that state.
  */
 class StateNode<StateT extends GameState, ActionT extends Action> {
   visitCount = 0;
   actionToChild: Map<ActionT, ActionNode<StateT, ActionT>>;
-  readonly playerValues = new PlayerValues();
+  readonly playerValues = new NodeValues();
   constructor(
     readonly config: MctsConfig,
     readonly model: Model<StateT, ActionT>,
     readonly state: StateT
   ) {
     const policy = model.policy(state);
-    this.actionToChild = Map(
-      policy.mapEntries(([action, value]) => [
+    this.actionToChild = new Map(
+      policy.mapEntries(([action]) => [
         action,
         new ActionNode(config, model, action),
       ])
@@ -98,14 +103,17 @@ class StateNode<StateT extends GameState, ActionT extends Action> {
    * Returns values to backpropagate when this node is first reached as a new leaf
    */
   predictedValues(episode: Episode<StateT, ActionT>): PlayerValues {
-    const episodeResult = finalScores(episode);
+    const episodeResult = episode.currentState.result;
     if (episodeResult != undefined) {
       return episodeResult;
     }
 
-    const result = new PlayerValues();
+    const result = new NodeValues();
     if (this.config.valueNetworkWeight > 0) {
-      result.add(this.model.value(this.state), this.config.valueNetworkWeight);
+      result.mergeExpectedValues(
+        this.model.value(this.state)
+        // this.config.valueNetworkWeight
+      );
     }
     if (this.config.randomPlayoutWeight > 0) {
       // TODO random playout
@@ -114,29 +122,26 @@ class StateNode<StateT extends GameState, ActionT extends Action> {
   }
 
   /**
-   * Returns player expected values if episode is at a terminal state or
-   * otherwise selects an action and visits the resulting action node
+   * Returns final player values if episode is at a terminal state or otherwise
+   * selects an action, visits the corresponding action node, and returns the
+   * result of that visit
    */
   visit(episode: Episode<StateT, ActionT>): PlayerValues {
     this.visitCount++;
 
-    const episodeResult = finalScores(episode);
+    const episodeResult = episode.currentState.result;
     if (episodeResult != undefined) {
       return episodeResult;
     }
 
     const action = this.selectAction(this.state);
-    const childState = episode.apply(action);
     let childNode = this.actionToChild.get(action);
     if (childNode == undefined) {
-      // New child:
-      childNode = new ActionNode(this.config, this.model, action);
-      this.actionToChild = this.actionToChild.set(action, childNode);
-    } else {
-      // Existing child: continue the search into a grandchild node
-      childNode.visit(episode);
+      throw new Error(
+        "An action was visited which was not reported by the policy"
+      );
     }
-    this.playerValues.add(childNode.playerExpectedValues);
+    this.playerValues.mergeExpectedValues(childNode.visit(episode));
     return this.playerValues;
   }
 
@@ -177,55 +182,53 @@ export function mcts<StateT extends GameState, ActionT extends Action>(
   config: MctsConfig,
   model: Model<StateT, ActionT>,
   state: StateT
-): Map<ActionT, number> {
+): ImmutableMap<ActionT, number> {
   const currentPlayer = requireDefined(state.currentPlayer);
   const root = new StateNode(config, model, state);
   for (let step = 0; step < config.simulationCount; step++) {
     // root.
   }
-  return root.actionToChild.map((node) =>
-    node.playerExpectedValues.get(currentPlayer.id)
+  return ImmutableMap(
+    Array.from(root.actionToChild.entries()).map(([action, node]) => [
+      action,
+      requireDefined(
+        node.playerExpectedValues.playerIdToValue.get(currentPlayer.id)
+      ),
+    ])
   );
 }
 
 /**
  * Average values for each player at a single search tree node
  */
-// class NodeValues {
-//   resultCount = 0;
-//   playerIdToAverageValue = Map<string, number>();
-//   addGameResult(gameResult: GameResult) {
-//     this.resultCount++;
-//     this.playerIdToAverageValue = Map(
-//       gameResult.playerIdOrder.map((playerId) => {
-//         return [
-//           playerId,
-//           this.updatedPlayerValue(playerId, gameResult.value(playerId)),
-//         ];
-//       })
-//     );
-//   }
-//   addExpectedValues(other: NodeValues) {
-//     this.resultCount++;
-//     this.playerIdToAverageValue = Map(
-//       other.playerIdToAverageValue.keySeq().map((playerId) => {
-//         return [
-//           playerId,
-//           this.updatedPlayerValue(
-//             playerId,
-//             other.playerIdToAverageValue.get(playerId, 0)
-//           ),
-//         ];
-//       })
-//     );
-//   }
-//   /**
-//    * Returns the new average value for {@link playerId} taking into account {@link value}.
-//    *
-//    * {@link resultCount} should already take into account {@link value} when this method is called.
-//    */
-//   updatedPlayerValue(playerId: string, value: number): number {
-//     const currentValue = this.playerIdToAverageValue.get(playerId, 0);
-//     return currentValue + (value - currentValue) / this.resultCount;
-//   }
-// }
+class NodeValues implements PlayerValues {
+  resultCount = 0;
+  playerIdToValue = ImmutableMap<string, number>();
+  mergeExpectedValues(gameResult: PlayerValues) {
+    this.resultCount++;
+    for (const [playerId, value] of gameResult.playerIdToValue) {
+      this.playerIdToValue = this.playerIdToValue.set(
+        playerId,
+        this.updatedPlayerValue(playerId, value)
+      );
+    }
+  }
+  megeNodeValues(other: NodeValues) {
+    this.resultCount++;
+    for (const [playerId, value] of other.playerIdToValue) {
+      this.playerIdToValue = this.playerIdToValue.set(
+        playerId,
+        this.updatedPlayerValue(playerId, value)
+      );
+    }
+  }
+  /**
+   * Returns the new average value for {@link playerId} taking into account {@link value}.
+   *
+   * {@link resultCount} should already take into account {@link value} when this method is called.
+   */
+  updatedPlayerValue(playerId: string, value: number): number {
+    const currentValue = this.playerIdToValue.get(playerId) ?? 0;
+    return currentValue + (value - currentValue) / this.resultCount;
+  }
+}
