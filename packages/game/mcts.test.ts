@@ -16,7 +16,7 @@ import {
 
 import { test } from "vitest";
 import { assert } from "chai";
-import { Map, Range, Seq, Set } from "immutable";
+import { List, Map, Range, Seq, Set } from "immutable";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import { requireDefined } from "studio-util";
 import { defaultMctsConfig, mcts } from "./mcts.js";
@@ -140,7 +140,7 @@ class PickANumber
 /**
  * Fake model for {@link PickANumber}.
  *
- * The policy function is perfect (absolutely prefers '9').
+ * The policy function slightly uses the move number itself as the probability.
  *
  * The value function acts as if the game will end up tied.
  */
@@ -154,11 +154,10 @@ class PickANumberModel
   policy(
     snapshot: EpisodeSnapshot<GameConfiguration, PickANumberState>
   ): Map<NumberAction, number> {
-    const greatestRemainingNumber = snapshot.state.remainingNumbers.max();
     return Map(
       snapshot.state.remainingNumbers.map((number) => [
         new NumberAction(number),
-        number == greatestRemainingNumber ? 1 : 0,
+        number
       ])
     );
   }
@@ -177,7 +176,7 @@ class PickANumberModel
   }
 }
 
-test("mcts: single-step deterministic game: explore each possible first action: expected values come from model", () => {
+test("mcts: single-step deterministic game: one step per first action: expected values come from model", () => {
   const players = new Players(alice, bob);
   const mctsConfig = { ...defaultMctsConfig, simulationCount: 9 };
   const result = mcts(
@@ -198,12 +197,31 @@ test("mcts: single-step deterministic game: explore each possible first action: 
   }
 });
 
+test("mcts: single-step deterministic game: one more step than first actions: last step selects action with greatest prior", () => {
+  const players = new Players(alice, bob);
+  const mctsConfig = { ...defaultMctsConfig, simulationCount: 10 };
+  const result = mcts(
+    mctsConfig,
+    PickANumber.INSTANCE,
+    PickANumberModel.INSTANCE,
+    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
+  );
+
+  const actionWithGreatestExpectedValue = requireDefined(
+    List(result.entries()).max(
+      ([, value1], [, value2]) =>
+        requireDefined(value1.playerIdToValue.get("alice")) -
+        requireDefined(value2.playerIdToValue.get("alice"))
+    )
+  )[0];
+  assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
+});
+
 test("mcts: single-step deterministic game: many simulations: best move has highest expected value", () => {
   const players = new Players(alice, bob);
   const mctsConfig = {
     ...defaultMctsConfig,
     simulationCount: 100,
-    explorationBias: 0.5,
   };
   const result = mcts(
     mctsConfig,

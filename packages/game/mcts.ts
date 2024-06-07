@@ -3,11 +3,11 @@ import {
   ChanceKey,
   PlayerValues,
   GameState,
-  Model,
   GameConfiguration,
   Game,
   EpisodeSnapshot,
   playerValuesToString,
+  Model,
 } from "./game.js";
 import { Map as ImmutableMap } from "immutable";
 import { requireDefined } from "studio-util";
@@ -22,15 +22,15 @@ function debugLog(block: () => string) {
 export interface MctsConfig {
   readonly simulationCount: number;
   readonly explorationBias: number;
-  readonly valueNetworkWeight: number;
-  readonly randomPlayoutWeight: number;
+  // readonly valueNetworkWeight: number;
+  // readonly randomPlayoutWeight: number;
 }
 
 export const defaultMctsConfig: MctsConfig = {
   simulationCount: 100,
   explorationBias: Math.sqrt(2),
-  valueNetworkWeight: 0.5,
-  randomPlayoutWeight: 0.5,
+  // valueNetworkWeight: 0.5,
+  // randomPlayoutWeight: 0.5,
 };
 
 class MctsStats {
@@ -67,7 +67,15 @@ class ActionNode<
    * {@link visit}.
    */
   readonly playerExpectedValues = new NodeValues();
-  constructor(readonly context: MctsContext<C, S, A>, readonly action: A) {}
+  /**
+   * @param prior probability of selecting this action from the previous state
+   * according to {@link Model.policy}
+   */
+  constructor(
+    readonly context: MctsContext<C, S, A>,
+    readonly action: A,
+    readonly prior: number
+  ) {}
 
   get visitCount(): number {
     return this.playerExpectedValues.visitCount;
@@ -92,7 +100,7 @@ class ActionNode<
       stateNode = new StateNode(this.context, snapshot.derive(childState));
       this.chanceKeyToChild.set(chanceKey, stateNode);
       // Use the new node's initial predicted values
-      result = stateNode.playerValues;
+      result = stateNode.predictedValues();
     } else {
       // Existing child: continue the search into a grandchild node
       debugLog(
@@ -128,16 +136,22 @@ class StateNode<
     readonly snapshot: EpisodeSnapshot<C, S>
   ) {
     const policy = context.model.policy(snapshot);
-    this.actionToChild = new Map(
-      policy.mapEntries(([action]) => [action, new ActionNode(context, action)])
+    const priorSum = Array.from(policy.values()).reduce(
+      (sum, next) => sum + next,
+      0
     );
-    this.computeInitialValues();
+    this.actionToChild = new Map(
+      policy.mapEntries(([action, prior]) => [
+        action,
+        new ActionNode(context, action, prior / priorSum),
+      ])
+    );
   }
 
   /**
-   * Initializes {@link playerValues} using all enabled prediction methods
+   * Returns expected values computed using all enabled prediction methods
    */
-  computeInitialValues() {
+  predictedValues() {
     const episodeResult = this.context.game.result(this.snapshot);
     if (episodeResult != undefined) {
       debugLog(
@@ -146,26 +160,17 @@ class StateNode<
             episodeResult
           )} for state ${JSON.stringify(this.snapshot.state)}`
       );
-      this.playerValues.merge(episodeResult);
-      return;
+      return episodeResult;
     }
 
-    if (this.context.config.valueNetworkWeight > 0) {
-      const predictedValues = this.context.model.value(this.snapshot);
-      debugLog(
-        () =>
-          `Using predicted values ${JSON.stringify(
-            predictedValues
-          )} for state ${JSON.stringify(this.snapshot.state)}`
-      );
-      this.playerValues.merge(
-        this.context.model.value(this.snapshot)
-        // this.config.valueNetworkWeight
-      );
-    }
-    if (this.context.config.randomPlayoutWeight > 0) {
-      // TODO random playout
-    }
+    const predictedValues = this.context.model.value(this.snapshot);
+    debugLog(
+      () =>
+        `Using predicted values ${JSON.stringify(
+          predictedValues
+        )} for state ${JSON.stringify(this.snapshot.state)}`
+    );
+    return predictedValues;
   }
 
   /**
@@ -191,7 +196,7 @@ class StateNode<
         "An action was visited which was not reported by the policy"
       );
     }
-    const childResult = child.visit(this.snapshot)
+    const childResult = child.visit(this.snapshot);
     this.playerValues.merge(childResult);
     debugLog(
       () =>
@@ -203,7 +208,7 @@ class StateNode<
   }
 
   selectAction(): A {
-    let maxUcb = 0;
+    let maxUcb = -1;
     let maxUcbAction: A | undefined = undefined;
     const currentPlayer = requireDefined(
       this.context.game.currentPlayer(this.snapshot)
@@ -216,12 +221,20 @@ class StateNode<
         return action;
       }
 
-      debugLog(() => `Considering action node ${JSON.stringify(action)} with values ${child.playerExpectedValues.toString()} and visit count ${child.visitCount}`);
+      debugLog(
+        () =>
+          `Considering action node ${JSON.stringify(
+            action
+          )} with values ${child.playerExpectedValues.toString()} and visit count ${
+            child.visitCount
+          }`
+      );
       const ucb =
         requireDefined(
           child.playerExpectedValues.playerIdToValue.get(currentPlayer.id)
         ) +
-        this.context.config.explorationBias *
+        child.prior *
+          this.context.config.explorationBias *
           Math.sqrt(Math.log(this.visitCount) / child.visitCount);
       if (ucb > maxUcb) {
         debugLog(
