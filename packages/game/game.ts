@@ -35,8 +35,10 @@ export class Players implements ValueObject {
 
 export class PlayerState implements ValueObject {
   constructor(
-    /** "Victory points". Consider removing since not all gaves have this
-     * concept. */
+    /**
+     * "Victory points". Consider removing since not all games have this
+     * concept.
+     */
     readonly score: number
   ) {}
 
@@ -55,8 +57,21 @@ export class PlayerState implements ValueObject {
   }
 }
 
+/**
+ * Map from player to "value" which is defined by the player's position with
+ * respect to the other players in the game.
+ *
+ * Instances may be actual final game results or predicted results from
+ * non-final game states.
+ */
 export interface PlayerValues {
   readonly playerIdToValue: Map<string, number>;
+}
+
+export function playerValuesToString(values: PlayerValues): string {
+  return JSON.stringify(
+    values.playerIdToValue.mapEntries(([key, value]) => [key.toString(), value])
+  );
 }
 
 /** Returns a {@link PlayerValues} with values defined by position in the provided tiers. */
@@ -84,7 +99,9 @@ export function tiersToPlayerValues(
 /** Returns a {@link PlayerValues} defined by a mapping from player to victory
  * points. Applicable for games where victory points are the only criteria in
  * finishing position (i.e. there are no tiebreak conditions).*/
-export function scoresToPlayerValues(playerIdToScore: Map<string, number>): PlayerValues {
+export function scoresToPlayerValues(
+  playerIdToScore: Map<string, number>
+): PlayerValues {
   if (playerIdToScore.count() == 0) {
     return { playerIdToValue: Map() };
   }
@@ -117,26 +134,26 @@ export interface JsonSerializable {
   toJson(): string;
 }
 
-// TODO add vector-able
-export interface Action extends JsonSerializable, ValueObject {
+export interface ToTensor {
   asTensor(): tf.Tensor;
 }
+
+export interface Action extends JsonSerializable, ValueObject, ToTensor {}
 
 export interface Agent<StateT extends GameState, ActionT extends Action> {
   act(state: StateT): ActionT;
 }
 
 // TODO add vector-able
-export interface GameState extends JsonSerializable {
+export interface GameState extends JsonSerializable, ToTensor {
   /** Returns whether the game is over */
-  gameOver: boolean;
-  result: PlayerValues | undefined;
-  /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
-  playerState(playerId: String): PlayerState;
-  // result: GameResult | undefined;
-  /** Returns the current player or undefined if the game is over */
-  currentPlayer: Player | undefined;
-  asTensor(): tf.Tensor;
+  // gameOver: boolean;
+  // result: PlayerValues | undefined;
+  // /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
+  // playerState(playerId: string): PlayerState;
+  // // result: GameResult | undefined;
+  // /** Returns the current player or undefined if the game is over */
+  // currentPlayer: Player | undefined;
 }
 
 export class Transcript<StateT extends GameState, ActionT extends Action> {
@@ -153,50 +170,158 @@ export class Transcript<StateT extends GameState, ActionT extends Action> {
  */
 export type ChanceKey = any;
 
+/**
+ * Configuration info shared by all games
+ */
 export class EpisodeConfiguration {
-  constructor(
-    readonly players: Players // readonly randomSeed: string, // readonly gameConfiguration: GameConfigurationT
-  ) {}
+  constructor(readonly players: Players) {}
 }
 
-export interface Episode<StateT extends GameState, ActionT extends Action> {
-  configuration: EpisodeConfiguration;
-  // transcript: Transcript<StateT, ActionT>;
-  /** Equals the last state in {@link transcript} */
-  currentState: StateT;
+/**
+ * Game-specific configuration
+ */
+export interface GameConfiguration extends JsonSerializable {}
+
+// export interface Episode<
+//   GameConfigurationT extends GameConfiguration,
+//   StateT extends GameState,
+//   ActionT extends Action
+// > {
+//   episodeConfiguration: EpisodeConfiguration;
+//   gameConfiguration: GameConfigurationT;
+//   // transcript: Transcript<StateT, ActionT>;
+//   /** Equals the last state in {@link transcript} */
+//   currentState: StateT;
+//   /**
+//    * Returns the state resulting from applying {@link action} to
+//    * {@link currentState} and a {@link ChanceKey} capturing the
+//    * non-deterministic portion of the new state
+//    */
+//   apply(action: ActionT): [StateT, ChanceKey];
+// }
+
+export class EpisodeSnapshot<C extends GameConfiguration, S extends GameState> {
+  constructor(
+    readonly episodeConfiguration: EpisodeConfiguration,
+    readonly gameConfiguration: C,
+    readonly state: S
+  ) {}
   /**
-   * Returns the state resulting from applying {@link action} to
-   * {@link currentState} and a {@link ChanceKey} capturing the
-   * non-deterministic portion of the new state
+   * Returns a new snapshot with state {@link state} and the same configuration
+   * as `this`
    */
-  apply(action: ActionT): [StateT, ChanceKey];
+  derive(state: S): EpisodeSnapshot<C, S> {
+    return new EpisodeSnapshot(
+      this.episodeConfiguration,
+      this.gameConfiguration,
+      state
+    );
+  }
 }
 
 export interface Game<
-  // GameConfigurationT,
+  GameConfigurationT extends GameConfiguration,
   StateT extends GameState,
   ActionT extends Action
 > {
   playerCounts: number[];
-  newEpisode(config: EpisodeConfiguration): Episode<StateT, ActionT>;
+  // newEpisode(config: EpisodeConfiguration): Episode<any, StateT, ActionT>;
+  /**
+   * Returns a new episode using a default game configuration
+   */
+  newEpisode(
+    config: EpisodeConfiguration
+  ): EpisodeSnapshot<GameConfigurationT, StateT>;
+
+  apply(
+    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>,
+    action: ActionT
+  ): [StateT, ChanceKey];
+
   tensorToAction(tensor: tf.Tensor): ActionT;
+
+  // gameOver(snapshot: EpisodeSnapshot<GameConfigurationT, StateT>): boolean;
+  result(
+    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>
+  ): PlayerValues | undefined;
+  /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
+  // playerState(playerId: string): PlayerState;
+  // result: GameResult | undefined;
+
+  /** Returns the current player or undefined if the game is over */
+  currentPlayer(
+    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>
+  ): Player | undefined;
 }
 
-export interface Model<StateT extends GameState, ActionT extends Action> {
-  /** Map from action to expected value */
-  policy(state: StateT): Map<ActionT, number>;
-  value(state: StateT): PlayerValues;
+export function gameOver<
+  GameConfigurationT extends GameConfiguration,
+  StateT extends GameState
+>(
+  game: Game<GameConfigurationT, StateT, any>,
+  snapshot: EpisodeSnapshot<GameConfigurationT, StateT>
+): boolean {
+  return game.result(snapshot) != undefined;
+}
+
+/**
+ * Convenience class for driving a single episode
+ */
+export class Episode<
+  GameConfigurationT extends GameConfiguration,
+  StateT extends GameState,
+  ActionT extends Action
+> {
+  currentSnapshot: EpisodeSnapshot<GameConfigurationT, StateT>;
+
+  constructor(
+    readonly game: Game<GameConfigurationT, StateT, ActionT>,
+    readonly episodeConfig: EpisodeConfiguration,
+    readonly gameConfig: GameConfigurationT,
+    state: StateT
+  ) {
+    this.currentSnapshot = new EpisodeSnapshot(
+      episodeConfig,
+      gameConfig,
+      state
+    );
+  }
+
+  apply(action: ActionT): [StateT, any] {
+    const [newState, chanceKey] = this.game.apply(this.currentSnapshot, action);
+    this.currentSnapshot = new EpisodeSnapshot(
+      this.episodeConfig,
+      this.gameConfig,
+      newState
+    );
+    return [newState, chanceKey];
+  }
+}
+
+export interface Model<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
+  /**
+   * Map from possible actions from {@link snapshot} to their expected value for
+   * the acting player
+   */
+  policy(snapshot: EpisodeSnapshot<C, S>): Map<A, number>;
+  /**
+   * Predicted final player values for the game starting from {@link snapshot}
+   */
+  value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
 }
 
 export function unroll<StateT extends GameState, ActionT extends Action>(
-  episode: Episode<StateT, ActionT>,
+  episode: Episode<any, StateT, ActionT>,
   actions: ReadonlyArray<ActionT>
-): Episode<StateT, ActionT> {
+) {
   let result = episode.apply(actions[0]);
   for (const action of actions.slice(1)) {
     result = episode.apply(action);
   }
-  return episode;
 }
 
 /**
@@ -230,11 +355,11 @@ export function unroll<StateT extends GameState, ActionT extends Action>(
 //   StateT extends GameState,
 //   ActionT extends Action
 // >(
-//   game: Game<StateT, ActionT>,
+//   game: Game<any, StateT, ActionT>,
 //   config: EpisodeConfiguration,
 //   playerIdToAgent: Map<string, Agent<StateT, ActionT>>
 // ) {
-//   const episode = game.newEpisode(config);
+//   let episode = game.newEpisode(config);
 //   let state = episode.currentState;
 //   yield state;
 //   while (!state.gameOver) {
