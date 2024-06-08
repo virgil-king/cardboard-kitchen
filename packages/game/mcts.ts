@@ -7,10 +7,11 @@ import {
   Game,
   EpisodeSnapshot,
   playerValuesToString,
-  Model,
+  Player,
 } from "./game.js";
-import { Map as ImmutableMap } from "immutable";
+import { Map as ImmutableMap, Seq } from "immutable";
 import { requireDefined } from "studio-util";
+import { Model } from "./model.js";
 
 const debugLoggingEnabled = true;
 function debugLog(block: () => string) {
@@ -19,19 +20,20 @@ function debugLog(block: () => string) {
   }
 }
 
-export interface MctsConfig {
+export class MctsConfig {
   readonly simulationCount: number;
   readonly explorationBias: number;
-  // readonly valueNetworkWeight: number;
-  // readonly randomPlayoutWeight: number;
+  constructor({
+    simulationCount = 256,
+    explorationBias = Math.sqrt(2),
+  }: {
+    simulationCount?: number;
+    explorationBias?: number;
+  }) {
+    this.simulationCount = simulationCount;
+    this.explorationBias = explorationBias;
+  }
 }
-
-export const defaultMctsConfig: MctsConfig = {
-  simulationCount: 100,
-  explorationBias: Math.sqrt(2),
-  // valueNetworkWeight: 0.5,
-  // randomPlayoutWeight: 0.5,
-};
 
 class MctsStats {
   actionNodesCreated = 0;
@@ -39,7 +41,7 @@ class MctsStats {
   terminalStatesReached = 0;
 }
 
-interface MctsContext<
+export interface MctsContext<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -117,13 +119,19 @@ class ActionNode<
     );
     return result;
   }
+
+  requirePlayerValue(player: Player): number {
+    return requireDefined(
+      this.playerExpectedValues.playerIdToValue.get(player.id)
+    );
+  }
 }
 
 /**
  * A node in a UCT search tree uniquely corresponding to a game state. State
  * nodes' children correspond to possible actions following that state.
  */
-class StateNode<
+export class StateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -262,6 +270,7 @@ class StateNode<
  * @param game game with which to simulate episodes
  * @param model model to use to guide MCTS
  * @param snapshot game state from which to search
+ * @returns map from valid actions to their expected values
  */
 export function mcts<
   C extends GameConfiguration,
@@ -285,7 +294,7 @@ export function mcts<
     root.visit();
   }
   const result = ImmutableMap(
-    Array.from(root.actionToChild.entries()).map(([action, node]) => [
+    Seq(root.actionToChild.entries()).map(([action, node]) => [
       action,
       node.playerExpectedValues,
     ])

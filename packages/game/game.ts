@@ -298,22 +298,6 @@ export class Episode<
   }
 }
 
-export interface Model<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
-> {
-  /**
-   * Map from possible actions from {@link snapshot} to their expected value for
-   * the acting player
-   */
-  policy(snapshot: EpisodeSnapshot<C, S>): Map<A, number>;
-  /**
-   * Predicted final player values for the game starting from {@link snapshot}
-   */
-  value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
-}
-
 export function unroll<StateT extends GameState, ActionT extends Action>(
   episode: Episode<any, StateT, ActionT>,
   actions: ReadonlyArray<ActionT>
