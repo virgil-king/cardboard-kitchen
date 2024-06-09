@@ -7,12 +7,13 @@ import {
 import { test } from "vitest";
 import { assert } from "chai";
 import { Kingdomino } from "./kingdomino.js";
-import { EpisodeConfiguration, Player, Players, unroll } from "game";
+import { Episode, EpisodeConfiguration, Player, Players } from "game";
 import { KingdominoAction } from "./action.js";
 import { Map, Set } from "immutable";
 import { Direction, Vector2 } from "./util.js";
 import {
   ClaimTile,
+  KingdominoConfiguration,
   LocationState,
   PlaceTile,
   centerX,
@@ -21,6 +22,7 @@ import {
 } from "./base.js";
 import { PlayerBoard } from "./board.js";
 import { requireDefined } from "studio-util";
+import { KingdominoState } from "./state.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -72,9 +74,9 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
 
 test("possiblePlacements: returns all options for first tile", () => {
   const episode = episodeWithPlayers(new Players(alice, bob, cecile));
-  unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);
+  episode.apply(claim(alice, 0), claim(bob, 1), claim(cecile, 2));
 
-  const placements = Set(possiblePlacements(episode.currentState));
+  const placements = Set(possiblePlacements(episode.currentSnapshot.state));
 
   assert.equal(placements.count(), 24);
   const check = (x: number, y: number, direction: Direction) => {
@@ -118,27 +120,27 @@ test("possiblePlacements: does not return out of bounds placements", () => {
     new Players(alice, bob, cecile),
     [1, 3, 7, 2, 4, 8, 10, 11, 12]
   );
-  unroll(episode, [claim(alice, 0), claim(bob, 1), claim(cecile, 2)]);
+  episode.apply(claim(alice, 0), claim(bob, 1), claim(cecile, 2));
   const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);
-  unroll(episode, [
+  episode.apply(
     KingdominoAction.placeTile(alice, firstTilePlacement),
     KingdominoAction.claimTile(alice, new ClaimTile(0)),
     KingdominoAction.placeTile(bob, firstTilePlacement),
     KingdominoAction.claimTile(bob, new ClaimTile(1)),
     KingdominoAction.placeTile(cecile, firstTilePlacement),
     KingdominoAction.claimTile(cecile, new ClaimTile(2)),
-  ]);
+  );
   const secondTilePlacement = new PlaceTile(new Vector2(3, 0), Direction.RIGHT);
-  unroll(episode, [
+  episode.apply(
     KingdominoAction.placeTile(alice, secondTilePlacement),
     KingdominoAction.claimTile(alice, new ClaimTile(0)),
     KingdominoAction.placeTile(bob, secondTilePlacement),
     KingdominoAction.claimTile(bob, new ClaimTile(1)),
     KingdominoAction.placeTile(cecile, secondTilePlacement),
     KingdominoAction.claimTile(cecile, new ClaimTile(2)),
-  ]);
+  );
 
-  const placements = Set(possiblePlacements(episode.currentState));
+  const placements = Set(possiblePlacements(episode.currentSnapshot.state));
 
   assert.isTrue(
     placements.every((placement) => {
@@ -153,11 +155,13 @@ test("possiblePlacements: does not return out of bounds placements", () => {
 function episodeWithPlayers(
   players: Players,
   shuffledTileNumbers: Array<number> | undefined = undefined
-) {
-  return kingdomino.newEpisode(
+): Episode<KingdominoConfiguration, KingdominoState, KingdominoAction> {
+  const episodeConfig = new EpisodeConfiguration(players);
+  const snapshot = kingdomino.newKingdominoEpisode(
     new EpisodeConfiguration(players),
     shuffledTileNumbers
   );
+  return new Episode(kingdomino, snapshot);
 }
 
 function claim(player: Player, offerIndex: number) {

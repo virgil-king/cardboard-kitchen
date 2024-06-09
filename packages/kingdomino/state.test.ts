@@ -1,4 +1,4 @@
-import { EpisodeConfiguration, Player, Players, unroll } from "game";
+import { Episode, EpisodeConfiguration, Player, Players } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { Direction, Vector2 } from "./util.js";
@@ -6,8 +6,14 @@ import { Direction, Vector2 } from "./util.js";
 import { test } from "vitest";
 import { assert } from "chai";
 import { Terrain } from "./tile.js";
-import { ClaimTile, PlaceTile, centerX, centerY } from "./base.js";
-import { NextAction } from "./state.js";
+import {
+  ClaimTile,
+  KingdominoConfiguration,
+  PlaceTile,
+  centerX,
+  centerY,
+} from "./base.js";
+import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
 import { requireDefined } from "studio-util";
 import { List } from "immutable";
@@ -25,8 +31,10 @@ test("newGame: board has castle in center", () => {
 
   for (let player of players.players) {
     assert.equal(
-      episode.currentState.locationState(player, new Vector2(centerX, centerY))
-        .terrain,
+      episode.currentSnapshot.state.locationState(
+        player,
+        new Vector2(centerX, centerY)
+      ).terrain,
       Terrain.TERRAIN_CENTER
     );
   }
@@ -38,7 +46,7 @@ test("newGame: current player is first in list", () => {
   const episode = episodeWithPlayers(players);
 
   assert.equal(
-    episode.currentState.currentPlayer,
+    episode.currentSnapshot.state.currentPlayer,
     alice,
     "first player should be alice"
   );
@@ -49,7 +57,7 @@ test("newGame: previous offers is undefined", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.previousOffers, undefined);
+  assert.equal(episode.currentSnapshot.state.props.previousOffers, undefined);
 });
 
 test("newGame: two players: offer has four tiles", () => {
@@ -57,7 +65,7 @@ test("newGame: two players: offer has four tiles", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.nextOffers?.offers.size, 4);
+  assert.equal(episode.currentSnapshot.state.props.nextOffers?.offers.size, 4);
 });
 
 test("newGame: three players: offer has three tiles", () => {
@@ -65,7 +73,7 @@ test("newGame: three players: offer has three tiles", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.nextOffers?.offers.size, 3);
+  assert.equal(episode.currentSnapshot.state.props.nextOffers?.offers.size, 3);
 });
 
 test("newGame: four players: offer has four tiles", () => {
@@ -73,7 +81,7 @@ test("newGame: four players: offer has four tiles", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.nextOffers?.offers.size, 4);
+  assert.equal(episode.currentSnapshot.state.props.nextOffers?.offers.size, 4);
 });
 
 test("newGame: no previous offers", () => {
@@ -81,7 +89,7 @@ test("newGame: no previous offers", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.props.previousOffers, undefined);
+  assert.equal(episode.currentSnapshot.state.props.previousOffers, undefined);
 });
 
 test("newGame: next action is claim", () => {
@@ -89,7 +97,10 @@ test("newGame: next action is claim", () => {
 
   const episode = episodeWithPlayers(players);
 
-  assert.equal(episode.currentState.nextAction, NextAction.CLAIM_OFFER);
+  assert.equal(
+    episode.currentSnapshot.state.nextAction,
+    NextAction.CLAIM_OFFER
+  );
 });
 
 test("newGame: scripted tiles: uses scripted tiles", () => {
@@ -98,7 +109,7 @@ test("newGame: scripted tiles: uses scripted tiles", () => {
   const episode = episodeWithPlayers(players, [1, 2, 3]);
 
   assert.isTrue(
-    requireDefined(episode.currentState.props.nextOffers)
+    requireDefined(episode.currentSnapshot.state.props.nextOffers)
       .offers.map((offer) => requireDefined(offer.tileNumber))
       .equals(List([1, 2, 3]))
   );
@@ -107,7 +118,7 @@ test("newGame: scripted tiles: uses scripted tiles", () => {
 test("withNewNextOffers: adds new offer tiles to drawnTileNumbers", () => {
   const players = new Players(alice, bob, cecile, derek);
 
-  const state = episodeWithPlayers(players).currentState;
+  const state = episodeWithPlayers(players).currentSnapshot.state;
 
   assert.equal(state.props.drawnTileNumbers.size, 4);
   for (const offer of requireDefined(state.props.nextOffers).offers) {
@@ -123,39 +134,40 @@ test("currentPlayer: after one action: returns second player", () => {
 
   episode.apply(claim(alice, 1));
 
-  assert.equal(episode.currentState.currentPlayer, bob);
+  assert.equal(episode.currentSnapshot.state.currentPlayer, bob);
 });
 
 test("currentPlayer: second round: returns player with first claim", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players);
-  unroll(episode, [claim(alice, 2), claim(bob, 1), claim(cecile, 0)]);
+  episode.apply(claim(alice, 2), claim(bob, 1), claim(cecile, 0));
 
-  assert.equal(episode.currentState.currentPlayer, cecile);
+  assert.equal(episode.currentSnapshot.state.currentPlayer, cecile);
 });
 
 test("claimTile: first round: next action is claim", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players);
-  unroll(episode, [claim(alice, 2)]);
+  const episode = episodeWithPlayers(players).apply(claim(alice, 2));
 
-  assert.equal(episode.currentState.nextAction, NextAction.CLAIM_OFFER);
+  assert.equal(
+    episode.currentSnapshot.state.nextAction,
+    NextAction.CLAIM_OFFER
+  );
 });
 
 test("claimTile: already claimed: throws", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players);
-  const state = unroll(episode, [claim(alice, 2)]);
+  const episode = episodeWithPlayers(players).apply(claim(alice, 2));
+  // const state = unroll(episode, [claim(alice, 2)]);
 
   assert.throws(() => {
-    state.apply(claim(bob, 2));
+    episode.apply(claim(bob, 2));
   });
 });
 
 test("claimTile: second round: next action is place", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players);
-  unroll(episode, [
+  const episode = episodeWithPlayers(players).apply(
     claim(alice, 2),
     claim(bob, 1),
     claim(cecile, 0),
@@ -163,32 +175,33 @@ test("claimTile: second round: next action is place", () => {
       cecile,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
-    KingdominoAction.claimTile(cecile, new ClaimTile(0)),
-  ]);
+    KingdominoAction.claimTile(cecile, new ClaimTile(0))
+  );
 
-  assert.equal(episode.currentState.nextAction, NextAction.RESOLVE_OFFER);
+  assert.equal(
+    episode.currentSnapshot.state.nextAction,
+    NextAction.RESOLVE_OFFER
+  );
 });
 
 test("placeTile: last round: updates next player", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players, _.range(1, 4));
-  unroll(episode, [
+  const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
     claim(alice, 0),
     claim(bob, 1),
     claim(cecile, 2),
     KingdominoAction.placeTile(
       alice,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
-    ),
-  ]);
+    )
+  );
 
-  assert.equal(episode.currentState.currentPlayer, bob);
+  assert.equal(episode.currentSnapshot.state.currentPlayer, bob);
 });
 
 test("placeTile: end of game: next action is undefined", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players, _.range(1, 4));
-  unroll(episode, [
+  const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
     claim(alice, 0),
     claim(bob, 1),
     claim(cecile, 2),
@@ -203,20 +216,22 @@ test("placeTile: end of game: next action is undefined", () => {
     KingdominoAction.placeTile(
       cecile,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
-    ),
-  ]);
+    )
+  );
 
-  assert.equal(episode.currentState.nextAction, undefined);
+  assert.equal(episode.currentSnapshot.state.nextAction, undefined);
 });
 
 function episodeWithPlayers(
   players: Players,
   shuffledTileNumbers: Array<number> | undefined = undefined
-) {
-  return kingdomino.newEpisode(
+): Episode<KingdominoConfiguration, KingdominoState, KingdominoAction> {
+  const episodeConfig = new EpisodeConfiguration(players);
+  const snapshot = kingdomino.newKingdominoEpisode(
     new EpisodeConfiguration(players),
     shuffledTileNumbers
   );
+  return new Episode(kingdomino, snapshot);
 }
 
 function claim(player: Player, offerIndex: number) {

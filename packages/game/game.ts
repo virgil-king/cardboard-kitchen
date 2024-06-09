@@ -1,8 +1,8 @@
-import { combineHashes } from "studio-util";
+import { combineHashes, requireDefined } from "studio-util";
 
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
-import tf from "@tensorflow/tfjs-node-gpu";
+// import tf from "@tensorflow/tfjs-node-gpu";
 
 export class Player implements ValueObject {
   constructor(readonly id: string, readonly name: string) {}
@@ -19,8 +19,15 @@ export class Player implements ValueObject {
 
 export class Players implements ValueObject {
   players: List<Player>;
+  playerIdToPlayer: Map<string, Player>;
   constructor(...playerArray: Array<Player>) {
     this.players = List(playerArray);
+    this.playerIdToPlayer = Map(
+      playerArray.map((player) => [player.id, player])
+    );
+  }
+  requirePlayer(id: string): Player {
+    return requireDefined(this.playerIdToPlayer.get(id));
   }
   equals(other: unknown): boolean {
     if (!(other instanceof Players)) {
@@ -134,18 +141,18 @@ export interface JsonSerializable {
   toJson(): string;
 }
 
-export interface ToTensor {
-  asTensor(): tf.Tensor;
-}
+// export interface ToTensor {
+//   asTensor(): tf.Tensor;
+// }
 
-export interface Action extends JsonSerializable, ValueObject, ToTensor {}
+export interface Action extends JsonSerializable, ValueObject {}
 
 export interface Agent<StateT extends GameState, ActionT extends Action> {
   act(state: StateT): ActionT;
 }
 
 // TODO add vector-able
-export interface GameState extends JsonSerializable, ToTensor {
+export interface GameState extends JsonSerializable {
   /** Returns whether the game is over */
   // gameOver: boolean;
   // result: PlayerValues | undefined;
@@ -169,6 +176,11 @@ export class Transcript<StateT extends GameState, ActionT extends Action> {
  * must be equal and values for unequal states must be equal.
  */
 export type ChanceKey = any;
+
+/**
+ * Convenience {@link ChanceKey} for deterministic transitions
+ */
+export const NO_CHANCE = [];
 
 /**
  * Configuration info shared by all games
@@ -238,7 +250,7 @@ export interface Game<
     action: ActionT
   ): [StateT, ChanceKey];
 
-  tensorToAction(tensor: tf.Tensor): ActionT;
+  // tensorToAction(tensor: tf.Tensor): ActionT;
 
   // gameOver(snapshot: EpisodeSnapshot<GameConfigurationT, StateT>): boolean;
   result(
@@ -268,45 +280,58 @@ export function gameOver<
  * Convenience class for driving a single episode
  */
 export class Episode<
-  GameConfigurationT extends GameConfiguration,
-  StateT extends GameState,
-  ActionT extends Action
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
 > {
-  currentSnapshot: EpisodeSnapshot<GameConfigurationT, StateT>;
+  currentSnapshot: EpisodeSnapshot<C, S>;
 
   constructor(
-    readonly game: Game<GameConfigurationT, StateT, ActionT>,
-    readonly episodeConfig: EpisodeConfiguration,
-    readonly gameConfig: GameConfigurationT,
-    state: StateT
-  ) {
-    this.currentSnapshot = new EpisodeSnapshot(
-      episodeConfig,
-      gameConfig,
-      state
-    );
+    readonly game: Game<C, S, A>,
+    readonly snapshot: EpisodeSnapshot<C, S>
+  ) // readonly episodeConfig: EpisodeConfiguration,
+  // readonly gameConfig: C,
+  // state: S
+  {
+    this.currentSnapshot = snapshot;
+    // this.currentSnapshot = new EpisodeSnapshot(
+    //   episodeConfig,
+    //   gameConfig,
+    //   state
+    // );
   }
 
-  apply(action: ActionT): [StateT, any] {
-    const [newState, chanceKey] = this.game.apply(this.currentSnapshot, action);
-    this.currentSnapshot = new EpisodeSnapshot(
-      this.episodeConfig,
-      this.gameConfig,
-      newState
-    );
-    return [newState, chanceKey];
+  apply(...actions: Array<A>): Episode<C, S, A> {
+    for (let action of actions) {
+      // Ignore chance keys
+      const [newState] = this.game.apply(this.currentSnapshot, action);
+      this.currentSnapshot = this.currentSnapshot.derive(newState);
+    }
+    return this;
+    // return [newState, chanceKey];
   }
+
+  // batch(actions: A[]): Episode<C, S, A> {
+  //   for (let action of actions) {
+  //     this.apply(action);
+  //   }
+  //   return this;
+  // }
 }
 
-export function unroll<StateT extends GameState, ActionT extends Action>(
-  episode: Episode<any, StateT, ActionT>,
-  actions: ReadonlyArray<ActionT>
-) {
-  let result = episode.apply(actions[0]);
-  for (const action of actions.slice(1)) {
-    result = episode.apply(action);
-  }
-}
+// export function unroll<StateT extends GameState, ActionT extends Action>(
+//   episode: Episode<any, StateT, ActionT>,
+//   actions: ReadonlyArray<ActionT>
+// ) {
+//   for (let action of actions) {
+//     episode.apply(action);
+//   }
+//   // let [result] = episode.apply(actions[0]);
+//   // for (const action of actions.slice(1)) {
+//   //   [result] = episode.apply(action);
+//   // }
+//   // return episode.currentSnapshot.derive(result);
+// }
 
 /**
  * Runs a new episode to completion using {@link playerIdToAgent} to act for {@link players}.
@@ -335,29 +360,30 @@ export function unroll<StateT extends GameState, ActionT extends Action>(
 //   return episode;
 // }
 
-// export function* generateEpisode<
-//   StateT extends GameState,
-//   ActionT extends Action
-// >(
-//   game: Game<any, StateT, ActionT>,
-//   config: EpisodeConfiguration,
-//   playerIdToAgent: Map<string, Agent<StateT, ActionT>>
-// ) {
-//   let episode = game.newEpisode(config);
-//   let state = episode.currentState;
-//   yield state;
-//   while (!state.gameOver) {
-//     const currentPlayer = state.currentPlayer;
-//     if (currentPlayer == undefined) {
-//       throw new Error(`Current player is undefined but game isn't over`);
-//     }
-//     const agent = playerIdToAgent.get(currentPlayer.id);
-//     if (agent == undefined) {
-//       throw new Error(`No agent for ${currentPlayer.id}`);
-//     }
-//     const action = agent.act(state);
-//     [state] = episode.apply(action);
-//     yield state;
-//   }
-//   return episode.currentState;
-// }
+export function* generateEpisode<
+  StateT extends GameState,
+  ActionT extends Action
+>(
+  game: Game<any, StateT, ActionT>,
+  config: EpisodeConfiguration,
+  playerIdToAgent: Map<string, Agent<StateT, ActionT>>
+) {
+  let snapshot = game.newEpisode(config);
+  let episode = new Episode(game, snapshot);
+  // let state = episode.currentSnapshot.state;
+  yield episode.currentSnapshot.state;
+  while (game.result(episode.currentSnapshot) == undefined) {
+    const currentPlayer = game.currentPlayer(episode.currentSnapshot);
+    if (currentPlayer == undefined) {
+      throw new Error(`Current player is undefined but game isn't over`);
+    }
+    const agent = playerIdToAgent.get(currentPlayer.id);
+    if (agent == undefined) {
+      throw new Error(`No agent for ${currentPlayer.id}`);
+    }
+    const action = agent.act(episode.currentSnapshot.state);
+    episode.apply(action);
+    yield episode.currentSnapshot.state;
+  }
+  return episode.currentSnapshot.state;
+}

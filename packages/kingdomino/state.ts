@@ -1,6 +1,8 @@
 import {
+  ChanceKey,
   EpisodeConfiguration,
   GameState,
+  NO_CHANCE,
   Player,
   PlayerState,
   PlayerValues,
@@ -19,7 +21,7 @@ import { Vector2 } from "./util.js";
 import { List, Map, Set } from "immutable";
 import _, { shuffle } from "lodash";
 import { PlayerBoard } from "./board.js";
-import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
+import { Rank, Tensor, tile } from "@tensorflow/tfjs-node-gpu";
 import { requireDefined, drawN } from "studio-util";
 
 export class KingdominoPlayerState {
@@ -45,6 +47,8 @@ export type Props = {
   readonly drawnTileNumbers: Set<number>;
   readonly previousOffers?: TileOffers;
   readonly nextOffers?: TileOffers;
+  /** Only for scripted test games */
+  readonly offsetInScriptedTileNumbers?: number;
 };
 
 /**
@@ -58,9 +62,13 @@ export class KingdominoState implements GameState {
    *
    * Does not populate the initial offers.
    */
-  static newGame(episodeConfiguration: EpisodeConfiguration): KingdominoState {
+  static newGame(
+    episodeConfiguration: EpisodeConfiguration,
+    kingdominoConfig: KingdominoConfiguration
+  ): KingdominoState {
     const playerCount = episodeConfiguration.players.players.count();
-    return new KingdominoState({
+    // Ignore chance key from initial offer deal
+    const [state] = new KingdominoState({
       playerIdToState: Map(
         episodeConfiguration.players.players.map((player) => [
           player.id,
@@ -70,7 +78,10 @@ export class KingdominoState implements GameState {
       currentPlayer: episodeConfiguration.players.players.get(0),
       nextAction: NextAction.CLAIM_OFFER,
       drawnTileNumbers: Set(),
-    });
+      offsetInScriptedTileNumbers:
+        kingdominoConfig.scriptedTileNumbers == undefined ? undefined : 0,
+    }).withNewNextOffers(kingdominoConfig);
+    return state;
   }
 
   constructor(readonly props: Props) {}
@@ -216,39 +227,48 @@ export class KingdominoState implements GameState {
   }
 
   /**
-   * Returns a copy with new offers
-   *
-   * @param tileNumbers scripted tile numbers for the new offer or undefined if
-   * tiles are not scripted
+   * Returns a copy with new next offers
    */
   withNewNextOffers(
-    config: KingdominoConfiguration,
-    tileNumbers: Array<number> | undefined
-  ): KingdominoState {
-    if (tileNumbers != undefined) {
-      if (tileNumbers.length == 0) {
-        return this.withNoNextOffers();
-      } else if (tileNumbers.length != config.turnsPerRound) {
+    config: KingdominoConfiguration
+    // scriptedTileNumbers: Array<number> | undefined
+  ): [KingdominoState, ChanceKey] {
+    const scriptedTileNumbers = config.scriptedTileNumbers;
+    if (scriptedTileNumbers != undefined) {
+      const offset = requireDefined(this.props.offsetInScriptedTileNumbers);
+      const remainingScriptedTileCount = scriptedTileNumbers.length - offset;
+      if (remainingScriptedTileCount == 0) {
+        return [this.withNoNextOffers(), NO_CHANCE];
+      } else if (remainingScriptedTileCount < config.turnsPerRound) {
         throw new Error(
           "Number of scripted tiles didn't equal turns per round"
         );
       } else {
-        return this.withNextOfferTileNumbers(tileNumbers);
+        const newOffset = offset + config.turnsPerRound;
+        return [
+          this.withNextOfferTileNumbers(
+            scriptedTileNumbers.slice(offset, newOffset),
+            newOffset
+          ),
+          NO_CHANCE,
+        ];
       }
     } else {
       const remainingTileCount =
         config.tileCount - this.props.drawnTileNumbers.count();
       if (remainingTileCount == 0) {
         // End of game
-        return this.withNoNextOffers();
+        return [this.withNoNextOffers(), NO_CHANCE];
       } else if (remainingTileCount < config.turnsPerRound) {
         throw new Error("Tile count was not a multiple of turns per round");
       } else {
         const remainingTiles = tileNumbersSet
           .subtract(this.props.drawnTileNumbers)
           .toArray();
-        tileNumbers = drawN(remainingTiles, config.turnsPerRound);
-        return this.withNextOfferTileNumbers(tileNumbers);
+        const tileNumbers = drawN(remainingTiles, config.turnsPerRound);
+        // The tile numbers themselves are a minimal representation of the
+        // chance involved in this transition
+        return [this.withNextOfferTileNumbers(tileNumbers), tileNumbers];
       }
     }
   }
@@ -258,7 +278,10 @@ export class KingdominoState implements GameState {
     return new KingdominoState({ ...this.props, nextOffers: undefined });
   }
 
-  withNextOfferTileNumbers(tileNumbers: Array<number>): KingdominoState {
+  withNextOfferTileNumbers(
+    tileNumbers: Array<number>,
+    offsetInScriptedTileNumbers: number | undefined = undefined
+  ): KingdominoState {
     // console.log(`tileNumbers=${JSON.stringify(tileNumbers)}`);
     let nextOffers = new TileOffers(
       List(tileNumbers.map((tileNumber) => new TileOffer(tileNumber)))
@@ -268,6 +291,7 @@ export class KingdominoState implements GameState {
       ...this.props,
       nextOffers: nextOffers,
       drawnTileNumbers: drawnTileNumbers,
+      offsetInScriptedTileNumbers: offsetInScriptedTileNumbers,
     });
   }
 }

@@ -8,7 +8,6 @@ import {
   PlayerValues,
   EpisodeConfiguration,
   JsonSerializable,
-  ToTensor,
   GameConfiguration,
   EpisodeSnapshot,
 } from "./game.js";
@@ -26,7 +25,7 @@ const bob = new Player("bob", "Bob");
 // const cecile = new Player("cecile", "Cecile");
 // const derek = new Player("derek", "Derek");
 
-class NotSerializable implements JsonSerializable, ToTensor {
+class NotSerializable implements JsonSerializable {
   static readonly INSTANCE = new NotSerializable();
 
   toJson(): string {
@@ -56,7 +55,7 @@ class NumberAction extends TestAction implements Action {
 
 class TestGameState extends NotSerializable {}
 
-// In "Pick One Number", each player gets one turn to pick a number, which equals
+// In "Pick A Number", each player gets one turn to pick a number, which equals
 // their final score
 
 class PickANumberConfiguration

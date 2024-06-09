@@ -1,4 +1,4 @@
-import { Player } from "game";
+import { GameConfiguration, Player } from "game";
 import { Direction, Rectangle, Vector2, neighbors } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 
@@ -49,22 +49,24 @@ export const centerLocationProperties: LocationProperties = {
   crowns: 0,
 };
 
-export class KingdominoConfiguration {
+export class KingdominoConfiguration implements GameConfiguration {
   readonly tileCount: number;
   /** Indexes are turn indexes and values are player indexes */
   readonly firstRoundTurnOrder: Array<number>;
   constructor(
     readonly playerCount: number,
-    readonly shuffledTileNumbers: Array<number> | undefined = undefined
+    readonly scriptedTileNumbers: Array<number> | undefined = undefined
   ) {
     ({
       tileCount: this.tileCount,
       firstRoundTurnOrder: this.firstRoundTurnOrder,
     } = requireDefined(playerCountToConfiguration.get(playerCount)));
   }
-
   get turnsPerRound(): number {
     return this.firstRoundTurnOrder.length;
+  }
+  toJson(): string {
+    throw new Error("Method not implemented.");
   }
 }
 

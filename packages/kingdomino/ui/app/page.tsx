@@ -1,14 +1,20 @@
 "use client";
 
 import _ from "lodash";
-import { EpisodeConfiguration, Player, Players, generateEpisode } from "game";
+import {
+  EpisodeConfiguration,
+  EpisodeSnapshot,
+  Player,
+  Players,
+  generateEpisode,
+} from "game";
 import {
   Kingdomino,
   RandomKingdominoAgent,
   KingdominoState,
   Terrain,
 } from "kingdomino";
-import { playAreaRadius } from "kingdomino/out/base";
+import { KingdominoConfiguration, playAreaRadius } from "kingdomino/out/base";
 import { Vector2 } from "kingdomino/out/util";
 import { Map } from "immutable";
 
@@ -77,7 +83,7 @@ export default function Home() {
   if (gameState == undefined) {
     content = <></>;
   } else {
-    content = <GameComponent state={gameState} />;
+    content = <GameComponent snapshot={gameState} />;
   }
 
   return (
@@ -91,18 +97,19 @@ export default function Home() {
 }
 
 type GameProps = {
-  state: KingdominoState;
+  snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>;
 };
 
 function GameComponent(props: GameProps) {
-  const playerComponents = props.state?.props.players.players.map((player) => {
-    return (
-      <PlayerComponent
-        key={player.id}
-        playerState={props.state.requirePlayerState(player)}
-      />
-    );
-  });
+  const playerComponents =
+    props.snapshot?.episodeConfiguration.players.players.map((player) => {
+      return (
+        <PlayerComponent
+          key={player.id}
+          playerState={props.snapshot.requirePlayerState(player)}
+        />
+      );
+    });
   return <div className={styles.horizontalFlex}>{playerComponents}</div>;
 }
 
