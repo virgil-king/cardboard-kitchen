@@ -98,6 +98,13 @@ class PickANumber
     );
   }
 
+  isLegalAction(
+    snapshot: EpisodeSnapshot<PickANumberConfiguration, PickANumberState>,
+    action: NumberAction
+  ): boolean {
+    return snapshot.state.remainingNumbers.contains(action.number);
+  }
+
   apply(
     snapshot: PickANumberEpisodeSnapshot,
     action: NumberAction
@@ -150,7 +157,14 @@ class PickANumberModel
 
   static STATE_VALUE = 0.5;
 
-  policy(
+  infer(snapshot: EpisodeSnapshot<GameConfiguration, PickANumberState>): {
+    value: PlayerValues;
+    policy: Map<NumberAction, number>;
+  } {
+    return { value: this.value(snapshot), policy: this.policy(snapshot) };
+  }
+
+  private policy(
     snapshot: EpisodeSnapshot<GameConfiguration, PickANumberState>
   ): Map<NumberAction, number> {
     return Map(
@@ -160,7 +174,8 @@ class PickANumberModel
       ])
     );
   }
-  value(
+
+  private value(
     snapshot: EpisodeSnapshot<GameConfiguration, PickANumberState>
   ): PlayerValues {
     const players = snapshot.episodeConfiguration.players.players;
@@ -174,20 +189,20 @@ class PickANumberModel
     };
   }
 
-  train(
+  async train(
     dataPoints: StateTrainingData<
       GameConfiguration,
       PickANumberState,
       NumberAction
     >[]
-  ): void {
+  ): Promise<void> {
     throw new Error("Method not implemented.");
   }
 }
 
 test("mcts: single-step deterministic game: one step per first action: expected values come from model", () => {
   const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({ simulationCount: 9 });
+  const mctsConfig = new MctsConfig({ simulationCount: 4 });
   const result = mcts(
     mctsConfig,
     PickANumber.INSTANCE,

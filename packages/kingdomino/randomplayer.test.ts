@@ -74,7 +74,7 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
 
 test("possiblePlacements: returns all options for first tile", () => {
   const episode = episodeWithPlayers(new Players(alice, bob, cecile));
-  episode.apply(claim(alice, 0), claim(bob, 1), claim(cecile, 2));
+  episode.apply(claim(0), claim(1), claim(2));
 
   const placements = Set(possiblePlacements(episode.currentSnapshot.state));
 
@@ -120,24 +120,24 @@ test("possiblePlacements: does not return out of bounds placements", () => {
     new Players(alice, bob, cecile),
     [1, 3, 7, 2, 4, 8, 10, 11, 12]
   );
-  episode.apply(claim(alice, 0), claim(bob, 1), claim(cecile, 2));
+  episode.apply(claim(0), claim(1), claim(2));
   const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);
   episode.apply(
-    KingdominoAction.placeTile(alice, firstTilePlacement),
-    KingdominoAction.claimTile(alice, new ClaimTile(0)),
-    KingdominoAction.placeTile(bob, firstTilePlacement),
-    KingdominoAction.claimTile(bob, new ClaimTile(1)),
-    KingdominoAction.placeTile(cecile, firstTilePlacement),
-    KingdominoAction.claimTile(cecile, new ClaimTile(2)),
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(0)),
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(1)),
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(2))
   );
   const secondTilePlacement = new PlaceTile(new Vector2(3, 0), Direction.RIGHT);
   episode.apply(
-    KingdominoAction.placeTile(alice, secondTilePlacement),
-    KingdominoAction.claimTile(alice, new ClaimTile(0)),
-    KingdominoAction.placeTile(bob, secondTilePlacement),
-    KingdominoAction.claimTile(bob, new ClaimTile(1)),
-    KingdominoAction.placeTile(cecile, secondTilePlacement),
-    KingdominoAction.claimTile(cecile, new ClaimTile(2)),
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(0)),
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(1)),
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(2))
   );
 
   const placements = Set(possiblePlacements(episode.currentSnapshot.state));
@@ -164,8 +164,8 @@ function episodeWithPlayers(
   return new Episode(kingdomino, snapshot);
 }
 
-function claim(player: Player, offerIndex: number) {
-  return KingdominoAction.claimTile(player, new ClaimTile(offerIndex));
+function claim(offerIndex: number) {
+  return KingdominoAction.claimTile(new ClaimTile(offerIndex));
 }
 
 test("streamingRandom: returns some item", () => {

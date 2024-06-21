@@ -1,3 +1,5 @@
+import { Map } from "immutable";
+
 /**
  * @param low inclusive lower bound
  * @param high exclusive upper bound
@@ -41,8 +43,9 @@ export function requireDefined<T>(
 
 /**
  * Returns N items drawn randomly from {@link items}.
- * 
- * Warning: {@link items} will be mutated!
+ *
+ * Warning: {@link items} will be mutated by repositioning the drawn items to
+ * the front
  */
 export function drawN<T>(items: Array<T>, count: number) {
   const result = new Array<T>(count);
@@ -53,4 +56,33 @@ export function drawN<T>(items: Array<T>, count: number) {
     items[index] = temp;
   }
   return items.slice(0, count);
+}
+
+/**
+ * Returns a map whose values are the weighted average of the values from
+ * {@link a} and {@link b}
+ */
+export function weightedMerge<K>(
+  a: Map<K, number>,
+  aWeight: number,
+  b: Map<K, number>,
+  bWeight: number
+) {
+  const weightSum = aWeight + bWeight;
+  const normalizedAWeight = aWeight / weightSum;
+  const normalizedBWeight = bWeight / weightSum;
+  let result = Map<K, number>();
+  for (const [key, value] of a.entries()) {
+    const bValue = b.get(key);
+    const mergedValue =
+      bValue == undefined
+        ? value
+        : value * normalizedAWeight + bValue * normalizedBWeight;
+    result = result.set(key, mergedValue);
+  }
+  // Keys in b but not in a
+  for (const [key, value] of b.removeAll(a.keys())) {
+    result = result.set(key, value);
+  }
+  return result;
 }

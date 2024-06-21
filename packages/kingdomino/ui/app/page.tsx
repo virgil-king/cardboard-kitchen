@@ -44,7 +44,9 @@ const agents = Map([
 let startCount = 0;
 
 export default function Home() {
-  let [gameState, setGameState] = useState<KingdominoState | undefined>();
+  let [gameState, setGameState] = useState<
+    EpisodeSnapshot<KingdominoConfiguration, KingdominoState> | undefined
+  >();
   let [[scope, destroyScope], _] = useState(createScope());
   let [task, setTask] = useState<Task<void> | undefined>();
   useEffect(() => {
@@ -57,13 +59,13 @@ export default function Home() {
     console.log(`play`);
     startCount++;
     let myStartCount = startCount;
-    for (let state of generateEpisode(
+    for (let snapshot of generateEpisode(
       kingdomino,
       new EpisodeConfiguration(players),
       agents
     )) {
       console.log(`Updating state from ${myStartCount}`);
-      setGameState(state);
+      setGameState(snapshot);
       yield* sleep(20);
     }
   }
@@ -106,7 +108,8 @@ function GameComponent(props: GameProps) {
       return (
         <PlayerComponent
           key={player.id}
-          playerState={props.snapshot.requirePlayerState(player)}
+          player={player}
+          playerState={props.snapshot.state.requirePlayerState(player)}
         />
       );
     });
@@ -114,13 +117,14 @@ function GameComponent(props: GameProps) {
 }
 
 type PlayerProps = {
+  player: Player;
   playerState: KingdominoPlayerState;
 };
 
 function PlayerComponent(props: PlayerProps) {
   return (
     <div className={styles.verticalFlex} style={{ padding: s_spacing }}>
-      <div style={{ textAlign: "center" }}>{props.playerState.player.name}</div>
+      <div style={{ textAlign: "center" }}>{props.player.name}</div>
       <div style={{ textAlign: "center" }}>
         Score: {props.playerState.gameState.score}
       </div>

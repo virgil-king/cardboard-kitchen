@@ -19,29 +19,27 @@ export class RandomKingdominoAgent
       case undefined:
         throw new Error(`No next action`);
       case NextAction.CLAIM_OFFER: {
-        const offerIndex = randomClaimIndex(
-          requireDefined(state.props.nextOffers)
-        );
-        return KingdominoAction.claimTile(
-          currentPlayer,
-          new ClaimTile(offerIndex)
-        );
+        const offerIndex = randomClaimIndex(requireDefined(state));
+        return KingdominoAction.claimTile(new ClaimTile(offerIndex));
       }
       case NextAction.RESOLVE_OFFER: {
         return randomPlacement(state);
       }
       default: {
-        throw new Error(`Unexpected case ${nextAction}`);
+        throw new Error(
+          `Unexpected case ${nextAction}; state is ${JSON.stringify(state)}`
+        );
       }
     }
   }
 }
 
-function randomClaimIndex(offers: TileOffers) {
+function randomClaimIndex(state: KingdominoState) {
+  const offers = requireDefined(state.props.nextOffers);
   const unclaimedOfferCount = offers.offers.count(
     (offer) => !offer.isClaimed()
   );
-  const skipCount = randomBetween(0, unclaimedOfferCount - 1);
+  const skipCount = randomBetween(0, unclaimedOfferCount);
   let skipped = 0;
   for (const [index, offer] of offers.offers.entries()) {
     if (offer.isClaimed()) {
@@ -53,16 +51,20 @@ function randomClaimIndex(offers: TileOffers) {
     }
     return index;
   }
-  throw new Error("Unreachable");
+  throw new Error(
+    `Unreachable; unclaimedOfferCount = ${unclaimedOfferCount}; state is ${JSON.stringify(
+      state
+    )}`
+  );
 }
 
 export function randomPlacement(state: KingdominoState): KingdominoAction {
   const currentPlayerBoard = state.requireCurrentPlayerState().board;
   const placement = streamingRandom(possiblePlacements(state));
   if (placement == undefined) {
-    return KingdominoAction.discardTile(state.requireCurrentPlayer());
+    return KingdominoAction.discardTile();
   }
-  return KingdominoAction.placeTile(state.requireCurrentPlayer(), placement);
+  return KingdominoAction.placeTile(placement);
 }
 
 export function* adjacentEmptyLocations(

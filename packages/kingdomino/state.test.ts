@@ -132,7 +132,7 @@ test("currentPlayer: after one action: returns second player", () => {
   const players = new Players(alice, bob);
   const episode = episodeWithPlayers(players);
 
-  episode.apply(claim(alice, 1));
+  episode.apply(claim(1));
 
   assert.equal(episode.currentSnapshot.state.currentPlayer, bob);
 });
@@ -140,14 +140,14 @@ test("currentPlayer: after one action: returns second player", () => {
 test("currentPlayer: second round: returns player with first claim", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players);
-  episode.apply(claim(alice, 2), claim(bob, 1), claim(cecile, 0));
+  episode.apply(claim(2), claim(1), claim(0));
 
   assert.equal(episode.currentSnapshot.state.currentPlayer, cecile);
 });
 
 test("claimTile: first round: next action is claim", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players).apply(claim(alice, 2));
+  const episode = episodeWithPlayers(players).apply(claim(2));
 
   assert.equal(
     episode.currentSnapshot.state.nextAction,
@@ -157,25 +157,24 @@ test("claimTile: first round: next action is claim", () => {
 
 test("claimTile: already claimed: throws", () => {
   const players = new Players(alice, bob, cecile);
-  const episode = episodeWithPlayers(players).apply(claim(alice, 2));
+  const episode = episodeWithPlayers(players).apply(claim(2));
   // const state = unroll(episode, [claim(alice, 2)]);
 
   assert.throws(() => {
-    episode.apply(claim(bob, 2));
+    episode.apply(claim(2));
   });
 });
 
 test("claimTile: second round: next action is place", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players).apply(
-    claim(alice, 2),
-    claim(bob, 1),
-    claim(cecile, 0),
+    claim(2),
+    claim(1),
+    claim(0),
     KingdominoAction.placeTile(
-      cecile,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
-    KingdominoAction.claimTile(cecile, new ClaimTile(0))
+    KingdominoAction.claimTile(new ClaimTile(0))
   );
 
   assert.equal(
@@ -187,11 +186,10 @@ test("claimTile: second round: next action is place", () => {
 test("placeTile: last round: updates next player", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
-    claim(alice, 0),
-    claim(bob, 1),
-    claim(cecile, 2),
+    claim(0),
+    claim(1),
+    claim(2),
     KingdominoAction.placeTile(
-      alice,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     )
   );
@@ -202,19 +200,16 @@ test("placeTile: last round: updates next player", () => {
 test("placeTile: end of game: next action is undefined", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
-    claim(alice, 0),
-    claim(bob, 1),
-    claim(cecile, 2),
+    claim(0),
+    claim(1),
+    claim(2),
     KingdominoAction.placeTile(
-      alice,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
     KingdominoAction.placeTile(
-      bob,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
     KingdominoAction.placeTile(
-      cecile,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     )
   );
@@ -234,6 +229,6 @@ function episodeWithPlayers(
   return new Episode(kingdomino, snapshot);
 }
 
-function claim(player: Player, offerIndex: number) {
-  return KingdominoAction.claimTile(player, new ClaimTile(offerIndex));
+function claim(offerIndex: number) {
+  return KingdominoAction.claimTile(new ClaimTile(offerIndex));
 }

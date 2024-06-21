@@ -2,6 +2,8 @@ import { Action, Player } from "game";
 
 import { ClaimTile, PlaceTile } from "./base.js";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
+import { hash } from "immutable";
+import { combineHashes } from "studio-util";
 
 export enum ActionCase {
   CLAIM,
@@ -9,14 +11,20 @@ export enum ActionCase {
   DISCARD,
 }
 
+export const actionCases = [
+  ActionCase.CLAIM,
+  ActionCase.PLACE,
+  ActionCase.DISCARD,
+];
+
 export type Claim = {
   case: ActionCase.CLAIM;
-  data: ClaimTile;
+  claim: ClaimTile;
 };
 
 export type Place = {
   case: ActionCase.PLACE;
-  data: PlaceTile;
+  place: PlaceTile;
 };
 
 export type Discard = {
@@ -26,23 +34,23 @@ export type Discard = {
 export type ActionData = Claim | Place | Discard;
 
 export class KingdominoAction implements Action {
-  private constructor(readonly player: Player, readonly data: ActionData) {}
-  static claimTile(player: Player, claimTile: ClaimTile) {
-    return new KingdominoAction(player, {
+  private constructor(readonly data: ActionData) {}
+  static claimTile(claimTile: ClaimTile) {
+    return new KingdominoAction({
       case: ActionCase.CLAIM,
-      data: claimTile,
+      claim: claimTile,
     });
   }
 
-  static placeTile(player: Player, placeTile: PlaceTile) {
-    return new KingdominoAction(player, {
+  static placeTile(placeTile: PlaceTile) {
+    return new KingdominoAction({
       case: ActionCase.PLACE,
-      data: placeTile,
+      place: placeTile,
     });
   }
 
-  static discardTile(player: Player) {
-    return new KingdominoAction(player, { case: ActionCase.DISCARD });
+  static discardTile() {
+    return new KingdominoAction({ case: ActionCase.DISCARD });
   }
 
   get case(): ActionCase {
@@ -50,13 +58,50 @@ export class KingdominoAction implements Action {
   }
 
   equals(other: unknown): boolean {
-    throw new Error("Method not implemented.");
+    if (!(other instanceof KingdominoAction)) {
+      return false;
+    }
+    if (
+      this.data.case == ActionCase.CLAIM &&
+      other.data.case == ActionCase.CLAIM &&
+      this.data.claim.offerIndex == other.data.claim.offerIndex
+    ) {
+      return true;
+    }
+    if (
+      this.data.case == ActionCase.PLACE &&
+      other.data.case == ActionCase.PLACE &&
+      this.data.place.equals(other.data.place)
+    ) {
+      return true;
+    }
+    if (
+      this.data.case == ActionCase.DISCARD &&
+      other.data.case == ActionCase.DISCARD
+    ) {
+      return true;
+    }
+    return false;
   }
+
   hashCode(): number {
-    throw new Error("Method not implemented.");
-  }
-  asTensor(): Tensor<Rank> {
-    throw new Error("Method not implemented.");
+    const tagHash = hash(this.case);
+    let caseHash: number;
+    switch (this.data.case) {
+      case ActionCase.CLAIM: {
+        caseHash = hash(this.data.claim.offerIndex);
+        break;
+      }
+      case ActionCase.PLACE: {
+        caseHash = this.data.place.hashCode();
+        break;
+      }
+      case ActionCase.DISCARD: {
+        caseHash = 0;
+        break;
+      }
+    }
+    return combineHashes(tagHash, caseHash);
   }
 
   toJson(): string {

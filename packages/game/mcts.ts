@@ -8,37 +8,53 @@ import {
   EpisodeSnapshot,
   playerValuesToString,
   Player,
+  Agent,
 } from "./game.js";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { requireDefined } from "studio-util";
-import { Model } from "./model.js";
+import { requireDefined, weightedMerge } from "studio-util";
+import { InferenceResult, Model } from "./model.js";
 
-const debugLoggingEnabled = true;
+const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
   if (debugLoggingEnabled) {
     console.log(block());
   }
 }
 
-export class MctsConfig {
+type RandomPlayoutConfig<S extends GameState, A extends Action> = {
+  /** Weight to apply to random playout values, relative to 1 */
+  weight: number;
+  agent: Agent<S, A>;
+};
+
+export class MctsConfig<S extends GameState, A extends Action> {
   readonly simulationCount: number;
   readonly explorationBias: number;
+  readonly randomPlayoutConfig: RandomPlayoutConfig<S, A> | undefined;
+  readonly maxChanceBranches: number;
   constructor({
-    simulationCount = 256,
+    simulationCount = 32,
     explorationBias = Math.sqrt(2),
+    randomPlayoutConfig = undefined,
+    maxChanceBranches = 4,
   }: {
     simulationCount?: number;
     explorationBias?: number;
+    randomPlayoutConfig?: RandomPlayoutConfig<S, A>;
+    maxChanceBranches?: number;
   }) {
     this.simulationCount = simulationCount;
     this.explorationBias = explorationBias;
+    this.randomPlayoutConfig = randomPlayoutConfig;
+    this.maxChanceBranches = maxChanceBranches;
   }
 }
 
-class MctsStats {
+export class MctsStats {
   actionNodesCreated = 0;
   stateNodesCreated = 0;
   terminalStatesReached = 0;
+  inferences = 0;
 }
 
 export interface MctsContext<
@@ -46,9 +62,10 @@ export interface MctsContext<
   S extends GameState,
   A extends Action
 > {
-  readonly config: MctsConfig;
+  readonly config: MctsConfig<S, A>;
   readonly game: Game<C, S, A>;
   readonly model: Model<C, S, A>;
+  readonly stats: MctsStats;
 }
 
 /**
@@ -61,8 +78,7 @@ class ActionNode<
   S extends GameState,
   A extends Action
 > {
-  // TODO constrain the size of this map
-  readonly chanceKeyToChild = new Map<ChanceKey, StateNode<C, S, A>>();
+  chanceKeyToChild = ImmutableMap<ChanceKey, StateNode>();
   /**
    * Weighted average values across the possible states resulting from this
    * node's action due to chance. Only populated after the first call to
@@ -77,7 +93,9 @@ class ActionNode<
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
     readonly prior: number
-  ) {}
+  ) {
+    this.context.stats.actionNodesCreated++;
+  }
 
   get visitCount(): number {
     return this.playerExpectedValues.visitCount;
@@ -96,18 +114,23 @@ class ActionNode<
     let result: PlayerValues;
     if (stateNode == undefined) {
       // New child
-      debugLog(
-        () => `Creating new state node for ${JSON.stringify(childState)}`
-      );
-      stateNode = new StateNode(this.context, snapshot.derive(childState));
-      this.chanceKeyToChild.set(chanceKey, stateNode);
+      // debugLog(
+      //   () => `Creating new state node for ${JSON.stringify(childState)}`
+      // );
+      const childSnapshot = snapshot.derive(childState);
+      if (this.context.game.result(childSnapshot) == undefined) {
+        stateNode = new NonTerminalStateNode(this.context, childSnapshot);
+      } else {
+        stateNode = new TerminalStateNode(this.context, childSnapshot);
+      }
+      this.addToCache(chanceKey, stateNode);
       // Use the new node's initial predicted values
       result = stateNode.predictedValues();
     } else {
       // Existing child: continue the search into a grandchild node
-      debugLog(
-        () => `Using existing state node for ${JSON.stringify(childState)}`
-      );
+      // debugLog(
+      //   () => `Using existing state node for ${JSON.stringify(childState)}`
+      // );
       result = stateNode.visit();
     }
     this.playerExpectedValues.merge(result);
@@ -120,6 +143,25 @@ class ActionNode<
     return result;
   }
 
+  addToCache(chanceKey: ChanceKey, node: StateNode) {
+    if (
+      this.chanceKeyToChild.count() >= this.context.config.maxChanceBranches
+    ) {
+      // Eject a least-visited child
+      const [leastVisitedKey, leastVisitedNode] = requireDefined(
+        Seq(this.chanceKeyToChild.entries()).min(
+          ([, aValue], [, bValue]) => aValue.visitCount - bValue.visitCount
+        )
+      );
+      debugLog(
+        () =>
+          `Ejecting state node for ${leastVisitedKey} with visit count ${leastVisitedNode.visitCount}`
+      );
+      this.chanceKeyToChild = this.chanceKeyToChild.remove(leastVisitedKey);
+    }
+    this.chanceKeyToChild = this.chanceKeyToChild.set(chanceKey, node);
+  }
+
   requirePlayerValue(player: Player): number {
     return requireDefined(
       this.playerExpectedValues.playerIdToValue.get(player.id)
@@ -127,23 +169,35 @@ class ActionNode<
   }
 }
 
+interface StateNode {
+  visitCount: number;
+  predictedValues(): PlayerValues;
+  visit(): PlayerValues;
+}
+
 /**
  * A node in a UCT search tree uniquely corresponding to a game state. State
  * nodes' children correspond to possible actions following that state.
  */
-export class StateNode<
+export class NonTerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> {
+> implements StateNode
+{
   visitCount = 0;
   actionToChild: Map<A, ActionNode<C, S, A>>;
+  readonly inferenceResult: InferenceResult<A>;
   readonly playerValues = new NodeValues();
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly snapshot: EpisodeSnapshot<C, S>
   ) {
-    const policy = context.model.policy(snapshot);
+    this.context.stats.stateNodesCreated++;
+    this.inferenceResult = context.model.infer(snapshot);
+    this.context.stats.inferences++;
+    const policy = this.inferenceResult.policy;
+    // console.log(`policy is ${policy.toArray()}`);
     const priorSum = Array.from(policy.values()).reduce(
       (sum, next) => sum + next,
       0
@@ -154,6 +208,7 @@ export class StateNode<
         new ActionNode(context, action, prior / priorSum),
       ])
     );
+    // debugLog(() => `actionToChild is ${JSON.stringify(this.actionToChild)}`);
   }
 
   /**
@@ -168,17 +223,51 @@ export class StateNode<
             episodeResult
           )} for state ${JSON.stringify(this.snapshot.state)}`
       );
+      this.context.stats.terminalStatesReached++;
       return episodeResult;
     }
 
-    const predictedValues = this.context.model.value(this.snapshot);
-    debugLog(
-      () =>
-        `Using predicted values ${JSON.stringify(
-          predictedValues
-        )} for state ${JSON.stringify(this.snapshot.state)}`
-    );
+    // Model prediction
+    let predictedValues = this.inferenceResult.value;
+    // debugLog(
+    //   () =>
+    //     `Using predicted values ${JSON.stringify(
+    //       predictedValues
+    //     )} for state ${JSON.stringify(this.snapshot.state)}`
+    // );
+
+    // Random playout
+    const randomPlayoutConfig = this.context.config.randomPlayoutConfig;
+    if (randomPlayoutConfig != undefined) {
+      const randomPlayoutValues = this.randomPlayout(randomPlayoutConfig.agent);
+      predictedValues = {
+        playerIdToValue: weightedMerge(
+          predictedValues.playerIdToValue,
+          1,
+          randomPlayoutValues.playerIdToValue,
+          randomPlayoutConfig.weight
+        ),
+      };
+    }
+
     return predictedValues;
+  }
+
+  randomPlayout(agent: Agent<S, A>): PlayerValues {
+    // console.log(`Starting random playout from ${JSON.stringify(this.snapshot.state)}`);
+    let snapshot = this.snapshot;
+    while (true) {
+      const result = this.context.game.result(snapshot);
+      if (result != undefined) {
+        return result;
+      }
+      // Ignore chance keys
+      const [newState] = this.context.game.apply(
+        snapshot,
+        agent.act(snapshot.state)
+      );
+      snapshot = snapshot.derive(newState);
+    }
   }
 
   /**
@@ -206,17 +295,17 @@ export class StateNode<
     }
     const childResult = child.visit(this.snapshot);
     this.playerValues.merge(childResult);
-    debugLog(
-      () =>
-        `State node ${JSON.stringify(
-          this.snapshot.state
-        )} new values are ${this.playerValues.toString()}`
-    );
+    // debugLog(
+    //   () =>
+    //     `State node ${JSON.stringify(
+    //       this.snapshot.state
+    //     )} new values are ${this.playerValues.toString()}`
+    // );
     return childResult;
   }
 
   selectAction(): A {
-    let maxUcb = -1;
+    let maxUcb = Number.NEGATIVE_INFINITY;
     let maxUcbAction: A | undefined = undefined;
     const currentPlayer = requireDefined(
       this.context.game.currentPlayer(this.snapshot)
@@ -233,9 +322,9 @@ export class StateNode<
         () =>
           `Considering action node ${JSON.stringify(
             action
-          )} with values ${child.playerExpectedValues.toString()} and visit count ${
-            child.visitCount
-          }`
+          )} with current value ${child.playerExpectedValues.playerIdToValue.get(
+            currentPlayer.id
+          )}, prior ${child.prior}, and visit count ${child.visitCount}`
       );
       const ucb =
         requireDefined(
@@ -253,12 +342,47 @@ export class StateNode<
       }
     }
     if (maxUcbAction == undefined) {
-      throw new Error("No action to select");
+      throw new Error(
+        `No action to select from state ${JSON.stringify(
+          this.snapshot.state,
+          undefined,
+          2
+        )}`
+      );
     }
     debugLog(
       () => `Selecting ${JSON.stringify(maxUcbAction)} with max UCB ${maxUcb}`
     );
     return maxUcbAction;
+  }
+}
+
+export class TerminalStateNode<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> implements StateNode
+{
+  result: PlayerValues;
+  visitCount = 0;
+  constructor(
+    readonly context: MctsContext<C, S, A>,
+    readonly snapshot: EpisodeSnapshot<C, S>
+  ) {
+    const gameResult = context.game.result(snapshot);
+    if (gameResult == undefined) {
+      throw new Error(`Terminal node created with non-terminal state`);
+    }
+    this.result = gameResult;
+  }
+
+  predictedValues(): PlayerValues {
+    return this.result;
+  }
+
+  visit(): PlayerValues {
+    this.visitCount++;
+    return this.result;
   }
 }
 
@@ -277,7 +401,7 @@ export function mcts<
   S extends GameState,
   A extends Action
 >(
-  config: MctsConfig,
+  config: MctsConfig<S, A>,
   game: Game<C, S, A>,
   model: Model<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>
@@ -287,8 +411,9 @@ export function mcts<
     config: config,
     game: game,
     model: model,
+    stats: new MctsStats(),
   };
-  const root = new StateNode(context, snapshot);
+  const root = new NonTerminalStateNode(context, snapshot);
   for (let step = 0; step < config.simulationCount; step++) {
     debugLog(() => `New simulation`);
     root.visit();

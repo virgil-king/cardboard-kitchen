@@ -1,4 +1,4 @@
-import { requireDefined } from "studio-util";
+import { drawN, requireDefined } from "studio-util";
 import {
   Action,
   EpisodeConfiguration,
@@ -8,11 +8,19 @@ import {
   GameState,
   PlayerValues,
 } from "./game.js";
-import { MctsConfig, MctsContext, StateNode } from "./mcts.js";
+import {
+  MctsConfig,
+  MctsContext,
+  MctsStats,
+  NonTerminalStateNode,
+} from "./mcts.js";
 import { Map, Range, Seq } from "immutable";
 import { Model, StateTrainingData } from "./model.js";
 
-export function train<
+/**
+ * @param batchSize number of state samples to use per batch
+ */
+export async function train<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -20,19 +28,41 @@ export function train<
   game: Game<C, S, A>,
   model: Model<C, S, A>,
   episodeConfig: EpisodeConfiguration,
-  mctsConfig: MctsConfig,
-  episodeCount: number
+  mctsConfig: MctsConfig<S, A>,
+  batchSize: number,
+  batchCount: number
 ) {
   const context = {
     config: mctsConfig,
     game: game,
     model: model,
+    stats: new MctsStats(),
   };
-  for (let i = 0; i < episodeCount; i++) {
-    const episodeTrainingData = episode(context, episodeConfig);
-    for (let j of Range(0, episodeTrainingData.stateCount)) {
-        model.train([episodeTrainingData.stateTrainingData(j)]);
+  let selfPlayDurationMs = 0;
+  let trainingDurationMs = 0;
+  // const perf = Performance.new();
+  for (let i = 0; i < batchCount; i++) {
+    const selfPlayStartMs = performance.now();
+    let samples = new Array<StateTrainingData<C, S, A>>();
+    while (samples.length < batchSize) {
+      const episodeTrainingData = episode(context, episodeConfig);
+      samples.push(...episodeTrainingData.stateTrainingDataArray());
     }
+    console.log(`Filled next batch`);
+    const now = performance.now();
+    selfPlayDurationMs += now - selfPlayStartMs;
+    const trainingStartMs = now;
+    const batch = drawN(samples, batchSize);
+    await model.train(batch);
+    trainingDurationMs += performance.now() - trainingStartMs;
+    const totalDurationMs = selfPlayDurationMs + trainingDurationMs;
+    console.log(
+      `Self play time ${selfPlayDurationMs} ms (${
+        (selfPlayDurationMs * 100) / totalDurationMs
+      }%); training time ${trainingDurationMs} ms (${
+        (trainingDurationMs * 100) / totalDurationMs
+      }%)`
+    );
   }
 }
 
@@ -67,8 +97,20 @@ class EpisodeTrainingData<
       this.terminalValues
     );
   }
+
+  stateTrainingDataArray(): Array<StateTrainingData<C, S, A>> {
+    const result = new Array<StateTrainingData<C, S, A>>();
+    for (let i = 0; i < this.stateCount; i++) {
+      result.push(this.stateTrainingData(i));
+    }
+    return result;
+  }
 }
 
+/**
+ * Runs a new episode to completion and returns training data for each state in
+ * the episode
+ */
 function episode<
   C extends GameConfiguration,
   S extends GameState,
@@ -78,17 +120,25 @@ function episode<
   episodeConfig: EpisodeConfiguration
 ): EpisodeTrainingData<C, S, A> {
   let snapshot = mctsContext.game.newEpisode(episodeConfig);
-  let root = new StateNode(mctsContext, snapshot);
+  if (mctsContext.game.result(snapshot) != undefined) {
+    throw new Error(`episode called on completed state`);
+  }
+  let root = new NonTerminalStateNode(mctsContext, snapshot);
   const states = new Array<StateSearchData<S, A>>();
   while (mctsContext.game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(
       mctsContext.game.currentPlayer(snapshot)
     );
-    for (let i of Range(0, mctsContext.config.simulationCount)) {
+    // Run simulationCount steps or enough to try every possible action once
+    for (let i of Range(
+      0,
+      Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
+    )) {
       root.visit();
     }
     // TODO incorporate noise
     // TODO choose proportionally rather than greedily
+    // TODO some action nodes might not have been visited yet. How to fix that?
     const [actionWithGreatestExpectedValue] = requireDefined(
       Seq(root.actionToChild.entries()).max(
         ([, actionNode1], [, actionNode2]) =>
@@ -96,32 +146,55 @@ function episode<
           actionNode2.requirePlayerValue(currentPlayer)
       )
     );
-    states.push(
-      new StateSearchData(
-        snapshot.state,
-        Map(
-          Seq(root.actionToChild.entries()).map(([action, child]) => [
-            action,
-            child.requirePlayerValue(currentPlayer),
-          ])
-        )
+    const stateSearchData = new StateSearchData(
+      snapshot.state,
+      Map(
+        Seq(root.actionToChild.entries()).map(([action, child]) => [
+          action,
+          child.visitCount,
+        ])
       )
+    );
+    // console.log(
+    //   `New search data is ${JSON.stringify(
+    //     stateSearchData.actionToVisitCount.toArray()
+    //   )}`
+    // );
+    states.push(stateSearchData);
+    console.log(
+      `Selected action ${JSON.stringify(
+        actionWithGreatestExpectedValue,
+        undefined,
+        2
+      )}`
     );
     const [newState, chanceKey] = mctsContext.game.apply(
       snapshot,
       actionWithGreatestExpectedValue
     );
-    snapshot.derive(newState);
+    snapshot = snapshot.derive(newState);
+    if (mctsContext.game.result(snapshot) != undefined) {
+      break;
+    }
     // Reuse the node for newState from the previous search tree if it exists.
     // It might not exist if there was non-determinism in the application of the
     // latest action.
-    root =
-      root.actionToChild
-        .get(actionWithGreatestExpectedValue)
-        ?.chanceKeyToChild.get(chanceKey) ??
-      new StateNode(mctsContext, snapshot);
-    console.log(`New root node has ${root.visitCount} visits`);
+    const existingStateNode = root.actionToChild
+      .get(actionWithGreatestExpectedValue)
+      ?.chanceKeyToChild.get(chanceKey);
+    if (existingStateNode != undefined) {
+      if (!(existingStateNode instanceof NonTerminalStateNode)) {
+        throw new Error(
+          `Node for non-terminal state was not NonTerminalStateNode`
+        );
+      }
+      root = existingStateNode;
+    } else {
+      root = new NonTerminalStateNode(mctsContext, snapshot);
+    }
+    // console.log(`New root node has ${root.visitCount} visits`);
   }
+  console.log(`Completed episode`);
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,

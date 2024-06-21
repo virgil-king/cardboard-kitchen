@@ -245,6 +245,11 @@ export interface Game<
     config: EpisodeConfiguration
   ): EpisodeSnapshot<GameConfigurationT, StateT>;
 
+  isLegalAction(
+    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>,
+    action: ActionT
+  ): boolean;
+
   apply(
     snapshot: EpisodeSnapshot<GameConfigurationT, StateT>,
     action: ActionT
@@ -288,11 +293,8 @@ export class Episode<
 
   constructor(
     readonly game: Game<C, S, A>,
-    readonly snapshot: EpisodeSnapshot<C, S>
-  ) // readonly episodeConfig: EpisodeConfiguration,
-  // readonly gameConfig: C,
-  // state: S
-  {
+    readonly snapshot: EpisodeSnapshot<C, S> // readonly episodeConfig: EpisodeConfiguration, // readonly gameConfig: C, // state: S
+  ) {
     this.currentSnapshot = snapshot;
     // this.currentSnapshot = new EpisodeSnapshot(
     //   episodeConfig,
@@ -361,17 +363,18 @@ export class Episode<
 // }
 
 export function* generateEpisode<
-  StateT extends GameState,
-  ActionT extends Action
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
 >(
-  game: Game<any, StateT, ActionT>,
+  game: Game<C, S, A>,
   config: EpisodeConfiguration,
-  playerIdToAgent: Map<string, Agent<StateT, ActionT>>
+  playerIdToAgent: Map<string, Agent<S, A>>
 ) {
   let snapshot = game.newEpisode(config);
   let episode = new Episode(game, snapshot);
   // let state = episode.currentSnapshot.state;
-  yield episode.currentSnapshot.state;
+  yield episode.currentSnapshot;
   while (game.result(episode.currentSnapshot) == undefined) {
     const currentPlayer = game.currentPlayer(episode.currentSnapshot);
     if (currentPlayer == undefined) {
@@ -383,7 +386,7 @@ export function* generateEpisode<
     }
     const action = agent.act(episode.currentSnapshot.state);
     episode.apply(action);
-    yield episode.currentSnapshot.state;
+    yield episode.currentSnapshot;
   }
-  return episode.currentSnapshot.state;
+  return episode.currentSnapshot;
 }

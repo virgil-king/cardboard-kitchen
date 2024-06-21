@@ -14,6 +14,9 @@ export const playAreaSize = 1 + 2 * (maxKingdomSize - 1);
 /** Distance from the center of the board to the furthest playable location in any cardinal direction */
 export const playAreaRadius = Math.floor(playAreaSize / 2);
 
+/** The range of valid board indices in either axis */
+export const boardIndices = _.range(-playAreaRadius, playAreaRadius + 1);
+
 export const centerX = 0;
 export const centerY = centerX;
 
@@ -50,6 +53,7 @@ export const centerLocationProperties: LocationProperties = {
 };
 
 export class KingdominoConfiguration implements GameConfiguration {
+  /** The total number of tiles that will be dealt during the game */
   readonly tileCount: number;
   /** Indexes are turn indexes and values are player indexes */
   readonly firstRoundTurnOrder: Array<number>;
@@ -97,6 +101,8 @@ export class TileClaim {
 }
 
 export class TileOffer {
+  static readonly EMPTY = new TileOffer();
+
   constructor(readonly tileNumber?: number, readonly claim?: TileClaim) {}
 
   isClaimed() {
@@ -111,8 +117,8 @@ export class TileOffer {
     return new TileOffer(this.tileNumber, new TileClaim(player.id));
   }
 
-  withTileRemoved(): TileOffer {
-    return new TileOffer();
+  withTileAndClaimRemoved(): TileOffer {
+    return TileOffer.EMPTY;
   }
 }
 
@@ -127,8 +133,8 @@ export class TileOffers {
     return new TileOffers(this.offers.set(offerIndex, offer));
   }
 
-  withTileRemoved(offerIndex: number): TileOffers {
-    const offer = this.offers.get(offerIndex)?.withTileRemoved();
+  withTileAndClaimRemoved(offerIndex: number): TileOffers {
+    const offer = this.offers.get(offerIndex)?.withTileAndClaimRemoved();
     if (offer == undefined) {
       throw new Error(`Offer index out of bounds: ${offerIndex}`);
     }

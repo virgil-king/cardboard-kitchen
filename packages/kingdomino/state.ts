@@ -39,6 +39,11 @@ export enum NextAction {
   RESOLVE_OFFER,
 }
 
+export const nextActions: ReadonlyArray<NextAction> = [
+  NextAction.CLAIM_OFFER,
+  NextAction.RESOLVE_OFFER,
+];
+
 export type Props = {
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
   readonly currentPlayer?: Player;
@@ -165,6 +170,9 @@ export class KingdominoState implements GameState {
     return new KingdominoState({ ...this.props, nextAction: nextAction });
   }
 
+  /**
+   * Returns `this` updated by setting a claim on an offer
+   */
   withClaim(player: Player, claimTile: ClaimTile): KingdominoState {
     const nextOffers = requireDefined(this.props.nextOffers);
     if (nextOffers.offers.get(claimTile.offerIndex)?.isClaimed()) {
@@ -183,7 +191,7 @@ export class KingdominoState implements GameState {
    */
   withPreviousOfferRemoved(offerIndex: number) {
     let previousOffers = requireDefined(this.props.previousOffers);
-    previousOffers = previousOffers.withTileRemoved(offerIndex);
+    previousOffers = previousOffers.withTileAndClaimRemoved(offerIndex);
     return new KingdominoState({
       ...this.props,
       previousOffers: previousOffers,
@@ -256,6 +264,7 @@ export class KingdominoState implements GameState {
     } else {
       const remainingTileCount =
         config.tileCount - this.props.drawnTileNumbers.count();
+      // console.log(`remainingTileCount is ${remainingTileCount}`);
       if (remainingTileCount == 0) {
         // End of game
         return [this.withNoNextOffers(), NO_CHANCE];
@@ -265,6 +274,7 @@ export class KingdominoState implements GameState {
         const remainingTiles = tileNumbersSet
           .subtract(this.props.drawnTileNumbers)
           .toArray();
+        // console.log(`remainingTiles is ${JSON.stringify(remainingTiles)}`);
         const tileNumbers = drawN(remainingTiles, config.turnsPerRound);
         // The tile numbers themselves are a minimal representation of the
         // chance involved in this transition

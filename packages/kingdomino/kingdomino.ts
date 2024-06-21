@@ -12,15 +12,16 @@ import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
 
 import { ActionCase, KingdominoAction } from "./action.js";
-import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import {
   ClaimTile,
   KingdominoConfiguration,
   PlaceTile,
   TileOffer,
   TileOffers,
+  playerCountToConfiguration,
 } from "./base.js";
 import { requireDefined } from "studio-util";
+import { Seq } from "immutable";
 
 type KingdominoSnapshot = EpisodeSnapshot<
   KingdominoConfiguration,
@@ -30,7 +31,17 @@ type KingdominoSnapshot = EpisodeSnapshot<
 export class Kingdomino
   implements Game<KingdominoConfiguration, KingdominoState, KingdominoAction>
 {
+  static INSTANCE = new Kingdomino();
+
   playerCounts = [2, 3, 4];
+
+  maxPlayerCount = requireDefined(Seq(this.playerCounts).max());
+
+  maxTurnsPerRound = requireDefined(
+    Seq(playerCountToConfiguration.values())
+      .map((config) => config.firstRoundTurnOrder.length)
+      .max()
+  );
 
   load(bytes: Uint8Array): KingdominoState {
     throw new Error("Method not implemented.");
@@ -66,9 +77,17 @@ export class Kingdomino
     return snapshot.state.currentPlayer;
   }
 
-  // tensorToAction(tensor: Tensor<Rank>): KingdominoAction {
-  //   throw new Error("Method not implemented.");
-  // }
+  isLegalAction(
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
+    action: KingdominoAction
+  ): boolean {
+    try {
+      this.apply(snapshot, action);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   apply(
     snapshot: KingdominoSnapshot,
@@ -76,31 +95,38 @@ export class Kingdomino
   ): [KingdominoState, ChanceKey] {
     // console.log(`Handling ${JSON.stringify(action)}`);
 
-    if (!action.player.equals(snapshot.state.currentPlayer)) {
-      throw new Error(
-        `Action specified player ${action.player.name} but should have been ${snapshot.state.currentPlayer?.name}`
-      );
-    }
+    // if (!action.player.equals(snapshot.state.currentPlayer)) {
+    //   throw new Error(
+    //     `Action specified player ${action.player.name} but should have been ${snapshot.state.currentPlayer?.name}`
+    //   );
+    // }
 
     const actionData = action.data;
     let result: [KingdominoState, ChanceKey];
+    const currentPlayer = requireDefined(snapshot.state.currentPlayer);
     switch (actionData.case) {
       case ActionCase.CLAIM: {
-        result = this.handleClaim(snapshot, action.player, actionData.data);
+        result = this.handleClaim(snapshot, currentPlayer, actionData.claim);
         break;
       }
       case ActionCase.PLACE: {
-        result = this.handlePlacement(snapshot, action.player, actionData.data);
+        result = this.handlePlacement(
+          snapshot,
+          currentPlayer,
+          actionData.place
+        );
         break;
       }
       case ActionCase.DISCARD: {
-        result = this.handleDiscard(snapshot, action.player);
+        result = this.handleDiscard(snapshot, currentPlayer);
         break;
       }
     }
     // console.log(
     //   `Next player is ${JSON.stringify(this.currentState.currentPlayer)}`
     // );
+
+    // console.log(`Next action is ${result[0].nextAction}`);
 
     return result;
   }
@@ -110,6 +136,9 @@ export class Kingdomino
     player: Player,
     claim: ClaimTile
   ): [KingdominoState, ChanceKey] {
+    if (snapshot.state.nextAction != NextAction.CLAIM_OFFER) {
+      throw new Error(`Unexpected claim action`);
+    }
     let newState = snapshot.state.withClaim(player, claim);
     let chanceKey = NO_CHANCE;
     if (newState.isFirstRound()) {
@@ -163,6 +192,8 @@ export class Kingdomino
     let [newState, chanceKey] = state
       .withPreviousOffers(nextOffers)
       .withNewNextOffers(kingdominoConfig);
+    // console.log(`Previous next offers is ${JSON.stringify(nextOffers)}`);
+    // console.log(`New next offers is ${JSON.stringify(newState.props.nextOffers)}`);
     newState = newState
       .withCurrentPlayer(
         requireDefined(
@@ -178,6 +209,9 @@ export class Kingdomino
     player: Player,
     placement: PlaceTile
   ): [KingdominoState, ChanceKey] {
+    if (snapshot.state.nextAction != NextAction.RESOLVE_OFFER) {
+      throw new Error(`Unexpected place action`);
+    }
     const previousOffers = snapshot.state.props.previousOffers;
     if (previousOffers == undefined) {
       throw new Error("Tried to place a tile in the first round");
@@ -226,6 +260,7 @@ export class Kingdomino
         // console.log(`Next player is ${JSON.stringify(nextPlayer)}`);
       }
     } else {
+      // console.log(`Setting next action to claim`);
       state = state.withNextAction(NextAction.CLAIM_OFFER);
     }
     return state;
@@ -270,6 +305,9 @@ export class Kingdomino
     snapshot: KingdominoSnapshot,
     player: Player
   ): [KingdominoState, ChanceKey] {
+    if (snapshot.state.nextAction != NextAction.RESOLVE_OFFER) {
+      throw new Error(`Unexpected discard action`);
+    }
     const previousOffers = snapshot.state.props.previousOffers;
     if (previousOffers == undefined) {
       throw new Error("Can't discard in the first round");

@@ -11,6 +11,17 @@ export enum Terrain {
   TERRAIN_HAY,
 }
 
+export const terrainValues: ReadonlyArray<Terrain> = [
+  Terrain.TERRAIN_EMPTY,
+  Terrain.TERRAIN_CENTER,
+  Terrain.TERRAIN_FOREST,
+  Terrain.TERRAIN_WATER,
+  Terrain.TERRAIN_PASTURE,
+  Terrain.TERRAIN_SWAMP,
+  Terrain.TERRAIN_MINE,
+  Terrain.TERRAIN_HAY,
+];
+
 export class LocationProperties {
   constructor(readonly terrain: Terrain, readonly crowns: number) {}
 }
@@ -81,6 +92,18 @@ export const tiles = [
   create(34, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
   create(35, Terrain.TERRAIN_WATER, 1, Terrain.TERRAIN_FOREST, 0),
   create(36, Terrain.TERRAIN_PASTURE, 1, Terrain.TERRAIN_HAY, 0),
+  create(37, Terrain.TERRAIN_WATER, 0, Terrain.TERRAIN_PASTURE, 1),
+  create(38, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_SWAMP, 1),
+  create(39, Terrain.TERRAIN_PASTURE, 0, Terrain.TERRAIN_SWAMP, 1),
+  create(40, Terrain.TERRAIN_MINE, 1, Terrain.TERRAIN_HAY, 0),
+  create(41, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_PASTURE, 2),
+  create(42, Terrain.TERRAIN_WATER, 0, Terrain.TERRAIN_PASTURE, 2),
+  create(43, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_SWAMP, 2),
+  create(44, Terrain.TERRAIN_PASTURE, 0, Terrain.TERRAIN_SWAMP, 2),
+  create(45, Terrain.TERRAIN_MINE, 2, Terrain.TERRAIN_HAY, 0),
+  create(46, Terrain.TERRAIN_SWAMP, 0, Terrain.TERRAIN_MINE, 2),
+  create(47, Terrain.TERRAIN_SWAMP, 0, Terrain.TERRAIN_MINE, 2),
+  create(48, Terrain.TERRAIN_HAY, 0, Terrain.TERRAIN_MINE, 3),
 ];
 
-export const tileNumbersSet = Set(tiles.map(tile => tile.number));
+export const tileNumbersSet = Set(tiles.map((tile) => tile.number));

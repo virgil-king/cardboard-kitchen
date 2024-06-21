@@ -5,12 +5,8 @@ import { Direction, Vector2 } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
-import {
-  ClaimTile,
-  KingdominoConfiguration,
-  PlaceTile,
-} from "./base.js";
-import { KingdominoState } from "./state.js";
+import { ClaimTile, KingdominoConfiguration, PlaceTile } from "./base.js";
+import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
 
 const kingdomino = new Kingdomino();
@@ -21,21 +17,40 @@ const derek = new Player("derek", "Derek");
 
 // TODO move other state and action tests into this file
 
+test("apply: last claim in second round: next action is place", () => {
+  const players = new Players(alice, bob, cecile);
+  const episode = episodeWithPlayers(players).apply(
+    claim(2),
+    claim(1),
+    claim(0),
+    KingdominoAction.discardTile(),
+    KingdominoAction.claimTile(new ClaimTile(0)),
+    KingdominoAction.discardTile(),
+    KingdominoAction.claimTile(new ClaimTile(1)),
+    KingdominoAction.discardTile(),
+    KingdominoAction.claimTile(new ClaimTile(2)),
+  );
+
+  assert.equal(
+    episode.currentSnapshot.state.nextAction,
+    NextAction.RESOLVE_OFFER
+  );
+});
+
+
 test("apply: discard last tile in game: ends game", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
-    claim(alice, 0),
-    claim(bob, 1),
-    claim(cecile, 2),
+    claim(0),
+    claim(1),
+    claim(2),
     KingdominoAction.placeTile(
-      alice,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
     KingdominoAction.placeTile(
-      bob,
       new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
     ),
-    KingdominoAction.discardTile(cecile)
+    KingdominoAction.discardTile()
   );
 
   assert.isDefined(kingdomino.result(episode.currentSnapshot));
@@ -53,6 +68,6 @@ function episodeWithPlayers(
   return new Episode(kingdomino, snapshot);
 }
 
-function claim(player: Player, offerIndex: number) {
-  return KingdominoAction.claimTile(player, new ClaimTile(offerIndex));
+function claim(offerIndex: number) {
+  return KingdominoAction.claimTile(new ClaimTile(offerIndex));
 }

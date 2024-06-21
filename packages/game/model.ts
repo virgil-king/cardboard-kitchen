@@ -30,22 +30,29 @@ export class StateTrainingData<
   }
 }
 
+export type InferenceResult<A extends Action> = {
+  value: PlayerValues;
+  policy: Map<A, number>;
+};
+
 export interface Model<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
 > {
-  /**
-   * Map from possible actions from {@link snapshot} to their expected value for
-   * the acting player
-   */
-  policy(snapshot: EpisodeSnapshot<C, S>): Map<A, number>;
+  infer(snapshot: EpisodeSnapshot<C, S>): InferenceResult<A>
 
-  /**
-   * Predicted final player values for the game starting from {@link snapshot}
-   */
-  value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
+  // /**
+  //  * Map from possible actions from {@link snapshot} to their expected value for
+  //  * the acting player
+  //  */
+  // policy(snapshot: EpisodeSnapshot<C, S>): Map<A, number>;
+
+  // /**
+  //  * Predicted final player values for the game starting from {@link snapshot}
+  //  */
+  // value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
 
   /** Trains the model on the given data */
-  train(dataPoints: StateTrainingData<C, S, A>[]): void;
+  train(dataPoints: StateTrainingData<C, S, A>[]): Promise<void>;
 }

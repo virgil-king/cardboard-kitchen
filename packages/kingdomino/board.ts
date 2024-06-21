@@ -18,7 +18,11 @@ import { Vector2, Rectangle, Direction } from "./util.js";
  * has its bottom left corner at [x,y].
  */
 export class PlayerBoard implements ValueObject {
-  constructor(readonly locationStates: Map<Vector2, LocationState>) {}
+  readonly occupiedRectangle: Rectangle;
+
+  constructor(readonly locationStates: Map<Vector2, LocationState>) {
+    this.occupiedRectangle = this.computeOccupiedRectangle();
+  }
 
   getLocationState(location: Vector2): LocationProperties {
     if (location.x == centerX && location.y == centerY) {
@@ -57,7 +61,7 @@ export class PlayerBoard implements ValueObject {
     return new PlayerBoard(this.locationStates.set(location, value));
   }
 
-  occupiedRectangle(): Rectangle {
+  private computeOccupiedRectangle(): Rectangle {
     const isEmpty = (x: number, y: number) => {
       return (
         this.getLocationState(new Vector2(x, y)).terrain ==
@@ -113,7 +117,6 @@ export class PlayerBoard implements ValueObject {
 
   isPlacementAllowed(placement: PlaceTile, tile: Tile): boolean {
     // console.log(JSON.stringify(this.toAssociationList()));
-    const occupied = this.occupiedRectangle();
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
       const location = placement.squareLocation(i);
@@ -123,7 +126,7 @@ export class PlayerBoard implements ValueObject {
         return false;
       }
       // Not make the kingdom too tall or wide:
-      const updatedRectangle = extend(occupied, location);
+      const updatedRectangle = extend(this.occupiedRectangle, location);
       if (
         updatedRectangle.width > maxKingdomSize ||
         updatedRectangle.height > maxKingdomSize

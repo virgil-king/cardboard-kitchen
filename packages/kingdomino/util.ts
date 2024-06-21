@@ -46,6 +46,12 @@ export class Direction {
     yield this.RIGHT;
     yield this.DOWN;
   }
+  static valuesArray: ReadonlyArray<Direction> = [
+    Direction.LEFT,
+    Direction.UP,
+    Direction.RIGHT,
+    Direction.DOWN,
+  ];
   static withOffset(offset: Vector2) {
     return Seq(Direction.values()).find((d) => d.offset.equals(offset));
   }
@@ -90,7 +96,12 @@ export class Rectangle implements ValueObject {
     );
   }
   hashCode(): number {
-    return combineHashes(hash(this.left), hash(this.top), hash(this.right), hash(this.bottom));
+    return combineHashes(
+      hash(this.left),
+      hash(this.top),
+      hash(this.right),
+      hash(this.bottom)
+    );
   }
 }
 
@@ -99,4 +110,3 @@ export class Rectangle implements ValueObject {
 //     throw new Error(`Expected 'val' to be defined, but received ${val}`);
 //   }
 // }
-
