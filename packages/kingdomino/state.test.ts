@@ -46,8 +46,8 @@ test("newGame: current player is first in list", () => {
   const episode = episodeWithPlayers(players);
 
   assert.equal(
-    episode.currentSnapshot.state.currentPlayer,
-    alice,
+    episode.currentSnapshot.state.currentPlayerId,
+    alice.id,
     "first player should be alice"
   );
 });
@@ -134,7 +134,7 @@ test("currentPlayer: after one action: returns second player", () => {
 
   episode.apply(claim(1));
 
-  assert.equal(episode.currentSnapshot.state.currentPlayer, bob);
+  assert.equal(episode.currentSnapshot.state.currentPlayerId, bob.id);
 });
 
 test("currentPlayer: second round: returns player with first claim", () => {
@@ -142,7 +142,7 @@ test("currentPlayer: second round: returns player with first claim", () => {
   const episode = episodeWithPlayers(players);
   episode.apply(claim(2), claim(1), claim(0));
 
-  assert.equal(episode.currentSnapshot.state.currentPlayer, cecile);
+  assert.equal(episode.currentSnapshot.state.currentPlayerId, cecile.id);
 });
 
 test("claimTile: first round: next action is claim", () => {
@@ -194,7 +194,7 @@ test("placeTile: last round: updates next player", () => {
     )
   );
 
-  assert.equal(episode.currentSnapshot.state.currentPlayer, bob);
+  assert.equal(episode.currentSnapshot.state.currentPlayerId, bob.id);
 });
 
 test("placeTile: end of game: next action is undefined", () => {

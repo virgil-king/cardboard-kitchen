@@ -21,16 +21,24 @@ function debugLog(block: () => string) {
   }
 }
 
-type RandomPlayoutConfig<S extends GameState, A extends Action> = {
+type RandomPlayoutConfig<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> = {
   /** Weight to apply to random playout values, relative to 1 */
   weight: number;
-  agent: Agent<S, A>;
+  agent: Agent<C, S, A>;
 };
 
-export class MctsConfig<S extends GameState, A extends Action> {
+export class MctsConfig<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
   readonly simulationCount: number;
   readonly explorationBias: number;
-  readonly randomPlayoutConfig: RandomPlayoutConfig<S, A> | undefined;
+  readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
   constructor({
     simulationCount = 32,
@@ -40,7 +48,7 @@ export class MctsConfig<S extends GameState, A extends Action> {
   }: {
     simulationCount?: number;
     explorationBias?: number;
-    randomPlayoutConfig?: RandomPlayoutConfig<S, A>;
+    randomPlayoutConfig?: RandomPlayoutConfig<C, S, A>;
     maxChanceBranches?: number;
   }) {
     this.simulationCount = simulationCount;
@@ -62,7 +70,7 @@ export interface MctsContext<
   S extends GameState,
   A extends Action
 > {
-  readonly config: MctsConfig<S, A>;
+  readonly config: MctsConfig<C, S, A>;
   readonly game: Game<C, S, A>;
   readonly model: Model<C, S, A>;
   readonly stats: MctsStats;
@@ -253,7 +261,7 @@ export class NonTerminalStateNode<
     return predictedValues;
   }
 
-  randomPlayout(agent: Agent<S, A>): PlayerValues {
+  randomPlayout(agent: Agent<C, S, A>): PlayerValues {
     // console.log(`Starting random playout from ${JSON.stringify(this.snapshot.state)}`);
     let snapshot = this.snapshot;
     while (true) {
@@ -264,7 +272,7 @@ export class NonTerminalStateNode<
       // Ignore chance keys
       const [newState] = this.context.game.apply(
         snapshot,
-        agent.act(snapshot.state)
+        agent.act(snapshot)
       );
       snapshot = snapshot.derive(newState);
     }
@@ -401,7 +409,7 @@ export function mcts<
   S extends GameState,
   A extends Action
 >(
-  config: MctsConfig<S, A>,
+  config: MctsConfig<C, S, A>,
   game: Game<C, S, A>,
   model: Model<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>

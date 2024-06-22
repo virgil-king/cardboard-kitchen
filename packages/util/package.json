@@ -17,7 +17,9 @@
     },
     "dependencies": {
         "@types/random-seed": "^0.3.5",
+        "fp-ts": "^2.16.6",
         "immutable": "5.0.0-beta.5",
+        "io-ts": "^2.2.21",
         "pnpm": "^9.1.1",
         "random-seed": "^0.3.0"
     }

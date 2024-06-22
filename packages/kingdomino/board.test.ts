@@ -23,9 +23,9 @@ test("occupiedRectangle: tiles reach top right of play area: result includes edg
 
   const expected = new Rectangle(centerX, centerY + 5, centerX + 5, centerY);
   assert.isTrue(
-    board.occupiedRectangle().equals(expected),
+    board.occupiedRectangle.equals(expected),
     `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(
-      board.occupiedRectangle()
+      board.occupiedRectangle
     )}`
   );
 });
@@ -51,15 +51,15 @@ test("occupiedRectangle: tiles reach bottom left of play area: result includes e
     centerY - 4
   );
   assert.isTrue(
-    board.occupiedRectangle().equals(expected),
+    board.occupiedRectangle.equals(expected),
     `Expected ${JSON.stringify(expected)} but got ${JSON.stringify(
-      board.occupiedRectangle()
+      board.occupiedRectangle
     )}`
   );
 });
 
 test("occupiedRectangle: empty board: returns rectangle around center tile", () => {
-  const occupiedRectangle = new PlayerBoard(Map()).occupiedRectangle();
+  const occupiedRectangle = new PlayerBoard(Map()).occupiedRectangle;
 
   const expected = new Rectangle(0, 1, 1, 0);
   assert.isTrue(

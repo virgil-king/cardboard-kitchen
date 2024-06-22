@@ -109,7 +109,7 @@ function GameComponent(props: GameProps) {
         <PlayerComponent
           key={player.id}
           player={player}
-          playerState={props.snapshot.state.requirePlayerState(player)}
+          playerState={props.snapshot.state.requirePlayerState(player.id)}
         />
       );
     });
@@ -126,7 +126,7 @@ function PlayerComponent(props: PlayerProps) {
     <div className={styles.verticalFlex} style={{ padding: s_spacing }}>
       <div style={{ textAlign: "center" }}>{props.player.name}</div>
       <div style={{ textAlign: "center" }}>
-        Score: {props.playerState.gameState.score}
+        Score: {props.playerState.score}
       </div>
       <div style={{ height: s_spacing }} />
       <div>

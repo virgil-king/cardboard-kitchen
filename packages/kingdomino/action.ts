@@ -1,9 +1,11 @@
 import { Action, Player } from "game";
 
-import { ClaimTile, PlaceTile } from "./base.js";
+import { ClaimTile, PlaceTile, claimJson, placeJson } from "./base.js";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import { hash } from "immutable";
-import { combineHashes } from "studio-util";
+import { combineHashes, decodeOrThrow } from "studio-util";
+import * as io from "io-ts";
+import { Direction, vector2Json } from "./util.js";
 
 export enum ActionCase {
   CLAIM,
@@ -33,6 +35,14 @@ export type Discard = {
 
 export type ActionData = Claim | Place | Discard;
 
+const actionJson = io.union([
+  io.type({ case: io.literal(ActionCase.CLAIM), claim: claimJson }),
+  io.type({ case: io.literal(ActionCase.PLACE), place: placeJson }),
+  io.type({ case: io.literal(ActionCase.DISCARD) }),
+]);
+
+type ActionJson = io.TypeOf<typeof actionJson>;
+
 export class KingdominoAction implements Action {
   private constructor(readonly data: ActionData) {}
   static claimTile(claimTile: ClaimTile) {
@@ -51,6 +61,18 @@ export class KingdominoAction implements Action {
 
   static discardTile() {
     return new KingdominoAction({ case: ActionCase.DISCARD });
+  }
+
+  static fromJson(json: unknown): KingdominoAction {
+    const decoded = decodeOrThrow(actionJson, json);
+    switch (decoded.case) {
+      case ActionCase.CLAIM:
+        return KingdominoAction.claimTile(ClaimTile.fromJson(decoded.claim));
+      case ActionCase.PLACE:
+        return KingdominoAction.placeTile(PlaceTile.fromJson(decoded.place));
+      case ActionCase.DISCARD:
+        return KingdominoAction.discardTile();
+    }
   }
 
   get case(): ActionCase {
@@ -104,7 +126,22 @@ export class KingdominoAction implements Action {
     return combineHashes(tagHash, caseHash);
   }
 
-  toJson(): string {
-    throw new Error("Method not implemented.");
+  toJson(): ActionJson {
+    return {
+      case: actionCases.indexOf(this.case),
+      claim:
+        this.data.case == ActionCase.CLAIM
+          ? { offerIndex: this.data.claim.offerIndex }
+          : undefined,
+      place:
+        this.data.case == ActionCase.PLACE
+          ? {
+              location: this.data.place.location.toJson(),
+              direction: Direction.valuesArray.indexOf(
+                this.data.place.direction
+              ),
+            }
+          : undefined,
+    };
   }
 }

@@ -3,9 +3,13 @@ import {
   EpisodeSnapshot,
   GameConfiguration,
   GameState,
+  JsonSerializable,
   PlayerValues,
 } from "./game.js";
 import { Map } from "immutable";
+import * as io from "io-ts";
+
+// const StateTrainingDataJson = io.type({});
 
 export class StateTrainingData<
   C extends GameConfiguration,
@@ -13,6 +17,9 @@ export class StateTrainingData<
   A extends Action
 > {
   constructor(
+    /** Game state */
+    // Consider pre-encoding as vectors to move work from the training thread to
+    // self-play threads
     readonly snapshot: EpisodeSnapshot<C, S>,
     /** Used to train the policy function */
     readonly actionToVisitCount: Map<A, number>,

@@ -40,29 +40,29 @@ export class Players implements ValueObject {
   }
 }
 
-export class PlayerState implements ValueObject {
-  constructor(
-    /**
-     * "Victory points". Consider removing since not all games have this
-     * concept.
-     */
-    readonly score: number
-  ) {}
+// export class PlayerState implements ValueObject {
+//   constructor(
+//     /**
+//      * "Victory points". Consider removing since not all games have this
+//      * concept.
+//      */
+//     readonly score: number
+//   ) {}
 
-  withScore(score: number): PlayerState {
-    return new PlayerState(score);
-  }
+//   withScore(score: number): PlayerState {
+//     return new PlayerState(score);
+//   }
 
-  equals(other: unknown): boolean {
-    if (!(other instanceof PlayerState)) {
-      return false;
-    }
-    return this.score == other.score;
-  }
-  hashCode(): number {
-    return hash(this.score);
-  }
-}
+//   equals(other: unknown): boolean {
+//     if (!(other instanceof PlayerState)) {
+//       return false;
+//     }
+//     return this.score == other.score;
+//   }
+//   hashCode(): number {
+//     return hash(this.score);
+//   }
+// }
 
 /**
  * Map from player to "value" which is defined by the player's position with
@@ -137,8 +137,12 @@ export function scoresToPlayerValues(
 //   apply(value: T): T;
 // }
 
+/**
+ * Interface for classes that can encode as plain JS values that can survive
+ * structured cloning and JSON string encoding
+ */
 export interface JsonSerializable {
-  toJson(): string;
+  toJson(): any;
 }
 
 // export interface ToTensor {
@@ -147,8 +151,12 @@ export interface JsonSerializable {
 
 export interface Action extends JsonSerializable, ValueObject {}
 
-export interface Agent<StateT extends GameState, ActionT extends Action> {
-  act(state: StateT): ActionT;
+export interface Agent<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
+  act(snapshot: EpisodeSnapshot<C, S>): A;
 }
 
 // TODO add vector-able
@@ -232,43 +240,37 @@ export class EpisodeSnapshot<C extends GameConfiguration, S extends GameState> {
 }
 
 export interface Game<
-  GameConfigurationT extends GameConfiguration,
-  StateT extends GameState,
-  ActionT extends Action
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
 > {
   playerCounts: number[];
   // newEpisode(config: EpisodeConfiguration): Episode<any, StateT, ActionT>;
   /**
    * Returns a new episode using a default game configuration
    */
-  newEpisode(
-    config: EpisodeConfiguration
-  ): EpisodeSnapshot<GameConfigurationT, StateT>;
+  newEpisode(config: EpisodeConfiguration): EpisodeSnapshot<C, S>;
 
-  isLegalAction(
-    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>,
-    action: ActionT
-  ): boolean;
+  isLegalAction(snapshot: EpisodeSnapshot<C, S>, action: A): boolean;
 
-  apply(
-    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>,
-    action: ActionT
-  ): [StateT, ChanceKey];
+  apply(snapshot: EpisodeSnapshot<C, S>, action: A): [S, ChanceKey];
 
   // tensorToAction(tensor: tf.Tensor): ActionT;
 
   // gameOver(snapshot: EpisodeSnapshot<GameConfigurationT, StateT>): boolean;
-  result(
-    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>
-  ): PlayerValues | undefined;
+  result(snapshot: EpisodeSnapshot<C, S>): PlayerValues | undefined;
   /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
   // playerState(playerId: string): PlayerState;
   // result: GameResult | undefined;
 
   /** Returns the current player or undefined if the game is over */
-  currentPlayer(
-    snapshot: EpisodeSnapshot<GameConfigurationT, StateT>
-  ): Player | undefined;
+  currentPlayer(snapshot: EpisodeSnapshot<C, S>): Player | undefined;
+
+  decodeConfiguration(json: any): C;
+
+  decodeState(json: any): S;
+
+  decodeAction(json: any): A;
 }
 
 export function gameOver<
@@ -369,7 +371,7 @@ export function* generateEpisode<
 >(
   game: Game<C, S, A>,
   config: EpisodeConfiguration,
-  playerIdToAgent: Map<string, Agent<S, A>>
+  playerIdToAgent: Map<string, Agent<C, S, A>>
 ) {
   let snapshot = game.newEpisode(config);
   let episode = new Episode(game, snapshot);
@@ -384,7 +386,7 @@ export function* generateEpisode<
     if (agent == undefined) {
       throw new Error(`No agent for ${currentPlayer.id}`);
     }
-    const action = agent.act(episode.currentSnapshot.state);
+    const action = agent.act(episode.currentSnapshot);
     episode.apply(action);
     yield episode.currentSnapshot;
   }

@@ -9,9 +9,18 @@ import {
   maxKingdomSize,
   adjacentExternalLocations,
   playAreaRadius,
+  locationStateJson,
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
-import { Vector2, Rectangle, Direction } from "./util.js";
+import { Vector2, Rectangle, Direction, vector2Json } from "./util.js";
+import * as io from "io-ts";
+import { decodeOrThrow } from "studio-util";
+
+export const playerBoardJson = io.type({
+  locationStates: io.array(io.tuple([vector2Json, locationStateJson])),
+});
+
+type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
 
 /**
  * Coordinates in this class refer to lines between tiles. A tile at [x,y]
@@ -22,6 +31,18 @@ export class PlayerBoard implements ValueObject {
 
   constructor(readonly locationStates: Map<Vector2, LocationState>) {
     this.occupiedRectangle = this.computeOccupiedRectangle();
+  }
+
+  fromJson(json: unknown): PlayerBoard {
+    const decoded = decodeOrThrow(playerBoardJson, json);
+    return new PlayerBoard(
+      Map(
+        decoded.locationStates.map(([locationJson, stateJson]) => [
+          Vector2.fromJson(locationJson),
+          LocationState.fromJson(stateJson),
+        ])
+      )
+    );
   }
 
   getLocationState(location: Vector2): LocationProperties {
@@ -253,6 +274,14 @@ export class PlayerBoard implements ValueObject {
   }
   hashCode(): number {
     return this.locationStates.hashCode();
+  }
+
+  toJson(): PlayerBoardJson {
+    return {
+      locationStates: this.locationStates
+        .mapEntries(([location, state]) => [location.toJson(), state.toJson()])
+        .toArray(),
+    };
   }
 }
 

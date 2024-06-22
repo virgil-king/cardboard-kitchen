@@ -1,6 +1,5 @@
 import {
   Player,
-  PlayerState,
   Players,
   tiersToPlayerValues,
   scoresToPlayerValues,
@@ -42,19 +41,19 @@ test("Players.equals: not equal: returns false", () => {
   assert.isFalse(players1.equals(players2));
 });
 
-test("PlayerState.equals: equal: returns true", () => {
-  const a = new PlayerState(2);
-  const b = new PlayerState(2);
+// test("PlayerState.equals: equal: returns true", () => {
+//   const a = new PlayerState(2);
+//   const b = new PlayerState(2);
 
-  assert.isTrue(a.equals(b));
-});
+//   assert.isTrue(a.equals(b));
+// });
 
-test("PlayerState.equals: not equal: returns false", () => {
-  const a = new PlayerState(5);
-  const b = new PlayerState(12);
+// test("PlayerState.equals: not equal: returns false", () => {
+//   const a = new PlayerState(5);
+//   const b = new PlayerState(12);
 
-  assert.isFalse(a.equals(b));
-});
+//   assert.isFalse(a.equals(b));
+// });
 
 test("tiersToPlayerValues: half point for each player in the same tier", () => {
   const result = tiersToPlayerValues([["alice", "bob", "cecile"]]);

@@ -1,4 +1,11 @@
-import { ClaimTile, PlaceTile, TileOffers, centerX, centerY } from "./base.js";
+import {
+  ClaimTile,
+  KingdominoConfiguration,
+  PlaceTile,
+  TileOffers,
+  centerX,
+  centerY,
+} from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
 import { Direction, Vector2 } from "./util.js";
 import { Terrain, Tile } from "./tile.js";
@@ -8,26 +15,27 @@ import { Agent } from "game";
 import { randomBetween, requireDefined } from "studio-util";
 
 import { Seq, Set } from "immutable";
+import { KingdominoSnapshot } from "./kingdomino.js";
 
 export class RandomKingdominoAgent
-  implements Agent<KingdominoState, KingdominoAction>
+  implements Agent<KingdominoConfiguration, KingdominoState, KingdominoAction>
 {
-  act(state: KingdominoState): KingdominoAction {
-    const nextAction = state.nextAction;
-    const currentPlayer = requireDefined(state.currentPlayer);
+  act(snapshot: KingdominoSnapshot): KingdominoAction {
+    const nextAction = snapshot.state.nextAction;
+    const currentPlayer = requireDefined(snapshot.state.currentPlayerId);
     switch (nextAction) {
       case undefined:
         throw new Error(`No next action`);
       case NextAction.CLAIM_OFFER: {
-        const offerIndex = randomClaimIndex(requireDefined(state));
+        const offerIndex = randomClaimIndex(requireDefined(snapshot.state));
         return KingdominoAction.claimTile(new ClaimTile(offerIndex));
       }
       case NextAction.RESOLVE_OFFER: {
-        return randomPlacement(state);
+        return randomPlacement(snapshot.state);
       }
       default: {
         throw new Error(
-          `Unexpected case ${nextAction}; state is ${JSON.stringify(state)}`
+          `Unexpected case ${nextAction}; state is ${JSON.stringify(snapshot.state)}`
         );
       }
     }

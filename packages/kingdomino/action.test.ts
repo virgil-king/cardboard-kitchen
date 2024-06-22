@@ -6,10 +6,11 @@ import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
 import { assert } from "chai";
-import { PlaceTile } from "./base.js";
+import { ClaimTile, PlaceTile } from "./base.js";
 import { PlayerBoard } from "./board.js";
 import { KingdominoState } from "./state.js";
 import { requireDefined } from "studio-util";
+import { off } from "process";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -144,6 +145,30 @@ test("equals: equivalent claims: returns true", () => {
   assert.isFalse(place(1, 1, Direction.UP).equals(place(1, 1, Direction.DOWN)));
 });
 
+test("claim: codec round trip", () => {
+  const claim = KingdominoAction.claimTile(new ClaimTile(2));
+  
+  const json = claim.toJson();
+
+  assert.isTrue(claim.equals(KingdominoAction.fromJson(json)));
+});
+
+test("place: codec round trip", () => {
+  const place = KingdominoAction.placeTile(new PlaceTile(new Vector2(-1, 1), Direction.LEFT));
+  
+  const json = place.toJson();
+
+  assert.isTrue(place.equals(KingdominoAction.fromJson(json)));
+});
+
+test("discard: codec round trip", () => {
+  const discard = KingdominoAction.discardTile();
+  
+  const json = discard.toJson();
+
+  assert.isTrue(discard.equals(KingdominoAction.fromJson(json)));
+});
+
 function episodeWithPlayers(
   players: Players,
   shuffledTileNumbers: Array<number> | undefined = undefined
@@ -156,7 +181,7 @@ function episodeWithPlayers(
 }
 
 function claim(offerIndex: number): KingdominoAction {
-  return KingdominoAction.claimTile({ offerIndex: offerIndex });
+  return KingdominoAction.claimTile(new ClaimTile(offerIndex));
 }
 
 function place(x: number, y: number, direction: Direction): KingdominoAction {

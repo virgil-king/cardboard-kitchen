@@ -328,7 +328,7 @@ export class KingdominoModel
   encodeState(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
   ): ReadonlyArray<number> {
-    const currentPlayer = Kingdomino.INSTANCE.currentPlayer(snapshot);
+    const currentPlayer = requireDefined(Kingdomino.INSTANCE.currentPlayer(snapshot));
     if (currentPlayer == undefined) {
       throw new Error("Model invoked with snapshot with no current player");
     }
@@ -365,13 +365,11 @@ export class KingdominoModel
           const player = requireDefined(
             snapshot.episodeConfiguration.players.players.get(playerIndex)
           );
-          const playerState = requireDefined(
-            snapshot.state.playerState(player.id)
-          );
+          const playerState = snapshot.state.requirePlayerState(player.id);
           return {
             score: playerState.score,
             locationState: this.encodeBoard(
-              snapshot.state.requirePlayerState(player).board
+              snapshot.state.requirePlayerState(player.id).board
             ),
           };
         }

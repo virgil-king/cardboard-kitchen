@@ -6,6 +6,14 @@ test("Vector#multiply: returns vector with multiplied components", () => {
   assert.isTrue(new Vector2(1, 2).multiply(3).equals(new Vector2(3, 6)));
 });
 
+test("Vector2: codec round trip", () => {
+  const vec = new Vector2(-3, 111);
+
+  const encoded = vec.toJson();
+
+  assert.isTrue(vec.equals(Vector2.fromJson(encoded)));
+});
+
 test("Direction#values: returns all directions", () => {
   const valuesList = [...Direction.values()];
   assert.equal(valuesList.length, 4);

@@ -23,7 +23,7 @@ import {
 import { requireDefined } from "studio-util";
 import { Seq } from "immutable";
 
-type KingdominoSnapshot = EpisodeSnapshot<
+export type KingdominoSnapshot = EpisodeSnapshot<
   KingdominoConfiguration,
   KingdominoState
 >;
@@ -74,7 +74,11 @@ export class Kingdomino
   }
 
   currentPlayer(snapshot: KingdominoSnapshot): Player | undefined {
-    return snapshot.state.currentPlayer;
+    const playerId = snapshot.state.currentPlayerId;
+    if (playerId == undefined) {
+      return undefined;
+    }
+    return snapshot.episodeConfiguration.players.requirePlayer(playerId);
   }
 
   isLegalAction(
@@ -103,7 +107,7 @@ export class Kingdomino
 
     const actionData = action.data;
     let result: [KingdominoState, ChanceKey];
-    const currentPlayer = requireDefined(snapshot.state.currentPlayer);
+    const currentPlayer = requireDefined(Kingdomino.INSTANCE.currentPlayer(snapshot));
     switch (actionData.case) {
       case ActionCase.CLAIM: {
         result = this.handleClaim(snapshot, currentPlayer, actionData.claim);
@@ -322,5 +326,15 @@ export class Kingdomino
       newState
     );
     return [newState, NO_CHANCE];
+  }
+
+  decodeConfiguration(json: any): KingdominoConfiguration {
+    throw new Error("Method not implemented.");
+  }
+  decodeState(json: any): KingdominoState {
+    throw new Error("Method not implemented.");
+  }
+  decodeAction(json: any): KingdominoAction {
+    throw new Error("Method not implemented.");
   }
 }

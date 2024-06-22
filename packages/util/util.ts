@@ -1,4 +1,6 @@
 import { Map } from "immutable";
+import * as io from "io-ts";
+import * as fp from "fp-ts";
 
 /**
  * @param low inclusive lower bound
@@ -85,4 +87,19 @@ export function weightedMerge<K>(
     result = result.set(key, value);
   }
   return result;
+}
+
+/**
+ * Returns the result of decoding {@link json} using {@link decoder} or throws
+ * an error that caused decoding to fail
+ */
+export function decodeOrThrow<DecodedT>(
+  decoder: io.Decoder<unknown, DecodedT>,
+  json: unknown
+): DecodedT {
+  const decodeResult = decoder.decode(json);
+  if (fp.either.isLeft(decodeResult)) {
+    throw decodeResult.left[0];
+  }
+  return decodeResult.right;
 }

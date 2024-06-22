@@ -4,7 +4,7 @@ import {
   GameState,
   NO_CHANCE,
   Player,
-  PlayerState,
+  // PlayerState,
   PlayerValues,
   scoresToPlayerValues,
 } from "game";
@@ -15,22 +15,24 @@ import {
   PlaceTile,
   TileOffer,
   TileOffers,
+  tileOffersJson,
 } from "./base.js";
 import { Vector2 } from "./util.js";
 
 import { List, Map, Set } from "immutable";
-import _, { shuffle } from "lodash";
-import { PlayerBoard } from "./board.js";
-import { Rank, Tensor, tile } from "@tensorflow/tfjs-node-gpu";
+import _ from "lodash";
+import { PlayerBoard, playerBoardJson } from "./board.js";
+import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
 import { requireDefined, drawN } from "studio-util";
+import * as io from "io-ts";
 
 export class KingdominoPlayerState {
-  constructor(readonly gameState: PlayerState, readonly board: PlayerBoard) {}
+  readonly score: number;
+  constructor(readonly board: PlayerBoard) {
+    this.score = board.score();
+  }
   withBoard(board: PlayerBoard): KingdominoPlayerState {
-    return new KingdominoPlayerState(
-      this.gameState.withScore(board.score()),
-      board
-    );
+    return new KingdominoPlayerState(board);
   }
 }
 
@@ -46,7 +48,7 @@ export const nextActions: ReadonlyArray<NextAction> = [
 
 export type Props = {
   readonly playerIdToState: Map<string, KingdominoPlayerState>;
-  readonly currentPlayer?: Player;
+  readonly currentPlayerId?: string;
   readonly nextAction?: NextAction;
   /** Tiles that have been drawn from the tile supply */
   readonly drawnTileNumbers: Set<number>;
@@ -55,6 +57,18 @@ export type Props = {
   /** Only for scripted test games */
   readonly offsetInScriptedTileNumbers?: number;
 };
+
+export const propsJson = io.type({
+  playerIdToState: io.array(io.tuple([io.string, playerBoardJson])),
+  currentPlayerId: io.union([io.string, io.undefined]),
+  nextAction: io.union([io.string, io.undefined]),
+  drawnTileNumbers: io.array(io.number),
+  previousOffers: io.union([tileOffersJson, io.undefined]),
+  nextOffers: io.union([tileOffersJson, io.undefined]),
+  offsetInScriptedTileNumbers: io.union([io.number, io.undefined]),
+});
+
+type PropsJson = io.TypeOf<typeof propsJson>;
 
 /**
  * This class provides convenience methods for inspecting and updating game state.
@@ -77,10 +91,10 @@ export class KingdominoState implements GameState {
       playerIdToState: Map(
         episodeConfiguration.players.players.map((player) => [
           player.id,
-          new KingdominoPlayerState(new PlayerState(0), new PlayerBoard(Map())),
+          new KingdominoPlayerState(new PlayerBoard(Map())),
         ])
       ),
-      currentPlayer: episodeConfiguration.players.players.get(0),
+      currentPlayerId: episodeConfiguration.players.players.get(0)?.id,
       nextAction: NextAction.CLAIM_OFFER,
       drawnTileNumbers: Set(),
       offsetInScriptedTileNumbers:
@@ -104,36 +118,32 @@ export class KingdominoState implements GameState {
       return undefined;
     }
     return scoresToPlayerValues(
-      this.props.playerIdToState.map((state) => state.gameState.score)
+      this.props.playerIdToState.map((state) => state.score)
     );
   }
 
-  playerState(playerId: string): PlayerState {
-    return requireDefined(this.props.playerIdToState.get(playerId)).gameState;
-  }
+  // private playerCount(): number {
+  //   return this.props.playerIdToState.size;
+  // }
 
-  private playerCount(): number {
-    return this.props.playerIdToState.size;
-  }
-
-  get currentPlayer(): Player | undefined {
-    return this.props.currentPlayer;
+  get currentPlayerId(): string | undefined {
+    return this.props.currentPlayerId;
   }
 
   get nextAction(): NextAction | undefined {
     return this.props.nextAction;
   }
 
-  requireCurrentPlayer(): Player {
-    const result = this.currentPlayer;
+  requireCurrentPlayerId(): string {
+    const result = this.currentPlayerId;
     if (result == undefined) {
       throw new Error(`Current player was undefined`);
     }
     return result;
   }
 
-  requirePlayerState(player: Player): KingdominoPlayerState {
-    const result = this.props.playerIdToState.get(player.id);
+  requirePlayerState(playerId: string): KingdominoPlayerState {
+    const result = this.props.playerIdToState.get(playerId);
     if (result == undefined) {
       throw new Error(`Player state not found`);
     }
@@ -141,7 +151,7 @@ export class KingdominoState implements GameState {
   }
 
   requireCurrentPlayerState(): KingdominoPlayerState {
-    return this.requirePlayerState(this.requireCurrentPlayer());
+    return this.requirePlayerState(this.requireCurrentPlayerId());
   }
 
   toJson(): string {
@@ -149,7 +159,7 @@ export class KingdominoState implements GameState {
   }
 
   locationState(player: Player, location: Vector2): LocationProperties {
-    return this.requirePlayerState(player).board.getLocationState(location);
+    return this.requirePlayerState(player.id).board.getLocationState(location);
   }
 
   isFirstRound(): boolean {
@@ -163,7 +173,7 @@ export class KingdominoState implements GameState {
   // State updating methods
 
   withCurrentPlayer(player: Player): KingdominoState {
-    return new KingdominoState({ ...this.props, currentPlayer: player });
+    return new KingdominoState({ ...this.props, currentPlayerId: player.id });
   }
 
   withNextAction(nextAction: NextAction | undefined): KingdominoState {

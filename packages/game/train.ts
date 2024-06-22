@@ -28,7 +28,7 @@ export async function train<
   game: Game<C, S, A>,
   model: Model<C, S, A>,
   episodeConfig: EpisodeConfiguration,
-  mctsConfig: MctsConfig<S, A>,
+  mctsConfig: MctsConfig<C, S, A>,
   batchSize: number,
   batchCount: number
 ) {

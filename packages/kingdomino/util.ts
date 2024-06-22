@@ -1,11 +1,25 @@
-import { combineHashes } from "studio-util";
-
+import { combineHashes, decodeOrThrow } from "studio-util";
 import { Seq, ValueObject, hash } from "immutable";
+import * as io from "io-ts";
+import * as fp from "fp-ts";
+// import { isLeft } from "fp-ts/Either";
+import { JsonSerializable } from "game";
 
-export class Vector2 implements ValueObject {
+export const vector2Json = io.type({
+  x: io.number,
+  y: io.number,
+});
+
+type Vector2Json = io.TypeOf<typeof vector2Json>;
+
+export class Vector2 implements ValueObject, JsonSerializable {
   constructor(readonly x: number, readonly y: number) {}
-
   static origin = new Vector2(0, 0);
+
+  static fromJson(json: unknown): Vector2 {
+    const parsed = decodeOrThrow(vector2Json, json);
+    return new Vector2(parsed.x, parsed.y);
+  }
 
   plus(other: Vector2) {
     return new Vector2(this.x + other.x, this.y + other.y);
@@ -25,6 +39,10 @@ export class Vector2 implements ValueObject {
   hashCode(): number {
     return combineHashes(hash(this.x), hash(this.y));
   }
+
+  toJson(): Vector2Json {
+    return { x: this.x, y: this.y };
+  }
 }
 
 export class Direction {
@@ -39,6 +57,12 @@ export class Direction {
       throw new Error("Direction had no opposite direction!");
     }
     return result;
+  }
+  index(): number {
+    return Direction.valuesArray.indexOf(this);
+  }
+  static fromIndex(index: number): Direction {
+    return Direction.valuesArray[index];
   }
   static *values(): Generator<Direction> {
     yield this.LEFT;

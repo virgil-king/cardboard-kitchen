@@ -141,6 +141,16 @@ class PickANumber
   tensorToAction(tensor: Tensor<Rank>): NumberAction {
     throw new Error("Method not implemented.");
   }
+
+  decodeConfiguration(json: any): PickANumberConfiguration {
+    throw new Error("Method not implemented.");
+  }
+  decodeState(json: any): PickANumberState {
+    throw new Error("Method not implemented.");
+  }
+  decodeAction(json: any): NumberAction {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /**
