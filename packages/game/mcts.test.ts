@@ -212,7 +212,7 @@ class PickANumberModel
 
 test("mcts: single-step deterministic game: one step per first action: expected values come from model", () => {
   const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({ simulationCount: 4 });
+  const mctsConfig = new MctsConfig({ simulationCount: 9 });
   const result = mcts(
     mctsConfig,
     PickANumber.INSTANCE,
