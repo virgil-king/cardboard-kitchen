@@ -502,7 +502,6 @@ export class KingdominoModel
         ])
         .filter(([action]) => {
           const result = Kingdomino.INSTANCE.isLegalAction(snapshot, action);
-          // console.log(`${JSON.stringify(action)} legality was ${result}`);
           return result;
         })
     );

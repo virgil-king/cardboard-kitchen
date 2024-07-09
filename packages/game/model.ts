@@ -61,5 +61,5 @@ export interface Model<
   // value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
 
   /** Trains the model on the given data */
-  train(dataPoints: StateTrainingData<C, S, A>[]): Promise<void>;
+  train(dataPoints: ReadonlyArray<StateTrainingData<C, S, A>>): Promise<void>;
 }

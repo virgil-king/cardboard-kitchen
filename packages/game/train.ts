@@ -16,6 +16,7 @@ import {
 } from "./mcts.js";
 import { Map, Range, Seq } from "immutable";
 import { Model, StateTrainingData } from "./model.js";
+import { GameBuffer } from "./gamebuffer.js";
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -30,7 +31,8 @@ export async function train<
   episodeConfig: EpisodeConfiguration,
   mctsConfig: MctsConfig<C, S, A>,
   batchSize: number,
-  batchCount: number
+  batchCount: number,
+  sampleBufferSize: number
 ) {
   const context = {
     config: mctsConfig,
@@ -40,19 +42,20 @@ export async function train<
   };
   let selfPlayDurationMs = 0;
   let trainingDurationMs = 0;
+  const buffer = new GameBuffer<StateTrainingData<C, S, A>>(sampleBufferSize);
   // const perf = Performance.new();
   for (let i = 0; i < batchCount; i++) {
     const selfPlayStartMs = performance.now();
-    let samples = new Array<StateTrainingData<C, S, A>>();
-    while (samples.length < batchSize) {
+    // let samples = new Array<StateTrainingData<C, S, A>>();
+    do {
       const episodeTrainingData = episode(context, episodeConfig);
-      samples.push(...episodeTrainingData.stateTrainingDataArray());
-    }
+      buffer.addGame(episodeTrainingData.stateTrainingDataArray());
+    } while (buffer.sampleCount() < batchSize);
     console.log(`Filled next batch`);
     const now = performance.now();
     selfPlayDurationMs += now - selfPlayStartMs;
     const trainingStartMs = now;
-    const batch = drawN(samples, batchSize);
+    const batch = buffer.sample(batchSize);
     await model.train(batch);
     trainingDurationMs += performance.now() - trainingStartMs;
     const totalDurationMs = selfPlayDurationMs + trainingDurationMs;
@@ -161,13 +164,13 @@ function episode<
     //   )}`
     // );
     states.push(stateSearchData);
-    console.log(
-      `Selected action ${JSON.stringify(
-        actionWithGreatestExpectedValue,
-        undefined,
-        2
-      )}`
-    );
+    // console.log(
+    //   `Selected action ${JSON.stringify(
+    //     actionWithGreatestExpectedValue,
+    //     undefined,
+    //     2
+    //   )}`
+    // );
     const [newState, chanceKey] = mctsContext.game.apply(
       snapshot,
       actionWithGreatestExpectedValue

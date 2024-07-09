@@ -130,12 +130,6 @@ export function scoresToPlayerValues(
   tiers.push(currentTier);
   return tiersToPlayerValues(tiers);
 }
-// }
-
-/** A unary function from some type to the same type */
-// export interface Endomorphism<T> {
-//   apply(value: T): T;
-// }
 
 /**
  * Interface for classes that can encode as plain JS values that can survive
@@ -144,10 +138,6 @@ export function scoresToPlayerValues(
 export interface JsonSerializable {
   toJson(): any;
 }
-
-// export interface ToTensor {
-//   asTensor(): tf.Tensor;
-// }
 
 export interface Action extends JsonSerializable, ValueObject {}
 

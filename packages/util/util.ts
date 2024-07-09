@@ -11,6 +11,10 @@ export function randomBetween(low: number, high: number): number {
   return low + Math.floor(Math.random() * (high - low));
 }
 
+export function randomBelow(high: number): number {
+  return randomBetween(0, high);
+}
+
 // export function shuffle<T>(items: ReadonlyArray<T>): Array<T> {
 //   const length = items.length;
 //   const result = Array.from(items);

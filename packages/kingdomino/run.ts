@@ -51,7 +51,8 @@ train(
     randomPlayoutConfig: { weight: 1, agent: randomAgent },
   }),
   batchSize,
-  batchCount
+  batchCount,
+  256
 );
 
 // const elapsed = Date.now() - start;
