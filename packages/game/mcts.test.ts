@@ -31,9 +31,6 @@ class NotSerializable implements JsonSerializable {
   toJson(): string {
     throw new Error("Method not implemented.");
   }
-  asTensor(): Tensor<Rank> {
-    throw new Error("Method not implemented.");
-  }
 }
 
 class TestAction extends NotSerializable {}

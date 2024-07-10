@@ -192,6 +192,7 @@ export class KingdominoModel
 
   model: tf.LayersModel;
   optimizer: tf.Optimizer;
+  private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
 
   constructor(readonly batchSize: number = 128) {
     console.log(
@@ -231,7 +232,7 @@ export class KingdominoModel
     // );
 
     // this.model.add(tf.layers.dense({ units: stateCodec.columnCount +  }));
-    this.optimizer = tf.train.momentum(0.00001, 0.9);
+    this.optimizer = tf.train.momentum(0.0001, 0.5);
 
     this.model.compile({
       optimizer: this.optimizer,
@@ -246,6 +247,7 @@ export class KingdominoModel
     const tensor = tf.tensor([this.encodeState(snapshot)]);
     // console.log(`tensor is ${tensor.toString()}`);
     let prediction = this.model.predict(tensor);
+    tensor.dispose();
     if (!Array.isArray(prediction)) {
       throw new Error("Expected tensor array but received single tensor");
     }
@@ -315,12 +317,23 @@ export class KingdominoModel
     //     valuesMatrix
     //   )} and ${JSON.stringify(policyMatrix)}`
     // );
+    const inputTensor = tf.tensor(statesMatrix);
+    const valueOutputTensor = tf.tensor(valuesMatrix);
+    const policyOutputTensor = tf.tensor(policyMatrix);
     const fitResult = await this.model.fit(
-      tf.tensor(statesMatrix),
+      inputTensor,
       // tf.tensor([valuesMatrix, policyMatrix]),
-      [tf.tensor(valuesMatrix), tf.tensor(policyMatrix)],
-      { batchSize: this.batchSize, epochs: 3, verbose: 1 }
+      [valueOutputTensor, policyOutputTensor],
+      {
+        batchSize: this.batchSize,
+        epochs: 3,
+        verbose: 1,
+        callbacks: this.tensorboard,
+      }
     );
+    inputTensor.dispose();
+    valueOutputTensor.dispose();
+    policyOutputTensor.dispose();
     // console.log(`History: ${JSON.stringify(fitResult.history)}`);
   }
 
@@ -328,7 +341,9 @@ export class KingdominoModel
   encodeState(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
   ): ReadonlyArray<number> {
-    const currentPlayer = requireDefined(Kingdomino.INSTANCE.currentPlayer(snapshot));
+    const currentPlayer = requireDefined(
+      Kingdomino.INSTANCE.currentPlayer(snapshot)
+    );
     if (currentPlayer == undefined) {
       throw new Error("Model invoked with snapshot with no current player");
     }
@@ -466,11 +481,13 @@ export class KingdominoModel
       }
     }
 
-    return policyCodec.encode({
+    const raw = policyCodec.encode({
       claimProbabilities: claimProbabilities,
       discardProbability: discardProbability,
       placeProbabilities: placeProbabilities,
     });
+    const sum = raw.reduce((reduction, next) => reduction + next, 0);
+    return raw.map((x) => x / sum);
   }
 
   // Visible for testing

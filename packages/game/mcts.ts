@@ -63,6 +63,7 @@ export class MctsStats {
   stateNodesCreated = 0;
   terminalStatesReached = 0;
   inferences = 0;
+  inferenceTimeMs = 0;
 }
 
 export interface MctsContext<
@@ -202,7 +203,9 @@ export class NonTerminalStateNode<
     readonly snapshot: EpisodeSnapshot<C, S>
   ) {
     this.context.stats.stateNodesCreated++;
+    const inferenceStartMs = performance.now();
     this.inferenceResult = context.model.infer(snapshot);
+    this.context.stats.inferenceTimeMs += performance.now() - inferenceStartMs;
     this.context.stats.inferences++;
     const policy = this.inferenceResult.policy;
     // console.log(`policy is ${policy.toArray()}`);
@@ -270,10 +273,7 @@ export class NonTerminalStateNode<
         return result;
       }
       // Ignore chance keys
-      const [newState] = this.context.game.apply(
-        snapshot,
-        agent.act(snapshot)
-      );
+      const [newState] = this.context.game.apply(snapshot, agent.act(snapshot));
       snapshot = snapshot.derive(newState);
     }
   }

@@ -2,7 +2,6 @@ import { EpisodeConfiguration, Player, Players, train } from "game";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import _ from "lodash";
-import { Task, createScope, sleep } from "effection";
 import { KingdominoModel } from "./model.js";
 import { MctsConfig } from "game/out/mcts.js";
 

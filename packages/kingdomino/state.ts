@@ -105,10 +105,6 @@ export class KingdominoState implements GameState {
 
   constructor(readonly props: Props) {}
 
-  asTensor(): Tensor<Rank> {
-    throw new Error("Method not implemented.");
-  }
-
   get gameOver(): boolean {
     return this.nextAction == undefined;
   }

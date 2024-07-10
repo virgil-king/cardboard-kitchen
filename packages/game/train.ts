@@ -44,6 +44,9 @@ export async function train<
   let trainingDurationMs = 0;
   const buffer = new GameBuffer<StateTrainingData<C, S, A>>(sampleBufferSize);
   // const perf = Performance.new();
+  const decimalFormat = Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 2,
+  });
   for (let i = 0; i < batchCount; i++) {
     const selfPlayStartMs = performance.now();
     // let samples = new Array<StateTrainingData<C, S, A>>();
@@ -60,11 +63,21 @@ export async function train<
     trainingDurationMs += performance.now() - trainingStartMs;
     const totalDurationMs = selfPlayDurationMs + trainingDurationMs;
     console.log(
-      `Self play time ${selfPlayDurationMs} ms (${
+      `Self play time ${Math.round(selfPlayDurationMs)} ms (${decimalFormat.format(
         (selfPlayDurationMs * 100) / totalDurationMs
-      }%); training time ${trainingDurationMs} ms (${
+      )}% of total)`
+    );
+    console.log(
+      `Training time ${Math.round(trainingDurationMs)} ms (${decimalFormat.format(
         (trainingDurationMs * 100) / totalDurationMs
-      }%)`
+      )}% of total)`
+    );
+    console.log(
+      `Inference time ${
+        Math.round(context.stats.inferenceTimeMs)
+      } ms (${decimalFormat.format(
+        (context.stats.inferenceTimeMs * 100) / selfPlayDurationMs
+      )}% of self play time)`
     );
   }
 }
