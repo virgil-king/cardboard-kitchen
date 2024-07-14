@@ -16,9 +16,10 @@ import { test } from "vitest";
 import { assert } from "chai";
 import { List, Map, Range, Set } from "immutable";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
-import { requireDefined } from "studio-util";
+import { decodeOrThrow, requireDefined } from "studio-util";
 import { MctsConfig, mcts } from "./mcts.js";
-import { Model, StateTrainingData } from "./model.js";
+import { InferenceModel, StateTrainingData, TrainingModel } from "./model.js";
+import * as io from "io-ts";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -33,12 +34,8 @@ class NotSerializable implements JsonSerializable {
   }
 }
 
-class TestAction extends NotSerializable {}
-
-class NumberAction extends TestAction implements Action {
-  constructor(readonly number: number) {
-    super();
-  }
+export class NumberAction implements Action {
+  constructor(readonly number: number) {}
   equals(other: unknown): boolean {
     if (!(other instanceof NumberAction)) {
       return false;
@@ -48,29 +45,62 @@ class NumberAction extends TestAction implements Action {
   hashCode(): number {
     return this.number;
   }
+  toJson(): number {
+    return io.number.encode(this.number);
+  }
+  static decode(encoded: any): NumberAction {
+    const decoded = decodeOrThrow(io.number, encoded);
+    return new NumberAction(decoded);
+  }
 }
-
-class TestGameState extends NotSerializable {}
 
 // In "Pick A Number", each player gets one turn to pick a number, which equals
 // their final score
 
-class PickANumberConfiguration
-  extends NotSerializable
-  implements GameConfiguration
-{
-  constructor(readonly availableNumbers: Set<number>) {
-    super();
+const pickANumberConfigurationJson = io.type({
+  availableNumbers: io.array(io.number),
+});
+
+type EncodedPickANumberConfiguration = io.TypeOf<
+  typeof pickANumberConfigurationJson
+>;
+
+export class PickANumberConfiguration implements GameConfiguration {
+  constructor(readonly availableNumbers: Set<number>) {}
+  toJson(): EncodedPickANumberConfiguration {
+    return { availableNumbers: this.availableNumbers.toArray() };
+  }
+  static decode(encoded: any): PickANumberConfiguration {
+    const decoded = decodeOrThrow(pickANumberConfigurationJson, encoded);
+    return new PickANumberConfiguration(Set(decoded.availableNumbers));
   }
 }
 
-class PickANumberState extends TestGameState implements GameState {
+const pickANumberStateJson = io.type({
+  playerIdToNumber: io.array(io.tuple([io.string, io.number])),
+  remainingNumbers: io.array(io.number),
+});
+
+type EncodedPickANumberState = io.TypeOf<typeof pickANumberStateJson>;
+
+export class PickANumberState implements GameState {
   constructor(
     // readonly config: EpisodeConfiguration,
     readonly playerIdToNumber: Map<string, number>,
     readonly remainingNumbers: Set<number>
-  ) {
-    super();
+  ) {}
+  toJson(): EncodedPickANumberState {
+    return {
+      playerIdToNumber: this.playerIdToNumber.entrySeq().toArray(),
+      remainingNumbers: this.remainingNumbers.toArray(),
+    };
+  }
+  static decode(encoded: any): PickANumberState {
+    const decoded = decodeOrThrow(pickANumberStateJson, encoded);
+    return new PickANumberState(
+      Map(decoded.playerIdToNumber),
+      Set(decoded.remainingNumbers)
+    );
   }
 }
 
@@ -79,7 +109,7 @@ type PickANumberEpisodeSnapshot = EpisodeSnapshot<
   PickANumberState
 >;
 
-class PickANumber
+export class PickANumber
   implements Game<PickANumberConfiguration, PickANumberState, NumberAction>
 {
   playerCounts = [2, 3, 4];
@@ -140,13 +170,13 @@ class PickANumber
   }
 
   decodeConfiguration(json: any): PickANumberConfiguration {
-    throw new Error("Method not implemented.");
+    return PickANumberConfiguration.decode(json);
   }
   decodeState(json: any): PickANumberState {
-    throw new Error("Method not implemented.");
+    return PickANumberState.decode(json);
   }
   decodeAction(json: any): NumberAction {
-    throw new Error("Method not implemented.");
+    return NumberAction.decode(json);
   }
 }
 
@@ -158,7 +188,9 @@ class PickANumber
  * The value function acts as if the game will end up tied.
  */
 class PickANumberModel
-  implements Model<GameConfiguration, PickANumberState, NumberAction>
+  implements
+    InferenceModel<GameConfiguration, PickANumberState, NumberAction>,
+    TrainingModel<GameConfiguration, PickANumberState, NumberAction>
 {
   static INSTANCE = new PickANumberModel();
 
@@ -189,11 +221,9 @@ class PickANumberModel
     if (snapshot.state.playerIdToNumber.count() == players.count()) {
       console.log(`Value function called on finished game`);
     }
-    return {
-      playerIdToValue: Map(
-        players.map((player) => [player.id, PickANumberModel.STATE_VALUE])
-      ),
-    };
+    return new PlayerValues(
+      Map(players.map((player) => [player.id, PickANumberModel.STATE_VALUE]))
+    );
   }
 
   async train(

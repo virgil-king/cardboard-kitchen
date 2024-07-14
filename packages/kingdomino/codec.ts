@@ -7,7 +7,7 @@ export interface TensorCodec<ValueT> {
   decode(values: ReadonlyArray<number>): ValueT;
 }
 
-// The value type of T if it's a TensorCode or otherwise never
+// The value type of T if it's a TensorCodec or otherwise never
 export type CodecValueType<CodecT> = CodecT extends TensorCodec<infer input>
   ? input
   : never;

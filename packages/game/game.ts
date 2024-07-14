@@ -1,8 +1,13 @@
-import { combineHashes, requireDefined } from "studio-util";
+import { combineHashes, decodeOrThrow, requireDefined } from "studio-util";
 
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
+import * as io from "io-ts";
 // import tf from "@tensorflow/tfjs-node-gpu";
+
+export const playerJson = io.type({ id: io.string, name: io.string });
+
+type EncodedPlayer = io.TypeOf<typeof playerJson>;
 
 export class Player implements ValueObject {
   constructor(readonly id: string, readonly name: string) {}
@@ -15,7 +20,20 @@ export class Player implements ValueObject {
   hashCode(): number {
     return combineHashes(hash(this.id), hash(this.name));
   }
+  toJson(): EncodedPlayer {
+    return this;
+  }
+  static decode(encoded: any): Player {
+    const decoded = decodeOrThrow(playerJson, encoded);
+    return new Player(decoded.id, decoded.name);
+  }
 }
+
+export const playersJson = io.type({
+  players: io.array(playerJson),
+});
+
+type EncodedPlayers = io.TypeOf<typeof playersJson>;
 
 export class Players implements ValueObject {
   players: List<Player>;
@@ -37,6 +55,15 @@ export class Players implements ValueObject {
   }
   hashCode(): number {
     return this.players.hashCode();
+  }
+  toJson(): EncodedPlayers {
+    return { players: this.players.toArray().map((it) => it.toJson()) };
+  }
+  static decode(encoded: any): Players {
+    const decoded = decodeOrThrow(playersJson, encoded);
+    return new Players(
+      ...decoded.players.map((encoded) => Player.decode(encoded))
+    );
   }
 }
 
@@ -64,6 +91,12 @@ export class Players implements ValueObject {
 //   }
 // }
 
+export const playerValuesJson = io.type({
+  playerIdToValue: io.array(io.tuple([io.string, io.number])),
+});
+
+type EncodedPlayerValues = io.TypeOf<typeof playerValuesJson>;
+
 /**
  * Map from player to "value" which is defined by the player's position with
  * respect to the other players in the game.
@@ -71,13 +104,24 @@ export class Players implements ValueObject {
  * Instances may be actual final game results or predicted results from
  * non-final game states.
  */
-export interface PlayerValues {
-  readonly playerIdToValue: Map<string, number>;
+export class PlayerValues implements JsonSerializable {
+  constructor(readonly playerIdToValue: Map<string, number>) {}
+  toJson(): EncodedPlayerValues {
+    return {
+      playerIdToValue: this.playerIdToValue.entrySeq().toArray(),
+    };
+  }
+  static decode(encoded: any): PlayerValues {
+    const decoded = decodeOrThrow(playerValuesJson, encoded);
+    return new PlayerValues(Map(decoded.playerIdToValue));
+  }
 }
 
-export function playerValuesToString(values: PlayerValues): string {
+export function playerValuesToString(
+  playerIdToValue: Map<string, number>
+): string {
   return JSON.stringify(
-    values.playerIdToValue.mapEntries(([key, value]) => [key.toString(), value])
+    playerIdToValue.mapEntries(([key, value]) => [key.toString(), value])
   );
 }
 
@@ -100,17 +144,19 @@ export function tiersToPlayerValues(
     }
     laterTiersSize += thisTierSize;
   }
-  return { playerIdToValue: playerIdToValue };
+  return new PlayerValues(playerIdToValue);
 }
 
-/** Returns a {@link PlayerValues} defined by a mapping from player to victory
+/**
+ * Returns a {@link PlayerValues} defined by a mapping from player to victory
  * points. Applicable for games where victory points are the only criteria in
- * finishing position (i.e. there are no tiebreak conditions).*/
+ * finishing position (i.e. there are no tiebreak conditions).
+ */
 export function scoresToPlayerValues(
   playerIdToScore: Map<string, number>
 ): PlayerValues {
   if (playerIdToScore.count() == 0) {
-    return { playerIdToValue: Map() };
+    return new PlayerValues(Map());
   }
   const entryArray = playerIdToScore.toArray();
   // Sort high to low
@@ -180,11 +226,22 @@ export type ChanceKey = any;
  */
 export const NO_CHANCE = [];
 
+export const episodeConfigurationJson = io.type({ players: playersJson });
+
+type EncodedEpisodeConfiguration = io.TypeOf<typeof episodeConfigurationJson>;
+
 /**
  * Configuration info shared by all games
  */
-export class EpisodeConfiguration {
+export class EpisodeConfiguration implements JsonSerializable {
   constructor(readonly players: Players) {}
+  toJson(): EncodedEpisodeConfiguration {
+    return { players: this.players.toJson() };
+  }
+  static decode(encoded: any): EpisodeConfiguration {
+    const decoded = decodeOrThrow(episodeConfigurationJson, encoded);
+    return new EpisodeConfiguration(Players.decode(decoded.players));
+  }
 }
 
 /**

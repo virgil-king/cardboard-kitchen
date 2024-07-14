@@ -8,19 +8,20 @@ import {
   PlayerValues,
   Players,
 } from "game";
-import { KingdominoState, NextAction } from "./state.js";
+import { KingdominoState, NextAction, propsJson } from "./state.js";
 import _ from "lodash";
 
-import { ActionCase, KingdominoAction } from "./action.js";
+import { ActionCase, KingdominoAction, actionJson } from "./action.js";
 import {
   ClaimTile,
   KingdominoConfiguration,
   PlaceTile,
   TileOffer,
   TileOffers,
+  configurationJson,
   playerCountToConfiguration,
 } from "./base.js";
-import { requireDefined } from "studio-util";
+import { decodeOrThrow, requireDefined } from "studio-util";
 import { Seq } from "immutable";
 
 export type KingdominoSnapshot = EpisodeSnapshot<
@@ -107,7 +108,9 @@ export class Kingdomino
 
     const actionData = action.data;
     let result: [KingdominoState, ChanceKey];
-    const currentPlayer = requireDefined(Kingdomino.INSTANCE.currentPlayer(snapshot));
+    const currentPlayer = requireDefined(
+      Kingdomino.INSTANCE.currentPlayer(snapshot)
+    );
     switch (actionData.case) {
       case ActionCase.CLAIM: {
         result = this.handleClaim(snapshot, currentPlayer, actionData.claim);
@@ -329,12 +332,17 @@ export class Kingdomino
   }
 
   decodeConfiguration(json: any): KingdominoConfiguration {
-    throw new Error("Method not implemented.");
+    const decoded = decodeOrThrow(configurationJson, json);
+    return KingdominoConfiguration.fromJson(decoded);
   }
+
   decodeState(json: any): KingdominoState {
-    throw new Error("Method not implemented.");
+    const decoded = decodeOrThrow(propsJson, json);
+    return KingdominoState.decode(decoded);
   }
+
   decodeAction(json: any): KingdominoAction {
-    throw new Error("Method not implemented.");
+    const decoded = decodeOrThrow(actionJson, json);
+    return KingdominoAction.fromJson(decoded);
   }
 }

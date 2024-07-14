@@ -12,7 +12,7 @@ import {
 } from "./game.js";
 import { Map as ImmutableMap, Seq } from "immutable";
 import { requireDefined, weightedMerge } from "studio-util";
-import { InferenceResult, Model } from "./model.js";
+import { InferenceResult, InferenceModel } from "./model.js";
 
 const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
@@ -73,7 +73,7 @@ export interface MctsContext<
 > {
   readonly config: MctsConfig<C, S, A>;
   readonly game: Game<C, S, A>;
-  readonly model: Model<C, S, A>;
+  readonly model: InferenceModel<C, S, A>;
   readonly stats: MctsStats;
 }
 
@@ -251,14 +251,14 @@ export class NonTerminalStateNode<
     const randomPlayoutConfig = this.context.config.randomPlayoutConfig;
     if (randomPlayoutConfig != undefined) {
       const randomPlayoutValues = this.randomPlayout(randomPlayoutConfig.agent);
-      predictedValues = {
-        playerIdToValue: weightedMerge(
+      predictedValues = new PlayerValues(
+        weightedMerge(
           predictedValues.playerIdToValue,
           1,
           randomPlayoutValues.playerIdToValue,
           randomPlayoutConfig.weight
-        ),
-      };
+        )
+      );
     }
 
     return predictedValues;
@@ -411,7 +411,7 @@ export function mcts<
 >(
   config: MctsConfig<C, S, A>,
   game: Game<C, S, A>,
-  model: Model<C, S, A>,
+  model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>
 ): ImmutableMap<A, PlayerValues> {
   const currentPlayer = requireDefined(game.currentPlayer(snapshot));
@@ -429,7 +429,7 @@ export function mcts<
   const result = ImmutableMap(
     Seq(root.actionToChild.entries()).map(([action, node]) => [
       action,
-      node.playerExpectedValues,
+      new PlayerValues(node.playerExpectedValues.playerIdToValue),
     ])
   );
   debugLog(
@@ -446,7 +446,7 @@ export function mcts<
 /**
  * Average values for each player at a single search tree node
  */
-class NodeValues implements PlayerValues {
+class NodeValues {
   visitCount = 0;
   playerIdToValue = ImmutableMap<string, number>();
   /**
@@ -473,6 +473,6 @@ class NodeValues implements PlayerValues {
   }
 
   toString(): string {
-    return playerValuesToString(this);
+    return playerValuesToString(this.playerIdToValue);
   }
 }

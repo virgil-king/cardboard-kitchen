@@ -21,10 +21,14 @@ import { Vector2 } from "./util.js";
 
 import { List, Map, Set } from "immutable";
 import _ from "lodash";
-import { PlayerBoard, playerBoardJson } from "./board.js";
+import { PlayerBoard, PlayerBoardJson, playerBoardJson } from "./board.js";
 import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
-import { requireDefined, drawN } from "studio-util";
+import { requireDefined, drawN, decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
+
+// const playerStateJson = io.type({score: io.number, board: playerBoardJson});
+
+// type EncodedPlayerState = io.TypeOf<typeof playerStateJson>;
 
 export class KingdominoPlayerState {
   readonly score: number;
@@ -34,6 +38,13 @@ export class KingdominoPlayerState {
   withBoard(board: PlayerBoard): KingdominoPlayerState {
     return new KingdominoPlayerState(board);
   }
+  // toJson(): EncodedPlayerState {
+  //   return {score: this.score, board: this.board.toJson()};
+  // }
+  // decode(encoded: any): KingdominoPlayerState {
+  //   const decoded = decodeOrThrow(playerStateJson, encoded);
+  //   return new KingdominoPlayerState(decoded.score, PlayerBoard.fromJson(decoded.board));
+  // }
 }
 
 export enum NextAction {
@@ -61,7 +72,7 @@ export type Props = {
 export const propsJson = io.type({
   playerIdToState: io.array(io.tuple([io.string, playerBoardJson])),
   currentPlayerId: io.union([io.string, io.undefined]),
-  nextAction: io.union([io.string, io.undefined]),
+  nextAction: io.union([io.number, io.undefined]),
   drawnTileNumbers: io.array(io.number),
   previousOffers: io.union([tileOffersJson, io.undefined]),
   nextOffers: io.union([tileOffersJson, io.undefined]),
@@ -150,8 +161,52 @@ export class KingdominoState implements GameState {
     return this.requirePlayerState(this.requireCurrentPlayerId());
   }
 
-  toJson(): string {
-    throw new Error("Method not implemented.");
+  toJson(): PropsJson {
+    return {
+      playerIdToState: this.props.playerIdToState
+        .entrySeq()
+        .map<[string, PlayerBoardJson]>(([key, value]) => [
+          key,
+          value.board.toJson(),
+        ])
+        .toArray(),
+      currentPlayerId: this.props.currentPlayerId,
+      nextAction: this.props.nextAction,
+      drawnTileNumbers: this.props.drawnTileNumbers.toArray(),
+      previousOffers:
+        this.props.previousOffers == undefined
+          ? undefined
+          : this.props.previousOffers.toJson(),
+      nextOffers:
+        this.props.nextOffers == undefined
+          ? undefined
+          : this.props.nextOffers.toJson(),
+      offsetInScriptedTileNumbers: this.props.offsetInScriptedTileNumbers,
+    };
+  }
+
+  static decode(encoded: any): KingdominoState {
+    const decoded = decodeOrThrow(propsJson, encoded);
+    return new KingdominoState({
+      playerIdToState: Map(
+        decoded.playerIdToState.map(([playerId, state]) => [
+          playerId,
+          new KingdominoPlayerState(PlayerBoard.fromJson(state)),
+        ])
+      ),
+      currentPlayerId: decoded.currentPlayerId,
+      nextAction: decoded.nextAction,
+      drawnTileNumbers: Set(decoded.drawnTileNumbers),
+      previousOffers:
+        decoded.previousOffers == undefined
+          ? undefined
+          : TileOffers.fromJson(decoded.previousOffers),
+      nextOffers:
+        decoded.nextOffers == undefined
+          ? undefined
+          : TileOffers.fromJson(decoded.nextOffers),
+      offsetInScriptedTileNumbers: decoded.offsetInScriptedTileNumbers,
+    });
   }
 
   locationState(player: Player, location: Vector2): LocationProperties {

@@ -20,7 +20,7 @@ export const playerBoardJson = io.type({
   locationStates: io.array(io.tuple([vector2Json, locationStateJson])),
 });
 
-type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
+export type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
 
 /**
  * Coordinates in this class refer to lines between tiles. A tile at [x,y]
@@ -33,7 +33,7 @@ export class PlayerBoard implements ValueObject {
     this.occupiedRectangle = this.computeOccupiedRectangle();
   }
 
-  fromJson(json: unknown): PlayerBoard {
+  static fromJson(json: unknown): PlayerBoard {
     const decoded = decodeOrThrow(playerBoardJson, json);
     return new PlayerBoard(
       Map(

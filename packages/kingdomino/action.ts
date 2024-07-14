@@ -35,7 +35,7 @@ export type Discard = {
 
 export type ActionData = Claim | Place | Discard;
 
-const actionJson = io.union([
+export const actionJson = io.union([
   io.type({ case: io.literal(ActionCase.CLAIM), claim: claimJson }),
   io.type({ case: io.literal(ActionCase.PLACE), place: placeJson }),
   io.type({ case: io.literal(ActionCase.DISCARD) }),

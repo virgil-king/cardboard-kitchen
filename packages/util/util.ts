@@ -103,7 +103,20 @@ export function decodeOrThrow<DecodedT>(
 ): DecodedT {
   const decodeResult = decoder.decode(json);
   if (fp.either.isLeft(decodeResult)) {
+    console.log(`Failed to decode ${json} using ${decoder}`);
     throw decodeResult.left[0];
   }
   return decodeResult.right;
+}
+
+export class SettablePromise<T> {
+  private resolve: ((t: T) => void) | undefined = undefined;
+  promise = new Promise((r) => (this.resolve = r));
+  fulfill(t: T) {
+    requireDefined(this.resolve)(t);
+  }
+}
+
+export async function sleep(durationMs: number) {
+  await new Promise((r) => setTimeout(r, durationMs));
 }

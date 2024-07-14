@@ -1,7 +1,6 @@
 import {
   EpisodeConfiguration,
   EpisodeSnapshot,
-  Model,
   PlayerValues,
   Players,
 } from "game";
@@ -9,22 +8,23 @@ import {
   ClaimTile,
   KingdominoConfiguration,
   PlaceTile,
-  TileOffer,
   TileOffers,
   boardIndices,
   playAreaRadius,
   playAreaSize,
 } from "./base.js";
+import { KingdominoState, NextAction, nextActions } from "./state.js";
+import { ActionCase, KingdominoAction } from "./action.js";
 import {
-  KingdominoPlayerState,
-  KingdominoState,
-  NextAction,
-  nextActions,
-} from "./state.js";
-import { ActionCase, KingdominoAction, actionCases } from "./action.js";
-import { InferenceResult, StateTrainingData } from "game/model.js";
-import { List, Map, Seq } from "immutable";
+  InferenceModel,
+  InferenceResult,
+  Model,
+  StateTrainingData,
+  TrainingModel,
+} from "game/model.js";
+import { Map, Seq } from "immutable";
 import tf from "@tensorflow/tfjs-node-gpu";
+import tfcore from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
 import { requireDefined } from "studio-util";
 import _ from "lodash";
@@ -191,10 +191,11 @@ export class KingdominoModel
   static nextActions = [NextAction.CLAIM_OFFER, NextAction.RESOLVE_OFFER];
 
   model: tf.LayersModel;
-  optimizer: tf.Optimizer;
-  private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
 
-  constructor(readonly batchSize: number = 128) {
+  inferenceModel = new KingdominoInferenceModel(this);
+  private _trainingModel: KingdominoTrainingModel | undefined;
+
+  static fresh(): KingdominoModel {
     console.log(
       `Model has ${stateCodec.columnCount} input dimensions and ${
         valueCodec.columnCount + policyCodec.columnCount
@@ -202,7 +203,7 @@ export class KingdominoModel
     );
     // Halfway between total input and output size
     const inputLayer = tf.input({ shape: [stateCodec.columnCount] });
-    const hiddenLayerSize =
+    const hiddenLayerSize = 
       (stateCodec.columnCount +
         valueCodec.columnCount +
         policyCodec.columnCount) /
@@ -218,123 +219,25 @@ export class KingdominoModel
     const policyLayer = tf.layers.dense({ units: policyCodec.columnCount });
     const policyOutput = policyLayer.apply(hiddenOutput) as tf.SymbolicTensor;
 
-    this.model = tf.model({
+    const model = tf.model({
       inputs: inputLayer,
       outputs: [valueOutput, policyOutput],
     });
 
-    // console.log(
-    //   `model is ${JSON.stringify(
-    //     this.model.toJSON(undefined, false),
-    //     undefined,
-    //     "  "
-    //   )}`
-    // );
-
-    // this.model.add(tf.layers.dense({ units: stateCodec.columnCount +  }));
-    this.optimizer = tf.train.momentum(0.0001, 0.5);
-
-    this.model.compile({
-      optimizer: this.optimizer,
-      // MSE for value and crossentry for policy
-      loss: [tf.losses.meanSquaredError, tf.losses.softmaxCrossEntropy],
-    });
+    return new KingdominoModel(model);
   }
 
-  infer(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-  ): InferenceResult<KingdominoAction> {
-    const tensor = tf.tensor([this.encodeState(snapshot)]);
-    // console.log(`tensor is ${tensor.toString()}`);
-    let prediction = this.model.predict(tensor);
-    tensor.dispose();
-    if (!Array.isArray(prediction)) {
-      throw new Error("Expected tensor array but received single tensor");
-    }
-    if (prediction.length != 2) {
-      throw new Error(`Expected 2 tensors but received ${prediction.length}`);
-    }
-    // const [values, policy] = this.parseOutputVector(
-    //   snapshot.episodeConfiguration.players,
-    //   (prediction as tf.Tensor).arraySync() as number[]
-    // );
-    const playerValues = this.decodeValues(
-      snapshot.episodeConfiguration.players,
-      this.unwrapNestedArrays(prediction[0].arraySync())
-    );
-    const policy = this.decodePolicy(
-      snapshot,
-      this.unwrapNestedArrays(prediction[1].arraySync())
-    );
-    // console.log(
-    //   `infer: policy is ${JSON.stringify(policy.toArray(), undefined, 2)}`
-    // );
-    return {
-      value: playerValues,
-      policy: policy,
-    };
+  constructor(model: tf.LayersModel) {
+    this.model = model;
   }
 
-  unwrapNestedArrays(arrayish: any): ReadonlyArray<number> {
-    while (true) {
-      if (Array.isArray(arrayish)) {
-        if (typeof arrayish[0] == "number") {
-          return arrayish;
-        }
-        arrayish = arrayish[0];
-      } else {
-        throw new Error("No number[] found");
-      }
+  trainingModel(batchSize: number = 128): KingdominoTrainingModel {
+    if (this._trainingModel != undefined) {
+      return this._trainingModel;
     }
-  }
-
-  async train(
-    dataPoints: StateTrainingData<
-      KingdominoConfiguration,
-      KingdominoState,
-      KingdominoAction
-    >[]
-  ) {
-    if (dataPoints.length != this.batchSize) {
-      throw new Error(`Number of samples did not equal batch size`);
-    }
-    const statesMatrix = Seq(dataPoints)
-      .map((sample) => this.encodeState(sample.snapshot))
-      .toArray();
-    const valuesMatrix = Seq(dataPoints)
-      .map((sample) =>
-        this.encodeValues(
-          sample.snapshot.episodeConfiguration.players,
-          sample.terminalValues
-        )
-      )
-      .toArray();
-    const policyMatrix = Seq(dataPoints)
-      .map((sample) => this.encodePolicy(sample.actionToVisitCount))
-      .toArray();
-    // console.log(
-    //   `Calling fit with expected values ${JSON.stringify(
-    //     valuesMatrix
-    //   )} and ${JSON.stringify(policyMatrix)}`
-    // );
-    const inputTensor = tf.tensor(statesMatrix);
-    const valueOutputTensor = tf.tensor(valuesMatrix);
-    const policyOutputTensor = tf.tensor(policyMatrix);
-    const fitResult = await this.model.fit(
-      inputTensor,
-      // tf.tensor([valuesMatrix, policyMatrix]),
-      [valueOutputTensor, policyOutputTensor],
-      {
-        batchSize: this.batchSize,
-        epochs: 3,
-        verbose: 1,
-        callbacks: this.tensorboard,
-      }
-    );
-    inputTensor.dispose();
-    valueOutputTensor.dispose();
-    policyOutputTensor.dispose();
-    // console.log(`History: ${JSON.stringify(fitResult.history)}`);
+    const result = new KingdominoTrainingModel(this, batchSize);
+    this._trainingModel = result;
+    return result;
   }
 
   // Visible for testing
@@ -394,7 +297,7 @@ export class KingdominoModel
     return numbers;
   }
 
-  encodeTileOffers(
+  private encodeTileOffers(
     episodeConfig: EpisodeConfiguration,
     offers: TileOffers | undefined
   ): ReadonlyArray<TileOfferValue> | undefined {
@@ -424,7 +327,7 @@ export class KingdominoModel
       .toArray();
   }
 
-  encodeBoard(board: PlayerBoard): ReadonlyArray<LocationProperties> {
+  private encodeBoard(board: PlayerBoard): ReadonlyArray<LocationProperties> {
     const result = new Array<LocationProperties>();
     for (const x of _.range(-playAreaRadius, playAreaRadius + 1)) {
       for (const y of _.range(-playAreaRadius, playAreaRadius + 1)) {
@@ -434,6 +337,223 @@ export class KingdominoModel
     return result;
   }
 
+  toJson(): Promise<tfcore.io.ModelArtifacts> {
+    return new Promise((resolve) =>
+      this.model.save({
+        save: (modelArtifacts: tfcore.io.ModelArtifacts) => {
+          resolve(modelArtifacts);
+
+          return Promise.resolve({
+            modelArtifactsInfo: {
+              dateSaved: new Date(),
+              modelTopologyType: "JSON",
+            },
+          });
+        },
+      })
+    );
+  }
+
+  static async fromJson(
+    artifacts: tfcore.io.ModelArtifacts
+  ): Promise<KingdominoModel> {
+    const model = await tf.loadLayersModel({
+      load: () => {
+        return Promise.resolve(artifacts);
+      },
+    });
+    return new KingdominoModel(model);
+  }
+}
+
+export class KingdominoInferenceModel
+  implements
+    InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
+{
+  constructor(private readonly model: KingdominoModel) {}
+
+  infer(
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
+  ): InferenceResult<KingdominoAction> {
+    const inputTensor = tf.tensor([this.model.encodeState(snapshot)]);
+    // console.log(`tensor is ${tensor.toString()}`);
+    let outputTensor = this.model.model.predict(inputTensor);
+    inputTensor.dispose();
+    if (!Array.isArray(outputTensor)) {
+      throw new Error("Expected tensor array but received single tensor");
+    }
+    if (outputTensor.length != 2) {
+      throw new Error(`Expected 2 tensors but received ${outputTensor.length}`);
+    }
+    // const [values, policy] = this.parseOutputVector(
+    //   snapshot.episodeConfiguration.players,
+    //   (prediction as tf.Tensor).arraySync() as number[]
+    // );
+    const playerValues = this.decodeValues(
+      snapshot.episodeConfiguration.players,
+      this.unwrapNestedArrays(outputTensor[0].arraySync())
+    );
+    const policy = this.decodePolicy(
+      snapshot,
+      this.unwrapNestedArrays(outputTensor[1].arraySync())
+    );
+    for (const tensor of outputTensor) {
+      tensor.dispose();
+    }
+    // console.log(
+    //   `infer: policy is ${JSON.stringify(policy.toArray(), undefined, 2)}`
+    // );
+    return {
+      value: playerValues,
+      policy: policy,
+    };
+  }
+
+  // Visible for testing
+  decodeValues(players: Players, vector: ReadonlyArray<number>): PlayerValues {
+    // console.log(`decodeValues: vector is ${vector}`);
+    const output = valueCodec.decode(vector);
+    const playerIdToValue = Map(
+      players.players.map((player, index) => [
+        player.id,
+        output.playerValues[index],
+      ])
+    );
+    return new PlayerValues(playerIdToValue);
+  }
+
+  decodePolicy(
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
+    vector: ReadonlyArray<number>
+  ): Map<KingdominoAction, number> {
+    const output = policyCodec.decode(vector);
+    let policy = Map<KingdominoAction, number>();
+
+    // Claim actions
+    policy = policy.merge(
+      Seq(output.claimProbabilities)
+        .map<[KingdominoAction, number]>((probability, index) => [
+          KingdominoAction.claimTile(new ClaimTile(index)),
+          probability,
+        ])
+        .filter(([action]) => {
+          const result = Kingdomino.INSTANCE.isLegalAction(snapshot, action);
+          return result;
+        })
+    );
+
+    // Discard action
+    const discardAction = KingdominoAction.discardTile();
+    if (Kingdomino.INSTANCE.isLegalAction(snapshot, discardAction)) {
+      policy = policy.set(discardAction, output.discardProbability);
+    }
+
+    // Place actions
+    let placeProbabilityIndex = 0;
+    for (const x of boardIndices) {
+      for (const y of boardIndices) {
+        for (const direction of Direction.valuesArray) {
+          const action = KingdominoAction.placeTile(
+            new PlaceTile(new Vector2(x, y), direction)
+          );
+          if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
+            policy = policy.set(
+              action,
+              output.placeProbabilities[placeProbabilityIndex]
+            );
+          }
+          placeProbabilityIndex++;
+        }
+      }
+    }
+
+    // console.log(`Decoded ${policy.count()} legal actions`);
+
+    return policy;
+  }
+
+  unwrapNestedArrays(arrayish: any): ReadonlyArray<number> {
+    while (true) {
+      if (Array.isArray(arrayish)) {
+        if (typeof arrayish[0] == "number") {
+          return arrayish;
+        }
+        arrayish = arrayish[0];
+      } else {
+        throw new Error("No number[] found");
+      }
+    }
+  }
+}
+
+export class KingdominoTrainingModel
+  implements
+    TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
+{
+  private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
+  private readonly optimizer: tf.Optimizer;
+
+  constructor(
+    private readonly model: KingdominoModel,
+    private readonly batchSize: number = 128
+  ) {
+    this.optimizer = tf.train.momentum(0.0001, 0.5);
+
+    this.model.model.compile({
+      optimizer: this.optimizer,
+      // MSE for value and crossentry for policy
+      loss: [tf.losses.meanSquaredError, tf.losses.softmaxCrossEntropy],
+    });
+  }
+
+  async train(
+    dataPoints: StateTrainingData<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction
+    >[]
+  ) {
+    if (dataPoints.length != this.batchSize) {
+      throw new Error(`Number of samples did not equal batch size`);
+    }
+    const statesMatrix = Seq(dataPoints)
+      .map((sample) => this.model.encodeState(sample.snapshot))
+      .toArray();
+    const valuesMatrix = Seq(dataPoints)
+      .map((sample) =>
+        this.encodeValues(
+          sample.snapshot.episodeConfiguration.players,
+          sample.terminalValues
+        )
+      )
+      .toArray();
+    const policyMatrix = Seq(dataPoints)
+      .map((sample) => this.encodePolicy(sample.actionToVisitCount))
+      .toArray();
+    // console.log(
+    //   `Calling fit with expected values ${JSON.stringify(
+    //     valuesMatrix
+    //   )} and ${JSON.stringify(policyMatrix)}`
+    // );
+    const inputTensor = tf.tensor(statesMatrix);
+    const valueOutputTensor = tf.tensor(valuesMatrix);
+    const policyOutputTensor = tf.tensor(policyMatrix);
+    const fitResult = await this.model.model.fit(
+      inputTensor,
+      // tf.tensor([valuesMatrix, policyMatrix]),
+      [valueOutputTensor, policyOutputTensor],
+      {
+        batchSize: this.batchSize,
+        epochs: 3,
+        verbose: 0,
+        callbacks: this.tensorboard,
+      }
+    );
+    inputTensor.dispose();
+    valueOutputTensor.dispose();
+    policyOutputTensor.dispose();
+    // console.log(`History: ${JSON.stringify(fitResult.history)}`);
+  }
   encodeValues(players: Players, values: PlayerValues): ReadonlyArray<number> {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
       (playerIndex) => {
@@ -488,68 +608,5 @@ export class KingdominoModel
     });
     const sum = raw.reduce((reduction, next) => reduction + next, 0);
     return raw.map((x) => x / sum);
-  }
-
-  // Visible for testing
-  decodeValues(players: Players, vector: ReadonlyArray<number>): PlayerValues {
-    // console.log(`decodeValues: vector is ${vector}`);
-    const output = valueCodec.decode(vector);
-    const playerIdToValue = Map(
-      players.players.map((player, index) => [
-        player.id,
-        output.playerValues[index],
-      ])
-    );
-    return { playerIdToValue: playerIdToValue };
-  }
-
-  private decodePolicy(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
-    vector: ReadonlyArray<number>
-  ): Map<KingdominoAction, number> {
-    const output = policyCodec.decode(vector);
-    let policy = Map<KingdominoAction, number>();
-
-    // Claim actions
-    policy = policy.merge(
-      Seq(output.claimProbabilities)
-        .map<[KingdominoAction, number]>((probability, index) => [
-          KingdominoAction.claimTile(new ClaimTile(index)),
-          probability,
-        ])
-        .filter(([action]) => {
-          const result = Kingdomino.INSTANCE.isLegalAction(snapshot, action);
-          return result;
-        })
-    );
-
-    // Discard action
-    const discardAction = KingdominoAction.discardTile();
-    if (Kingdomino.INSTANCE.isLegalAction(snapshot, discardAction)) {
-      policy = policy.set(discardAction, output.discardProbability);
-    }
-
-    // Place actions
-    let placeProbabilityIndex = 0;
-    for (const x of boardIndices) {
-      for (const y of boardIndices) {
-        for (const direction of Direction.valuesArray) {
-          const action = KingdominoAction.placeTile(
-            new PlaceTile(new Vector2(x, y), direction)
-          );
-          if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
-            policy = policy.set(
-              action,
-              output.placeProbabilities[placeProbabilityIndex]
-            );
-          }
-          placeProbabilityIndex++;
-        }
-      }
-    }
-
-    // console.log(`Decoded ${policy.count()} legal actions`);
-
-    return policy;
   }
 }

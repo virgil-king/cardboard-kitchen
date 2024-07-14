@@ -70,7 +70,7 @@ export const centerLocationProperties: LocationProperties = {
   crowns: 0,
 };
 
-const configurationJson = io.type({
+export const configurationJson = io.type({
   playerCount: io.number,
   scriptedTileNumbers: io.union([io.array(io.number), io.undefined]),
 });
@@ -167,7 +167,7 @@ export class TileOffer implements JsonSerializable {
   }
 }
 
-export const tileOffersJson = io.type({ offers: io.array(io.number) });
+export const tileOffersJson = io.type({ offers: io.array(tileOfferJson) });
 
 type TileOffersJson = io.TypeOf<typeof tileOffersJson>;
 
@@ -177,7 +177,7 @@ export class TileOffers implements JsonSerializable {
   static fromJson(json: unknown): TileOffers {
     const decoded = decodeOrThrow(tileOffersJson, json);
     return new TileOffers(
-      List(decoded.offers.map((offer) => new TileOffer(offer)))
+      List(decoded.offers.map((offer) => TileOffer.fromJson(offer)))
     );
   }
 
@@ -197,8 +197,8 @@ export class TileOffers implements JsonSerializable {
     return new TileOffers(this.offers.set(offerIndex, offer));
   }
 
-  toJson() {
-    return { offers: this.offers.map((offer) => offer.toJson()) };
+  toJson(): TileOffersJson {
+    return { offers: this.offers.map((offer) => offer.toJson()).toArray() };
   }
 }
 

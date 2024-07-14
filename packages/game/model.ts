@@ -8,8 +8,9 @@ import {
 } from "./game.js";
 import { Map } from "immutable";
 import * as io from "io-ts";
+import tfcore from "@tensorflow/tfjs-core";
 
-// const StateTrainingDataJson = io.type({});
+const StateTrainingDataJson = io.type({});
 
 export class StateTrainingData<
   C extends GameConfiguration,
@@ -47,19 +48,30 @@ export interface Model<
   S extends GameState,
   A extends Action
 > {
-  infer(snapshot: EpisodeSnapshot<C, S>): InferenceResult<A>
+  inferenceModel: InferenceModel<C, S, A>;
+  /**
+   * Returns a training view of the model. {@link batchSize} is only used the
+   * first time this method is called per model instance.
+   */
+  trainingModel(batchSize: number): TrainingModel<C, S, A>;
 
-  // /**
-  //  * Map from possible actions from {@link snapshot} to their expected value for
-  //  * the acting player
-  //  */
-  // policy(snapshot: EpisodeSnapshot<C, S>): Map<A, number>;
+  toJson(): Promise<tfcore.io.ModelArtifacts>
+}
 
-  // /**
-  //  * Predicted final player values for the game starting from {@link snapshot}
-  //  */
-  // value(snapshot: EpisodeSnapshot<C, S>): PlayerValues;
+export interface InferenceModel<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
+  /** Returns value and policy results for {@link snapshot} */
+  infer(snapshot: EpisodeSnapshot<C, S>): InferenceResult<A>;
+}
 
+export interface TrainingModel<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
   /** Trains the model on the given data */
   train(dataPoints: ReadonlyArray<StateTrainingData<C, S, A>>): Promise<void>;
 }
