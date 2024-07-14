@@ -23,6 +23,7 @@ import {
 } from "./base.js";
 import { decodeOrThrow, requireDefined } from "studio-util";
 import { Seq } from "immutable";
+import { Tile } from "./tile.js";
 
 export type KingdominoSnapshot = EpisodeSnapshot<
   KingdominoConfiguration,
@@ -86,11 +87,74 @@ export class Kingdomino
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
     action: KingdominoAction
   ): boolean {
-    try {
-      this.apply(snapshot, action);
-      return true;
-    } catch (e) {
-      return false;
+    // return true;
+    // try {
+    //   this.apply(snapshot, action);
+    //   return true;
+    // } catch (e) {
+    //   return false;
+    // }
+
+    const actionData = action.data;
+    // let result: [KingdominoState, ChanceKey];
+    const currentPlayer = requireDefined(
+      Kingdomino.INSTANCE.currentPlayer(snapshot)
+    );
+    const nextAction = snapshot.state.nextAction;
+    switch (actionData.case) {
+      case ActionCase.CLAIM: {
+        if (nextAction != NextAction.CLAIM_OFFER) {
+          return false;
+        }
+        if (
+          requireDefined(
+            snapshot.state.props.nextOffers?.offers.get(
+              actionData.claim.offerIndex
+            )
+          ).isClaimed()
+        ) {
+          return false;
+        }
+        return true;
+        // result = this.handleClaim(snapshot, currentPlayer, actionData.claim);
+      }
+      case ActionCase.PLACE: {
+        // result = this.handlePlacement(
+        //   snapshot,
+        //   currentPlayer,
+        //   actionData.place
+        // );
+        // break;
+        if (nextAction != NextAction.RESOLVE_OFFER) {
+          return false;
+        }
+
+        const previousOffers = snapshot.state.props.previousOffers;
+        if (previousOffers == undefined) {
+          throw new Error("Tried to place a tile in the first round");
+        }
+        const unresolvedOfferInfo = this.nextUnresolvedOffer(previousOffers);
+        if (unresolvedOfferInfo == undefined) {
+          throw new Error(
+            "Tried to place a tile when there were no unplaced tiles"
+          );
+        }
+        const tile = Tile.withNumber(
+          requireDefined(unresolvedOfferInfo[1].tileNumber)
+        );
+
+        return snapshot.state
+          .requirePlayerState(currentPlayer.id)
+          .board.isPlacementAllowed(actionData.place, tile);
+      }
+      case ActionCase.DISCARD: {
+        if (nextAction != NextAction.RESOLVE_OFFER) {
+          return false;
+        }
+        // result = this.handleDiscard(snapshot, currentPlayer);
+        // break;
+        return true;
+      }
     }
   }
 
@@ -257,7 +321,7 @@ export class Kingdomino
       );
       if (unresolvedOfferInfo == undefined) {
         // End of game
-        state = state.withNextAction(undefined);
+        state = this.handleEndOfGame(state);
       } else {
         const nextPlayerId = requireDefined(
           unresolvedOfferInfo[1].claim
@@ -286,6 +350,22 @@ export class Kingdomino
       return undefined;
     }
     return [indexMatch, requireDefined(offers.offers.get(indexMatch))];
+  }
+
+  handleEndOfGame(state: KingdominoState): KingdominoState {
+    let result = state.withNextAction(undefined);
+    for (const [playerId, state] of result.props.playerIdToState.entries()) {
+      let bonusPoints = 0;
+      const board = state.board;
+      if (board.isCentered()) {
+        bonusPoints += 10;
+      }
+      if (board.isFilled()) {
+        bonusPoints += 5;
+      }
+      result = result.withBonusPoints(playerId, bonusPoints);
+    }
+    return result;
   }
 
   /**

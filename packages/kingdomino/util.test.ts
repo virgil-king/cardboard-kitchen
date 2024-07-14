@@ -76,3 +76,12 @@ test("Rectangle#equals: not equal: returns false", () => {
 
   assert(!a.equals(new Rectangle(1, 2, 4, 0)));
 });
+
+test("Rectangle#center: returns expected value", () => {
+  const a = new Rectangle(2, 5, 5, 3);
+
+  const center = a.center();
+
+  assert.equal(center.x, 3.5);
+  assert.equal(center.y, 4);
+});

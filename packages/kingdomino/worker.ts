@@ -34,7 +34,9 @@ const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
   //   const artifacts = message: any.data as tfcore.io.ModelArtifacts;
-  model = await KingdominoModel.fromJson(message);
+  const newModel = await KingdominoModel.fromJson(message);
+  model?.model.dispose();
+  model = newModel;
   console.log(`Received new model`);
   ready.fulfill(undefined);
 });

@@ -13,7 +13,10 @@ export const vector2Json = io.type({
 type Vector2Json = io.TypeOf<typeof vector2Json>;
 
 export class Vector2 implements ValueObject, JsonSerializable {
-  constructor(readonly x: number, readonly y: number) {}
+  private readonly _hashCode: number;
+  constructor(readonly x: number, readonly y: number) {
+    this._hashCode = combineHashes(hash(this.x), hash(this.y));
+  }
   static origin = new Vector2(0, 0);
 
   static fromJson(json: unknown): Vector2 {
@@ -37,7 +40,7 @@ export class Vector2 implements ValueObject, JsonSerializable {
   }
 
   hashCode(): number {
-    return combineHashes(hash(this.x), hash(this.y));
+    return this._hashCode;
   }
 
   toJson(): Vector2Json {
@@ -106,6 +109,13 @@ export class Rectangle implements ValueObject {
 
   get width() {
     return this.right - this.left;
+  }
+
+  center(): Vector2 {
+    return new Vector2(
+      (this.right + this.left) / 2,
+      (this.top + this.bottom) / 2
+    );
   }
 
   equals(other: unknown): boolean {

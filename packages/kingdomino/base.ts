@@ -2,9 +2,14 @@ import { GameConfiguration, JsonSerializable, Player } from "game";
 import { Direction, Vector2, neighbors, vector2Json } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 
-import { List, Map, ValueObject } from "immutable";
+import { List, Map, ValueObject, hash } from "immutable";
 import _ from "lodash";
-import { combineHashes, decodeOrThrow, requireDefined } from "studio-util";
+import {
+  combineHashes,
+  decodeOrThrow,
+  requireDefined,
+  valueObjectsEqual,
+} from "studio-util";
 import * as io from "io-ts";
 
 /** Maximum height or width of a player's kingdom */
@@ -123,8 +128,17 @@ export const playerCountToConfiguration = Map<
   [4, { tileCount: 48, firstRoundTurnOrder: [0, 1, 2, 3] }],
 ]);
 
-export class TileClaim {
+export class TileClaim implements ValueObject {
   constructor(readonly playerId: string) {}
+  equals(other: unknown): boolean {
+    if (!(other instanceof TileClaim)) {
+      return false;
+    }
+    return this.playerId == other.playerId;
+  }
+  hashCode(): number {
+    return hash(this.playerId);
+  }
 }
 
 const tileOfferJson = io.type({
@@ -134,11 +148,10 @@ const tileOfferJson = io.type({
 
 type TileOfferJson = io.TypeOf<typeof tileOfferJson>;
 
-export class TileOffer implements JsonSerializable {
+export class TileOffer implements JsonSerializable, ValueObject {
   static readonly EMPTY = new TileOffer();
 
   constructor(readonly tileNumber?: number, readonly claim?: TileClaim) {}
-
   static fromJson(json: unknown): TileOffer {
     const decoded = decodeOrThrow(tileOfferJson, json);
     const claim =
@@ -165,15 +178,27 @@ export class TileOffer implements JsonSerializable {
   toJson(): TileOfferJson {
     return { tileNumber: this.tileNumber, claim: this.claim?.playerId };
   }
+
+  equals(other: unknown): boolean {
+    if (!(other instanceof TileOffer)) {
+      return false;
+    }
+    return (
+      this.tileNumber == other.tileNumber &&
+      valueObjectsEqual(this.claim, other.claim)
+    );
+  }
+  hashCode(): number {
+    return combineHashes(hash(this.tileNumber), hash(this.claim));
+  }
 }
 
 export const tileOffersJson = io.type({ offers: io.array(tileOfferJson) });
 
 type TileOffersJson = io.TypeOf<typeof tileOffersJson>;
 
-export class TileOffers implements JsonSerializable {
+export class TileOffers implements JsonSerializable, ValueObject {
   constructor(readonly offers: List<TileOffer>) {}
-
   static fromJson(json: unknown): TileOffers {
     const decoded = decodeOrThrow(tileOffersJson, json);
     return new TileOffers(
@@ -199,6 +224,16 @@ export class TileOffers implements JsonSerializable {
 
   toJson(): TileOffersJson {
     return { offers: this.offers.map((offer) => offer.toJson()).toArray() };
+  }
+
+  equals(other: unknown): boolean {
+    if (!(other instanceof TileOffers)) {
+      return false;
+    }
+    return this.offers.equals(other.offers);
+  }
+  hashCode(): number {
+    return hash(this.offers);
   }
 }
 
@@ -231,9 +266,7 @@ export function* adjacentExternalLocations(
     otherSquareIndex(squareIndex)
   );
   for (const adjacentLocation of neighbors(location)) {
-    if (
-      !_.isEqual(adjacentLocation, otherSquareLocation) // &&
-    ) {
+    if (!adjacentLocation.equals(otherSquareLocation)) {
       yield adjacentLocation;
     }
   }

@@ -545,7 +545,7 @@ export class KingdominoTrainingModel
       {
         batchSize: this.batchSize,
         epochs: 3,
-        verbose: 0,
+        verbose: 1,
         callbacks: this.tensorboard,
       }
     );

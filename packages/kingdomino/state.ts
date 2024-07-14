@@ -19,32 +19,63 @@ import {
 } from "./base.js";
 import { Vector2 } from "./util.js";
 
-import { List, Map, Set } from "immutable";
+import { List, Map, Set, ValueObject, hash } from "immutable";
 import _ from "lodash";
 import { PlayerBoard, PlayerBoardJson, playerBoardJson } from "./board.js";
 import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
-import { requireDefined, drawN, decodeOrThrow } from "studio-util";
+import {
+  requireDefined,
+  drawN,
+  decodeOrThrow,
+  combineHashes,
+} from "studio-util";
 import * as io from "io-ts";
 
-// const playerStateJson = io.type({score: io.number, board: playerBoardJson});
+const playerStateJson = io.type({
+  board: playerBoardJson,
+  bonusPoints: io.number,
+});
 
-// type EncodedPlayerState = io.TypeOf<typeof playerStateJson>;
+type EncodedPlayerState = io.TypeOf<typeof playerStateJson>;
 
-export class KingdominoPlayerState {
+export class KingdominoPlayerState implements ValueObject {
+  // readonly bonusPoints: number;
+  // Cache score since board.score() is expensive
   readonly score: number;
-  constructor(readonly board: PlayerBoard) {
-    this.score = board.score();
+  constructor(readonly board: PlayerBoard, private readonly bonusPoints: number) {
+    // this.bonusPoints = board.score();
+    this.score = board.score() + bonusPoints;
   }
+  // get score(): number {
+  //   return this.board.score() + this.bonusPoints;
+  // }
   withBoard(board: PlayerBoard): KingdominoPlayerState {
-    return new KingdominoPlayerState(board);
+    return new KingdominoPlayerState(board, this.bonusPoints);
   }
-  // toJson(): EncodedPlayerState {
-  //   return {score: this.score, board: this.board.toJson()};
-  // }
-  // decode(encoded: any): KingdominoPlayerState {
-  //   const decoded = decodeOrThrow(playerStateJson, encoded);
-  //   return new KingdominoPlayerState(decoded.score, PlayerBoard.fromJson(decoded.board));
-  // }
+  withBonusPoints(bonusPoints: number): KingdominoPlayerState {
+    return new KingdominoPlayerState(this.board, bonusPoints);
+  }
+  toJson(): EncodedPlayerState {
+    return { board: this.board.toJson(), bonusPoints: this.bonusPoints };
+  }
+  static decode(encoded: any): KingdominoPlayerState {
+    const decoded = decodeOrThrow(playerStateJson, encoded);
+    return new KingdominoPlayerState(
+      PlayerBoard.fromJson(decoded.board),
+      decoded.bonusPoints
+    );
+  }
+  equals(other: unknown): boolean {
+    if (!(other instanceof KingdominoPlayerState)) {
+      return false;
+    }
+    return (
+      this.board.equals(other.board) && this.bonusPoints == other.bonusPoints
+    );
+  }
+  hashCode(): number {
+    return combineHashes(this.board.hashCode(), hash(this.bonusPoints));
+  }
 }
 
 export enum NextAction {
@@ -70,7 +101,7 @@ export type Props = {
 };
 
 export const propsJson = io.type({
-  playerIdToState: io.array(io.tuple([io.string, playerBoardJson])),
+  playerIdToState: io.array(io.tuple([io.string, playerStateJson])),
   currentPlayerId: io.union([io.string, io.undefined]),
   nextAction: io.union([io.number, io.undefined]),
   drawnTileNumbers: io.array(io.number),
@@ -102,7 +133,7 @@ export class KingdominoState implements GameState {
       playerIdToState: Map(
         episodeConfiguration.players.players.map((player) => [
           player.id,
-          new KingdominoPlayerState(new PlayerBoard(Map())),
+          new KingdominoPlayerState(new PlayerBoard(Map()), 0),
         ])
       ),
       currentPlayerId: episodeConfiguration.players.players.get(0)?.id,
@@ -165,9 +196,9 @@ export class KingdominoState implements GameState {
     return {
       playerIdToState: this.props.playerIdToState
         .entrySeq()
-        .map<[string, PlayerBoardJson]>(([key, value]) => [
+        .map<[string, EncodedPlayerState]>(([key, value]) => [
           key,
-          value.board.toJson(),
+          value.toJson(),
         ])
         .toArray(),
       currentPlayerId: this.props.currentPlayerId,
@@ -191,7 +222,7 @@ export class KingdominoState implements GameState {
       playerIdToState: Map(
         decoded.playerIdToState.map(([playerId, state]) => [
           playerId,
-          new KingdominoPlayerState(PlayerBoard.fromJson(state)),
+          KingdominoPlayerState.decode(state),
         ])
       ),
       currentPlayerId: decoded.currentPlayerId,
@@ -363,6 +394,15 @@ export class KingdominoState implements GameState {
       nextOffers: nextOffers,
       drawnTileNumbers: drawnTileNumbers,
       offsetInScriptedTileNumbers: offsetInScriptedTileNumbers,
+    });
+  }
+
+  withBonusPoints(playerId: string, points: number): KingdominoState {
+    const newPlayerState =
+      this.requirePlayerState(playerId).withBonusPoints(points);
+    return new KingdominoState({
+      ...this.props,
+      playerIdToState: this.props.playerIdToState.set(playerId, newPlayerState),
     });
   }
 }

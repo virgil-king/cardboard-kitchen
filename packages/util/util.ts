@@ -1,4 +1,4 @@
-import { Map } from "immutable";
+import { Map, ValueObject } from "immutable";
 import * as io from "io-ts";
 import * as fp from "fp-ts";
 
@@ -119,4 +119,11 @@ export class SettablePromise<T> {
 
 export async function sleep(durationMs: number) {
   await new Promise((r) => setTimeout(r, durationMs));
+}
+
+export function valueObjectsEqual(a: ValueObject | undefined, b: ValueObject | undefined): boolean {
+  if (a == undefined) {
+    return b == undefined;
+  }
+  return a.equals(b);
 }

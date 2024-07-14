@@ -35,6 +35,10 @@ import * as io from "io-ts";
 import * as os from "os";
 import * as worker_threads from "node:worker_threads";
 
+const decimalFormat = Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 2,
+});
+
 /**
  * @param batchSize number of state samples to use per batch
  */
@@ -66,9 +70,6 @@ export async function train<
     EpisodeTrainingData<C, S, A>
   >(sampleBufferSize);
   // const perf = Performance.new();
-  const decimalFormat = Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 2,
-  });
   for (let i = 0; i < batchCount; i++) {
     const selfPlayStartMs = performance.now();
     // let samples = new Array<StateTrainingData<C, S, A>>();
@@ -152,7 +153,7 @@ export async function train_parallel<
     }
   }
 
-  const workerCount = os.cpus().length - 2;
+  const workerCount = os.cpus().length / 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
   for (let i = 0; i < workerCount; i++) {
@@ -312,6 +313,7 @@ export function episode<
   mctsContext: MctsContext<C, S, A>,
   episodeConfig: EpisodeConfiguration
 ): EpisodeTrainingData<C, S, A> {
+  const startMs = performance.now();
   let snapshot = mctsContext.game.newEpisode(episodeConfig);
   if (mctsContext.game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
@@ -387,7 +389,8 @@ export function episode<
     }
     // console.log(`New root node has ${root.visitCount} visits`);
   }
-  console.log(`Completed episode`);
+  const elapsedMs = performance.now() - startMs;
+  console.log(`Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`);
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,

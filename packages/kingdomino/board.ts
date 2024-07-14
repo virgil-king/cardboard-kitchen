@@ -29,7 +29,12 @@ export type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
 export class PlayerBoard implements ValueObject {
   readonly occupiedRectangle: Rectangle;
 
-  constructor(readonly locationStates: Map<Vector2, LocationState>) {
+  constructor(
+    /** Contains only occupied, non-center locations*/ readonly locationStates: Map<
+      Vector2,
+      LocationState
+    >
+  ) {
     this.occupiedRectangle = this.computeOccupiedRectangle();
   }
 
@@ -177,6 +182,9 @@ export class PlayerBoard implements ValueObject {
     return false;
   }
 
+  /**
+   * Returns the board's score based on territories, ignoring bonus scoring
+   */
   score(): number {
     // Treat the center as scored since it's irrelevant to scoring
     let scored = Set<Vector2>([Vector2.origin]);
@@ -264,6 +272,25 @@ export class PlayerBoard implements ValueObject {
       scored: scored,
       queue: queue,
     };
+  }
+
+  /**
+   * Returns whether the center of the kingdom is the starting tile location
+   */
+  isCentered(): boolean {
+    // console.log(this.occupiedRectangle);
+    const center = this.occupiedRectangle.center();
+    // console.log(center);
+    // Board coordinates refer to corners of tiles, not tiles themselves, so a
+    // centered board's center is in the middle of the center tile
+    return center.x == 0.5 && center.y == 0.5;
+  }
+
+  /**
+   * Returns whether the kingdom contains all 12 possible tiles
+   */
+  isFilled(): boolean {
+    return this.locationStates.count() == 24;
   }
 
   equals(other: unknown): boolean {

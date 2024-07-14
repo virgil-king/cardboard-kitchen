@@ -15,7 +15,7 @@ import {
 } from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
-import { requireDefined } from "studio-util";
+import { requireDefined, valueObjectsEqual } from "studio-util";
 import { List } from "immutable";
 
 const kingdomino = new Kingdomino();
@@ -215,6 +215,79 @@ test("placeTile: end of game: next action is undefined", () => {
   );
 
   assert.equal(episode.currentSnapshot.state.nextAction, undefined);
+});
+
+test("placeTile: end of game: center bonus applied correctly", () => {
+  const players = new Players(alice, bob);
+  const episode = episodeWithPlayers(players, _.range(1, 5)).apply(
+    claim(0),
+    claim(1),
+    claim(2),
+    claim(3),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(-1, 0), Direction.LEFT)
+    ),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(0, 1), Direction.UP)
+    )
+  );
+
+  assert.equal(episode.currentSnapshot.state.requirePlayerState(alice.id).score, 10);
+  assert.equal(episode.currentSnapshot.state.requirePlayerState(bob.id).score, 0);
+  // const result = episode.currentSnapshot.state.result;
+  // assert.equal(episode.currentSnapshot.state.nextAction, undefined);
+});
+
+test("encode/decode round trip", () => {
+  const players = new Players(alice, bob);
+  const episode = episodeWithPlayers(players).apply(
+    claim(0),
+    claim(1),
+    claim(2),
+    claim(3),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    )
+  );
+  const beforeState = episode.currentSnapshot.state;
+
+  const afterState = KingdominoState.decode(
+    episode.currentSnapshot.state.toJson()
+  );
+
+  // console.log(JSON.stringify(beforeState, undefined, 1));
+  // console.log(JSON.stringify(afterState, undefined, 1));
+
+  assert.equal(
+    beforeState.props.currentPlayerId,
+    afterState.props.currentPlayerId
+  );
+  assert.isTrue(
+    beforeState.props.drawnTileNumbers.equals(afterState.props.drawnTileNumbers)
+  );
+  assert.equal(beforeState.props.nextAction, afterState.props.nextAction);
+  assert.isTrue(
+    valueObjectsEqual(
+      beforeState.props.previousOffers,
+      afterState.props.previousOffers
+    )
+  );
+  assert.isTrue(
+    valueObjectsEqual(beforeState.props.nextOffers, afterState.props.nextOffers)
+  );
+  assert.isTrue(
+    beforeState.props.playerIdToState.equals(afterState.props.playerIdToState)
+  );
+  assert.equal(
+    beforeState.props.offsetInScriptedTileNumbers,
+    afterState.props.offsetInScriptedTileNumbers
+  );
 });
 
 function episodeWithPlayers(

@@ -2,8 +2,15 @@ import { Direction, Rectangle, Vector2 } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
-import { Map } from "immutable";
-import { LocationState, PlaceTile, centerX, centerY } from "./base.js";
+import { Map, Range } from "immutable";
+import {
+  LocationState,
+  PlaceTile,
+  boardIndices,
+  centerX,
+  centerY,
+  playAreaRadius,
+} from "./base.js";
 import { PlayerBoard, extend } from "./board.js";
 import { Tile } from "./tile.js";
 
@@ -216,4 +223,51 @@ test("equals: not equal: returns false", () => {
   );
 
   assert.isFalse(a.equals(b));
+});
+
+test("isCentered: not centered: returns false", () => {
+  const a = new PlayerBoard(
+    Map([[new Vector2(1, 0), new LocationState(2, 0)]])
+  );
+
+  assert.isFalse(a.isCentered());
+});
+
+test("isCentered: centered: returns true", () => {
+  const a = new PlayerBoard(
+    Map([
+      [new Vector2(1, 0), new LocationState(2, 0)],
+      [new Vector2(-1, 0), new LocationState(2, 0)],
+    ])
+  );
+
+  assert.isTrue(a.isCentered());
+});
+
+test("isFilled: not filled: returns false", () => {
+  const a = new PlayerBoard(
+    Map([[new Vector2(1, 0), new LocationState(2, 0)]])
+  );
+
+  assert.isFalse(a.isFilled());
+});
+
+test("isFilled filled: returns true", () => {
+  let locationStates = Map<Vector2, LocationState>();
+  for (const x of Range(-playAreaRadius, 1)) {
+    for (const y of Range(-playAreaRadius, 1)) {
+      if (x == 0 && y == 0) {
+        continue;
+      }
+      locationStates = locationStates.set(
+        new Vector2(x, y),
+        new LocationState(1, 0)
+      );
+    }
+  }
+  const board = new PlayerBoard(locationStates);
+
+  // console.log(board.locationStates.count());
+
+  assert.isTrue(board.isFilled());
 });
