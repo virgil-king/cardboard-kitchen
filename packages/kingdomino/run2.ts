@@ -18,8 +18,8 @@ const randomAgent = new RandomKingdominoAgent();
 // const start = Date.now();
 // const episodeCount = 100;
 const batchSize = 128;
-const batchCount = 2048;
-const sampleBufferSize = 4096;
+// const batchCount = 2048;
+const sampleBufferSize = 128 * 8;
 // for (let i = 0; i < episodeCount; i++) {
 // const episode = runEpisode(kingdomino, players, agents);
 // console.log(
@@ -43,13 +43,20 @@ const sampleBufferSize = 4096;
 
 const model = KingdominoModel.fresh();
 
+// const filename = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+
+const now = new Date();
+const home = process.env.HOME;
+// const modelsDir = `~/models/kingdomino/${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+const modelsDir = `${home}/models/kingdomino/${now.toISOString()}`;
+
 train_parallel(
   Kingdomino.INSTANCE,
   model,
   batchSize,
-  batchCount,
   sampleBufferSize,
-  "./out/worker.js"
+  "./out/worker.js",
+  modelsDir
 );
 
 // const elapsed = Date.now() - start;

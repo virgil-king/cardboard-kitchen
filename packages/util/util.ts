@@ -121,9 +121,26 @@ export async function sleep(durationMs: number) {
   await new Promise((r) => setTimeout(r, durationMs));
 }
 
-export function valueObjectsEqual(a: ValueObject | undefined, b: ValueObject | undefined): boolean {
+export function valueObjectsEqual(
+  a: ValueObject | undefined,
+  b: ValueObject | undefined
+): boolean {
   if (a == undefined) {
     return b == undefined;
   }
   return a.equals(b);
+}
+
+export function proportionalRandom<K>(options: Map<K, number>) {
+  const sum = options.reduce((reduction, item) => reduction + item, 0);
+  const random = Math.random();
+  let skipped = 0;
+  for (const [key, value] of options.entries()) {
+    const threshold = skipped + value / sum;
+    if (threshold > random) {
+      return key;
+    }
+    skipped = threshold;
+  }
+  throw new Error("Unreachable");
 }

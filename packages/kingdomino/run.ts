@@ -1,5 +1,4 @@
-import { EpisodeConfiguration, MctsConfig, Player, Players, train } from "game";
-import { Kingdomino } from "./kingdomino.js";
+import { Player, Players } from "game";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import _ from "lodash";
 import { KingdominoModel } from "./model.js";
@@ -42,19 +41,19 @@ const batchCount = 2048;
 
 const model = KingdominoModel.fresh();
 
-train(
-  Kingdomino.INSTANCE,
-  model.inferenceModel,
-  model.trainingModel(batchSize),
-  new EpisodeConfiguration(players),
-  new MctsConfig({
-    simulationCount: 16,
-    randomPlayoutConfig: { weight: 1, agent: randomAgent },
-  }),
-  batchSize,
-  batchCount,
-  256
-);
+// train(
+//   Kingdomino.INSTANCE,
+//   model.inferenceModel,
+//   model.trainingModel(batchSize),
+//   new EpisodeConfiguration(players),
+//   new MctsConfig({
+//     simulationCount: 16,
+//     randomPlayoutConfig: { weight: 1, agent: randomAgent },
+//   }),
+//   batchSize,
+//   batchCount,
+//   256
+// );
 
 // const elapsed = Date.now() - start;
 // console.log(

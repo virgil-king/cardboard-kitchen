@@ -12,6 +12,7 @@ import {
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
+import { Map } from "immutable";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -26,7 +27,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 128,
+  simulationCount: 64,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 
@@ -53,8 +54,15 @@ async function main() {
       model: localModel.inferenceModel,
       stats: new MctsStats(),
     };
+    const playerIdToMctsContext = Map(
+      players.players.map((player) => [player.id, mctsContext])
+    );
 
-    const episodeTrainingData = gameEpisode(mctsContext, episodeConfig);
+    const episodeTrainingData = gameEpisode(
+      Kingdomino.INSTANCE,
+      playerIdToMctsContext,
+      episodeConfig
+    );
     const lastDataPoint =
       episodeTrainingData.dataPoints[episodeTrainingData.dataPoints.length - 1];
     console.log(

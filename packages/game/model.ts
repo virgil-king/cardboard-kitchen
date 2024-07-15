@@ -55,7 +55,9 @@ export interface Model<
    */
   trainingModel(batchSize: number): TrainingModel<C, S, A>;
 
-  toJson(): Promise<tfcore.io.ModelArtifacts>
+  toJson(): Promise<tfcore.io.ModelArtifacts>;
+
+  save(path: string): void;
 }
 
 export interface InferenceModel<

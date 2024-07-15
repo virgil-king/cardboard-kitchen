@@ -203,7 +203,7 @@ export class KingdominoModel
     );
     // Halfway between total input and output size
     const inputLayer = tf.input({ shape: [stateCodec.columnCount] });
-    const hiddenLayerSize = 
+    const hiddenLayerSize =
       (stateCodec.columnCount +
         valueCodec.columnCount +
         policyCodec.columnCount) /
@@ -229,6 +229,13 @@ export class KingdominoModel
 
   constructor(model: tf.LayersModel) {
     this.model = model;
+  }
+  
+  save(path: string): Promise<void> {
+    return new Promise((r) => {
+      this.model.save(`file://${path}`);
+      r();
+    });
   }
 
   trainingModel(batchSize: number = 128): KingdominoTrainingModel {
@@ -545,14 +552,15 @@ export class KingdominoTrainingModel
       {
         batchSize: this.batchSize,
         epochs: 3,
-        verbose: 1,
+        verbose: 0,
         callbacks: this.tensorboard,
       }
     );
+    // console.log(`Loss: ${fitResult.onEpochEnd}`)
     inputTensor.dispose();
     valueOutputTensor.dispose();
     policyOutputTensor.dispose();
-    // console.log(`History: ${JSON.stringify(fitResult.history)}`);
+    console.log(`History: ${JSON.stringify(fitResult.history)}`);
   }
   encodeValues(players: Players, values: PlayerValues): ReadonlyArray<number> {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(

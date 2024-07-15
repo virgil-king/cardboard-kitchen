@@ -34,6 +34,7 @@ import { EpisodeBuffer, ReadonlyArrayLike } from "./episodebuffer.js";
 import * as io from "io-ts";
 import * as os from "os";
 import * as worker_threads from "node:worker_threads";
+import * as fs from "node:fs";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
@@ -42,75 +43,75 @@ const decimalFormat = Intl.NumberFormat(undefined, {
 /**
  * @param batchSize number of state samples to use per batch
  */
-export async function train<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
->(
-  game: Game<C, S, A>,
-  inferenceModel: InferenceModel<C, S, A>,
-  trainingModel: TrainingModel<C, S, A>,
-  episodeConfig: EpisodeConfiguration,
-  mctsConfig: MctsConfig<C, S, A>,
-  batchSize: number,
-  batchCount: number,
-  sampleBufferSize: number
-) {
-  const context = {
-    config: mctsConfig,
-    game: game,
-    model: inferenceModel,
-    stats: new MctsStats(),
-  };
-  let selfPlayDurationMs = 0;
-  let trainingDurationMs = 0;
-  let episodeCount = 0;
-  const buffer = new EpisodeBuffer<
-    StateTrainingData<C, S, A>,
-    EpisodeTrainingData<C, S, A>
-  >(sampleBufferSize);
-  // const perf = Performance.new();
-  for (let i = 0; i < batchCount; i++) {
-    const selfPlayStartMs = performance.now();
-    // let samples = new Array<StateTrainingData<C, S, A>>();
-    do {
-      const episodeTrainingData = episode(context, episodeConfig);
-      episodeCount++;
-      buffer.addEpisode(episodeTrainingData);
-    } while (buffer.sampleCount() < batchSize);
-    console.log(`Filled next batch`);
-    const now = performance.now();
-    selfPlayDurationMs += now - selfPlayStartMs;
-    const trainingStartMs = now;
-    const batch = buffer.sample(batchSize);
-    await trainingModel.train(batch);
-    trainingDurationMs += performance.now() - trainingStartMs;
-    const totalDurationMs = selfPlayDurationMs + trainingDurationMs;
-    console.log(
-      `Self play time ${Math.round(
-        selfPlayDurationMs
-      )} ms (${decimalFormat.format(
-        (selfPlayDurationMs * 100) / totalDurationMs
-      )}% of total); ${decimalFormat.format(
-        selfPlayDurationMs / episodeCount
-      )} ms per episode`
-    );
-    console.log(
-      `Training time ${Math.round(
-        trainingDurationMs
-      )} ms (${decimalFormat.format(
-        (trainingDurationMs * 100) / totalDurationMs
-      )}% of total)`
-    );
-    console.log(
-      `Inference time ${Math.round(
-        context.stats.inferenceTimeMs
-      )} ms (${decimalFormat.format(
-        (context.stats.inferenceTimeMs * 100) / selfPlayDurationMs
-      )}% of self play time)`
-    );
-  }
-}
+// export async function train<
+//   C extends GameConfiguration,
+//   S extends GameState,
+//   A extends Action
+// >(
+//   game: Game<C, S, A>,
+//   inferenceModel: InferenceModel<C, S, A>,
+//   trainingModel: TrainingModel<C, S, A>,
+//   episodeConfig: EpisodeConfiguration,
+//   mctsConfig: MctsConfig<C, S, A>,
+//   batchSize: number,
+//   batchCount: number,
+//   sampleBufferSize: number
+// ) {
+//   const context = {
+//     config: mctsConfig,
+//     game: game,
+//     model: inferenceModel,
+//     stats: new MctsStats(),
+//   };
+//   let selfPlayDurationMs = 0;
+//   let trainingDurationMs = 0;
+//   let episodeCount = 0;
+//   const buffer = new EpisodeBuffer<
+//     StateTrainingData<C, S, A>,
+//     EpisodeTrainingData<C, S, A>
+//   >(sampleBufferSize);
+//   // const perf = Performance.new();
+//   for (let i = 0; i < batchCount; i++) {
+//     const selfPlayStartMs = performance.now();
+//     // let samples = new Array<StateTrainingData<C, S, A>>();
+//     do {
+//       const episodeTrainingData = episode(context, episodeConfig);
+//       episodeCount++;
+//       buffer.addEpisode(episodeTrainingData);
+//     } while (buffer.sampleCount() < batchSize);
+//     console.log(`Filled next batch`);
+//     const now = performance.now();
+//     selfPlayDurationMs += now - selfPlayStartMs;
+//     const trainingStartMs = now;
+//     const batch = buffer.sample(batchSize);
+//     await trainingModel.train(batch);
+//     trainingDurationMs += performance.now() - trainingStartMs;
+//     const totalDurationMs = selfPlayDurationMs + trainingDurationMs;
+//     console.log(
+//       `Self play time ${Math.round(
+//         selfPlayDurationMs
+//       )} ms (${decimalFormat.format(
+//         (selfPlayDurationMs * 100) / totalDurationMs
+//       )}% of total); ${decimalFormat.format(
+//         selfPlayDurationMs / episodeCount
+//       )} ms per episode`
+//     );
+//     console.log(
+//       `Training time ${Math.round(
+//         trainingDurationMs
+//       )} ms (${decimalFormat.format(
+//         (trainingDurationMs * 100) / totalDurationMs
+//       )}% of total)`
+//     );
+//     console.log(
+//       `Inference time ${Math.round(
+//         context.stats.inferenceTimeMs
+//       )} ms (${decimalFormat.format(
+//         (context.stats.inferenceTimeMs * 100) / selfPlayDurationMs
+//       )}% of self play time)`
+//     );
+//   }
+// }
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -123,9 +124,10 @@ export async function train_parallel<
   game: Game<C, S, A>,
   model: Model<C, S, A>,
   batchSize: number,
-  batchCount: number,
+  // batchCount: number,
   sampleBufferSize: number,
-  workerScript: string
+  workerScript: string,
+  modelsPath: string
 ) {
   const trainingModel = model.trainingModel(batchSize);
   const modelArtifacts = await model.toJson();
@@ -153,7 +155,7 @@ export async function train_parallel<
     }
   }
 
-  const workerCount = os.cpus().length / 2;
+  const workerCount = 18; // os.cpus().length / 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
   for (let i = 0; i < workerCount; i++) {
@@ -174,6 +176,7 @@ export async function train_parallel<
   // for (let i = 0; i < batchCount; i++) {
   let episodesBetweenModelUpdates = workerCount * 2;
   let episodesReceivedAtLastModelUpdate = 0;
+  let lastSaveTime = performance.now();
   while (true) {
     const batch = buffer.sample(batchSize);
     await trainingModel.train(batch);
@@ -190,6 +193,17 @@ export async function train_parallel<
       for (const port of workerPorts) {
         port.postMessage(modelArtifacts);
       }
+    }
+    const now = performance.now();
+    const timeSinceLastSave = now - lastSaveTime;
+    if (timeSinceLastSave > 5 * 60 * 1_000) {
+      const path = `${modelsPath}/${new Date().toISOString()}`;
+      fs.mkdirSync(path, { recursive: true });
+      model.save(path);
+      lastSaveTime = now;
+      console.log(
+        `Saved model after ${decimalFormat.format(timeSinceLastSave)} ms`
+      );
     }
   }
 }
@@ -310,30 +324,36 @@ export function episode<
   S extends GameState,
   A extends Action
 >(
-  mctsContext: MctsContext<C, S, A>,
+  game: Game<C, S, A>,
+  playerIdToMctsContext: Map<string, MctsContext<C, S, A>>,
   episodeConfig: EpisodeConfiguration
 ): EpisodeTrainingData<C, S, A> {
   const startMs = performance.now();
-  let snapshot = mctsContext.game.newEpisode(episodeConfig);
-  if (mctsContext.game.result(snapshot) != undefined) {
+  let snapshot = game.newEpisode(episodeConfig);
+  if (game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
   }
-  let root = new NonTerminalStateNode(mctsContext, snapshot);
+  function mctsContext(): MctsContext<C, S, A> {
+    const player = requireDefined(game.currentPlayer(snapshot));
+    return requireDefined(playerIdToMctsContext.get(player.id));
+  }
+  let currentMctsContext = mctsContext();
+  let root = new NonTerminalStateNode(currentMctsContext, snapshot);
   const states = new Array<StateSearchData<S, A>>();
-  while (mctsContext.game.result(snapshot) == undefined) {
-    const currentPlayer = requireDefined(
-      mctsContext.game.currentPlayer(snapshot)
-    );
+  while (game.result(snapshot) == undefined) {
+    const currentPlayer = requireDefined(game.currentPlayer(snapshot));
     // Run simulationCount steps or enough to try every possible action once
     for (let i of Range(
       0,
-      Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
+      Math.max(
+        currentMctsContext.config.simulationCount,
+        root.actionToChild.size
+      )
     )) {
       root.visit();
     }
     // TODO incorporate noise
-    // TODO choose proportionally rather than greedily
-    // TODO some action nodes might not have been visited yet. How to fix that?
+    // TODO choose proportionally rather than greedily during training
     const [actionWithGreatestExpectedValue] = requireDefined(
       Seq(root.actionToChild.entries()).max(
         ([, actionNode1], [, actionNode2]) =>
@@ -350,27 +370,17 @@ export function episode<
         ])
       )
     );
-    // console.log(
-    //   `New search data is ${JSON.stringify(
-    //     stateSearchData.actionToVisitCount.toArray()
-    //   )}`
-    // );
     states.push(stateSearchData);
-    // console.log(
-    //   `Selected action ${JSON.stringify(
-    //     actionWithGreatestExpectedValue,
-    //     undefined,
-    //     2
-    //   )}`
-    // );
-    const [newState, chanceKey] = mctsContext.game.apply(
+    const [newState, chanceKey] = game.apply(
       snapshot,
       actionWithGreatestExpectedValue
     );
     snapshot = snapshot.derive(newState);
-    if (mctsContext.game.result(snapshot) != undefined) {
+    if (game.result(snapshot) != undefined) {
       break;
     }
+    currentMctsContext = mctsContext();
+
     // Reuse the node for newState from the previous search tree if it exists.
     // It might not exist if there was non-determinism in the application of the
     // latest action.
@@ -383,18 +393,27 @@ export function episode<
           `Node for non-terminal state was not NonTerminalStateNode`
         );
       }
-      root = existingStateNode;
+      if (existingStateNode.context == currentMctsContext) {
+        root = existingStateNode;
+      } else {
+        console.log(
+          "Ignoring current child node because it has a different current player"
+        );
+        root = new NonTerminalStateNode(currentMctsContext, snapshot);
+      }
     } else {
-      root = new NonTerminalStateNode(mctsContext, snapshot);
+      root = new NonTerminalStateNode(currentMctsContext, snapshot);
     }
     // console.log(`New root node has ${root.visitCount} visits`);
   }
   const elapsedMs = performance.now() - startMs;
-  console.log(`Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`);
+  console.log(
+    `Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`
+  );
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,
-    requireDefined(mctsContext.game.result(snapshot)),
+    requireDefined(game.result(snapshot)),
     states
   );
 }
