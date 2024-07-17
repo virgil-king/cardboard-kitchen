@@ -9,8 +9,8 @@ const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const cecile = new Player("cecile", "Cecile");
 const derek = new Player("derek", "Derek");
-const players = new Players(alice, bob, cecile, derek);
-const randomAgent = new RandomKingdominoAgent();
+// const players = new Players(alice, bob, cecile, derek);
+// const randomAgent = new RandomKingdominoAgent();
 // const agents = new Map([
 //   [alice.id, randomAgent],
 //   [bob.id, randomAgent],
@@ -19,7 +19,7 @@ const randomAgent = new RandomKingdominoAgent();
 // const episodeCount = 100;
 const batchSize = 128;
 // const batchCount = 2048;
-const sampleBufferSize = 128 * 8;
+const sampleBufferSize = batchSize * 32;
 // for (let i = 0; i < episodeCount; i++) {
 // const episode = runEpisode(kingdomino, players, agents);
 // console.log(

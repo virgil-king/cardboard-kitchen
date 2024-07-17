@@ -155,7 +155,7 @@ export async function train_parallel<
     }
   }
 
-  const workerCount = 18; // os.cpus().length / 2;
+  const workerCount = os.cpus().length - 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
   for (let i = 0; i < workerCount; i++) {

@@ -27,7 +27,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 64,
+  simulationCount: 128,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 

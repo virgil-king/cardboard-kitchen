@@ -100,12 +100,12 @@ async function main() {
     if (player1Score > player2Score) {
       playerIdToVictories = playerIdToVictories.set(
         player1.id,
-        playerIdToVictories.get(player1.id, 0)
+        playerIdToVictories.get(player1.id, 0) + 1
       );
     } else if (player2Score > player1Score) {
       playerIdToVictories = playerIdToVictories.set(
         player2.id,
-        playerIdToVictories.get(player2.id, 0)
+        playerIdToVictories.get(player2.id, 0) + 1
       );
     }
   }

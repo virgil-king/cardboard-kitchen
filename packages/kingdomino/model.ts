@@ -504,7 +504,7 @@ export class KingdominoTrainingModel
     private readonly model: KingdominoModel,
     private readonly batchSize: number = 128
   ) {
-    this.optimizer = tf.train.momentum(0.0001, 0.5);
+    this.optimizer = tf.train.momentum(0.001, 0.5);
 
     this.model.model.compile({
       optimizer: this.optimizer,
