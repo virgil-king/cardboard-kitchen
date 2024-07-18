@@ -192,8 +192,7 @@ export class NonTerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode
-{
+> implements StateNode {
   visitCount = 0;
   actionToChild: Map<A, ActionNode<C, S, A>>;
   readonly inferenceResult: InferenceResult<A>;
@@ -207,8 +206,16 @@ export class NonTerminalStateNode<
     this.inferenceResult = context.model.infer(snapshot);
     this.context.stats.inferenceTimeMs += performance.now() - inferenceStartMs;
     this.context.stats.inferences++;
-    const policy = this.inferenceResult.policy;
+    let policy = this.inferenceResult.policy;
     // console.log(`policy is ${policy.toArray()}`);
+
+    // Make policy non-negative
+    const minPrior = requireDefined(Seq(policy.values()).min());
+    if (minPrior < 0) {
+      policy = policy.map((value) => value + minPrior);
+      // console.log(`Compensated for negative policy values`);
+    }
+
     const priorSum = Array.from(policy.values()).reduce(
       (sum, next) => sum + next,
       0
@@ -339,8 +346,8 @@ export class NonTerminalStateNode<
           child.playerExpectedValues.playerIdToValue.get(currentPlayer.id)
         ) +
         child.prior *
-          this.context.config.explorationBias *
-          Math.sqrt(Math.log(this.visitCount) / child.visitCount);
+        this.context.config.explorationBias *
+        Math.sqrt(Math.log(this.visitCount) / child.visitCount);
       if (ucb > maxUcb) {
         debugLog(
           () => `New max UCB ${ucb} for action ${JSON.stringify(action)}`
@@ -369,8 +376,7 @@ export class TerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode
-{
+> implements StateNode {
   result: PlayerValues;
   visitCount = 0;
   constructor(

@@ -25,13 +25,13 @@
   },
   "references": [
     {
-      "path": "../../game"
+      "path": "../game"
     },
     {
-      "path": "../"
+      "path": "../kingdomino"
     },
     {
-      "path": "../../util"
+      "path": "../util"
     }
   ],
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

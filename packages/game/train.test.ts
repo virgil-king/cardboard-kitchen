@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { EpisodeTrainingData, StateSearchData } from "./train.js";
+import { ActionStatistics, EpisodeTrainingData, StateSearchData } from "./train.js";
 import { EpisodeConfiguration, Player, PlayerValues, Players } from "./game.js";
 import {
   NumberAction,
@@ -23,9 +23,10 @@ test("EpisodeTrainingData: codec round trip", () => {
   dataPoints.push(
     new StateSearchData(
       snapshot.state,
+      new PlayerValues(Map([[alice.id, 0], [bob.id, 1]])),
       Map([
-        [new NumberAction(3), 1],
-        [new NumberAction(5), 1],
+        [new NumberAction(3), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+        [new NumberAction(5), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
       ])
     )
   );
@@ -33,22 +34,24 @@ test("EpisodeTrainingData: codec round trip", () => {
   dataPoints.push(
     new StateSearchData(
       state,
+      new PlayerValues(Map([[alice.id, 0], [bob.id, 1]])),
       Map([
-        [new NumberAction(6), 1],
-        [new NumberAction(2), 1],
+        [new NumberAction(6), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+        [new NumberAction(2), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
       ])
     )
   );
   const trainingData = new EpisodeTrainingData(
     new EpisodeConfiguration(new Players(alice, bob)),
     new PickANumberConfiguration(Set(Range(0, 10))),
+    dataPoints,
+    state,
     new PlayerValues(
       Map([
         [alice.id, 1],
         [bob.id, 0],
       ])
     ),
-    dataPoints
   );
 
   const copy = EpisodeTrainingData.decode(

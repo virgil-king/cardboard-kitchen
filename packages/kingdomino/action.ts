@@ -1,16 +1,15 @@
-import { Action, Player } from "game";
+import { Action } from "game";
 
 import { ClaimTile, PlaceTile, claimJson, placeJson } from "./base.js";
-import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import { hash } from "immutable";
 import { combineHashes, decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
-import { Direction, vector2Json } from "./util.js";
+import { Direction } from "./util.js";
 
 export enum ActionCase {
-  CLAIM,
-  PLACE,
-  DISCARD,
+  CLAIM = "CLAIM",
+  PLACE = "PLACE",
+  DISCARD = "DISCARD",
 }
 
 export const actionCases = [
@@ -44,7 +43,7 @@ export const actionJson = io.union([
 type ActionJson = io.TypeOf<typeof actionJson>;
 
 export class KingdominoAction implements Action {
-  private constructor(readonly data: ActionData) {}
+  private constructor(readonly data: ActionData) { }
   static claimTile(claimTile: ClaimTile) {
     return new KingdominoAction({
       case: ActionCase.CLAIM,
@@ -127,21 +126,38 @@ export class KingdominoAction implements Action {
   }
 
   toJson(): ActionJson {
-    return {
-      case: actionCases.indexOf(this.case),
-      claim:
-        this.data.case == ActionCase.CLAIM
-          ? { offerIndex: this.data.claim.offerIndex }
-          : undefined,
-      place:
-        this.data.case == ActionCase.PLACE
-          ? {
-              location: this.data.place.location.toJson(),
-              direction: Direction.valuesArray.indexOf(
-                this.data.place.direction
-              ),
-            }
-          : undefined,
-    };
+    switch (this.data.case) {
+      case ActionCase.CLAIM:
+        return { case: ActionCase.CLAIM, claim: { offerIndex: this.data.claim.offerIndex } };
+      case ActionCase.PLACE:
+        return {
+          case: ActionCase.PLACE, place: {
+            location: this.data.place.location.toJson(),
+            direction: Direction.valuesArray.indexOf(
+              this.data.place.direction
+            ),
+          }
+        };
+      case ActionCase.DISCARD:
+        return { case: ActionCase.DISCARD };
+    }
   }
+  // const c = this.data.case;
+  //   return {
+  //     case: this.data.case,
+  //     claim:
+  //       this.data.case == ActionCase.CLAIM
+  //         ? { offerIndex: this.data.claim.offerIndex }
+  //         : undefined,
+  //     place:
+  //       this.data.case == ActionCase.PLACE
+  //         ? {
+  //           location: this.data.place.location.toJson(),
+  //           direction: Direction.valuesArray.indexOf(
+  //             this.data.place.direction
+  //           ),
+  //         }
+  //         : undefined,
+  //   };
+  // }
 }

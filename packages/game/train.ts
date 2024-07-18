@@ -208,23 +208,49 @@ export async function train_parallel<
   }
 }
 
+export class ActionStatistics {
+  constructor(
+    /** Predicted probability that the current player would select this action */
+    readonly prior: number,
+    /** Number of times the action was visited by MCTS */
+    readonly visitCount: number,
+    /** Player values assigned by MCTS for the action */
+    readonly expectedValues: PlayerValues
+  ) { }
+  toJson(): EncodedActionStatistics {
+    return { prior: this.prior, visitCount: this.visitCount, expectedValues: this.expectedValues.toJson() };
+  }
+  static decode(encoded: any): ActionStatistics {
+    const decoded = decodeOrThrow(actionStatisticsJson, encoded);
+    return new ActionStatistics(decoded.prior, decoded.visitCount, PlayerValues.decode(decoded.expectedValues));
+  }
+}
+
+const actionStatisticsJson = io.type({ prior: io.number, visitCount: io.number, expectedValues: playerValuesJson });
+type EncodedActionStatistics = io.TypeOf<typeof actionStatisticsJson>;
+
 const stateSearchDataJson = io.type({
   state: io.any,
-  actionToVisitCount: io.array(io.tuple([io.any, io.number])),
+  predictedValues: playerValuesJson,
+  actionToStatistics: io.array(io.tuple([io.any, actionStatisticsJson])),
 });
 
 type EncodedStateSearchData = io.TypeOf<typeof stateSearchDataJson>;
 
 export class StateSearchData<S extends GameState, A extends Action>
-  implements JsonSerializable
-{
-  constructor(readonly state: S, readonly actionToVisitCount: Map<A, number>) {}
+  implements JsonSerializable {
+  constructor(
+    readonly state: S,
+    /** Model-predicted values for this state, for diagnostic purposes only */
+    readonly predictedValues: PlayerValues,
+    readonly actionToStatistics: Map<A, ActionStatistics>) { }
   toJson(): EncodedStateSearchData {
     return {
       state: this.state.toJson(),
-      actionToVisitCount: this.actionToVisitCount
+      predictedValues: this.predictedValues.toJson(),
+      actionToStatistics: this.actionToStatistics
         .entrySeq()
-        .map<[any, number]>(([action, value]) => [action.toJson(), value])
+        .map<[any, EncodedActionStatistics]>(([action, value]) => [action.toJson(), value.toJson()])
         .toArray(),
     };
   }
@@ -235,10 +261,11 @@ export class StateSearchData<S extends GameState, A extends Action>
     const decoded = decodeOrThrow(stateSearchDataJson, encoded);
     return new StateSearchData(
       game.decodeState(decoded.state),
+      PlayerValues.decode(decoded.predictedValues),
       Map(
-        decoded.actionToVisitCount.map(([encodedAction, value]) => [
+        decoded.actionToStatistics.map(([encodedAction, encodedValue]) => [
           game.decodeAction(encodedAction),
-          value,
+          ActionStatistics.decode(encodedValue),
         ])
       )
     );
@@ -248,8 +275,9 @@ export class StateSearchData<S extends GameState, A extends Action>
 const episodeTrainingDataJson = io.type({
   episodeConfig: episodeConfigurationJson,
   gameConfig: io.any,
-  terminalValues: playerValuesJson,
   dataPoints: io.array(stateSearchDataJson),
+  terminalState: io.any,
+  terminalValues: playerValuesJson,
 });
 
 type EncodedEpisodeTrainingData = io.TypeOf<typeof episodeTrainingDataJson>;
@@ -258,14 +286,16 @@ export class EpisodeTrainingData<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements JsonSerializable, ReadonlyArrayLike<StateTrainingData<C, S, A>>
-{
+> implements JsonSerializable, ReadonlyArrayLike<StateTrainingData<C, S, A>> {
   constructor(
     readonly episodeConfig: EpisodeConfiguration,
     readonly gameConfig: C,
+    readonly dataPoints: Array<StateSearchData<S, A>>,
+    /** Terminal state, for diagnostic purposes only */
+    readonly terminalState: S,
+    /** Terminal values, for diagnostic purposes only */
     readonly terminalValues: PlayerValues,
-    readonly dataPoints: Array<StateSearchData<S, A>>
-  ) {}
+  ) { }
 
   count(): number {
     return this.dataPoints.length;
@@ -278,7 +308,7 @@ export class EpisodeTrainingData<
         this.gameConfig,
         this.dataPoints[index].state
       ),
-      this.dataPoints[index].actionToVisitCount,
+      this.dataPoints[index].actionToStatistics,
       this.terminalValues
     );
   }
@@ -297,6 +327,7 @@ export class EpisodeTrainingData<
       gameConfig: this.gameConfig.toJson(),
       terminalValues: this.terminalValues.toJson(),
       dataPoints: this.dataPoints.map((it) => it.toJson()),
+      terminalState: this.terminalState.toJson()
     };
   }
 
@@ -309,8 +340,9 @@ export class EpisodeTrainingData<
     return new EpisodeTrainingData(
       EpisodeConfiguration.decode(decoded.episodeConfig),
       game.decodeConfiguration(decoded.gameConfig),
+      decoded.dataPoints.map((it) => StateSearchData.decode(game, it)),
+      game.decodeState(decoded.terminalState),
       PlayerValues.decode(decoded.terminalValues),
-      decoded.dataPoints.map((it) => StateSearchData.decode(game, it))
     );
   }
 }
@@ -339,7 +371,7 @@ export function episode<
   }
   let currentMctsContext = mctsContext();
   let root = new NonTerminalStateNode(currentMctsContext, snapshot);
-  const states = new Array<StateSearchData<S, A>>();
+  const nonTerminalStates = new Array<StateSearchData<S, A>>();
   while (game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(game.currentPlayer(snapshot));
     // Run simulationCount steps or enough to try every possible action once
@@ -363,15 +395,16 @@ export function episode<
     );
     const stateSearchData = new StateSearchData(
       snapshot.state,
+      root.inferenceResult.value,
       Map(
         Seq(root.actionToChild.entries()).map(([action, child]) => [
           action,
-          child.visitCount,
+          new ActionStatistics(child.prior, child.visitCount, new PlayerValues(child.playerExpectedValues.playerIdToValue)),
         ])
       )
     );
-    states.push(stateSearchData);
-    const [newState, chanceKey] = game.apply(
+    nonTerminalStates.push(stateSearchData);
+    const [newState,] = game.apply(
       snapshot,
       actionWithGreatestExpectedValue
     );
@@ -384,26 +417,29 @@ export function episode<
     // Reuse the node for newState from the previous search tree if it exists.
     // It might not exist if there was non-determinism in the application of the
     // latest action.
-    const existingStateNode = root.actionToChild
-      .get(actionWithGreatestExpectedValue)
-      ?.chanceKeyToChild.get(chanceKey);
-    if (existingStateNode != undefined) {
-      if (!(existingStateNode instanceof NonTerminalStateNode)) {
-        throw new Error(
-          `Node for non-terminal state was not NonTerminalStateNode`
-        );
-      }
-      if (existingStateNode.context == currentMctsContext) {
-        root = existingStateNode;
-      } else {
-        console.log(
-          "Ignoring current child node because it has a different current player"
-        );
-        root = new NonTerminalStateNode(currentMctsContext, snapshot);
-      }
-    } else {
-      root = new NonTerminalStateNode(currentMctsContext, snapshot);
-    }
+    // const existingStateNode = root.actionToChild
+    //   .get(actionWithGreatestExpectedValue)
+    //   ?.chanceKeyToChild.get(chanceKey);
+    // if (existingStateNode != undefined) {
+    //   if (!(existingStateNode instanceof NonTerminalStateNode)) {
+    //     throw new Error(
+    //       `Node for non-terminal state was not NonTerminalStateNode`
+    //     );
+    //   }
+    //   if (existingStateNode.context == currentMctsContext) {
+    //     root = existingStateNode;
+    //   } else {
+    //     console.log(
+    //       "Ignoring current child node because it has a different current player"
+    //     );
+    //     root = new NonTerminalStateNode(currentMctsContext, snapshot);
+    //   }
+    // } else {
+    //   root = new NonTerminalStateNode(currentMctsContext, snapshot);
+    // }
+
+    root = new NonTerminalStateNode(currentMctsContext, snapshot);
+
     // console.log(`New root node has ${root.visitCount} visits`);
   }
   const elapsedMs = performance.now() - startMs;
@@ -413,7 +449,8 @@ export function episode<
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,
+    nonTerminalStates,
+    snapshot.state,
     requireDefined(game.result(snapshot)),
-    states
   );
 }

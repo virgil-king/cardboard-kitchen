@@ -1,4 +1,5 @@
 import {
+  ActionStatistics,
   EpisodeConfiguration,
   EpisodeSnapshot,
   PlayerValues,
@@ -182,8 +183,7 @@ export const policyCodec = new ObjectCodec({
 });
 
 export class KingdominoModel
-  implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction>
-{
+  implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction> {
   static maxPlayerCount = requireDefined(
     Seq(Kingdomino.INSTANCE.playerCounts).max()
   );
@@ -197,8 +197,7 @@ export class KingdominoModel
 
   static fresh(): KingdominoModel {
     console.log(
-      `Model has ${stateCodec.columnCount} input dimensions and ${
-        valueCodec.columnCount + policyCodec.columnCount
+      `Model has ${stateCodec.columnCount} input dimensions and ${valueCodec.columnCount + policyCodec.columnCount
       } output dimensions`
     );
     // Halfway between total input and output size
@@ -230,7 +229,7 @@ export class KingdominoModel
   constructor(model: tf.LayersModel) {
     this.model = model;
   }
-  
+
   save(path: string): Promise<void> {
     return new Promise((r) => {
       this.model.save(`file://${path}`);
@@ -283,7 +282,7 @@ export class KingdominoModel
         (playerIndex) => {
           if (
             playerIndex >=
-            snapshot.episodeConfiguration.players.players.count() - 1
+            snapshot.episodeConfiguration.players.players.count()
           ) {
             return undefined;
           }
@@ -318,8 +317,8 @@ export class KingdominoModel
           claim == undefined
             ? undefined
             : episodeConfig.players.players.findIndex(
-                (player) => player.id == claim.playerId
-              );
+              (player) => player.id == claim.playerId
+            );
         if (claimPlayerIndex == -1) {
           throw new Error(`Claim player was not found`);
         }
@@ -375,9 +374,8 @@ export class KingdominoModel
 
 export class KingdominoInferenceModel
   implements
-    InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
-{
-  constructor(private readonly model: KingdominoModel) {}
+  InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction> {
+  constructor(private readonly model: KingdominoModel) { }
 
   infer(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
@@ -495,8 +493,7 @@ export class KingdominoInferenceModel
 
 export class KingdominoTrainingModel
   implements
-    TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
-{
+  TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction> {
   private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
   private readonly optimizer: tf.Optimizer;
 
@@ -535,7 +532,7 @@ export class KingdominoTrainingModel
       )
       .toArray();
     const policyMatrix = Seq(dataPoints)
-      .map((sample) => this.encodePolicy(sample.actionToVisitCount))
+      .map((sample) => this.encodePolicy(sample.actionToStatistics))
       .toArray();
     // console.log(
     //   `Calling fit with expected values ${JSON.stringify(
@@ -560,7 +557,8 @@ export class KingdominoTrainingModel
     inputTensor.dispose();
     valueOutputTensor.dispose();
     policyOutputTensor.dispose();
-    console.log(`History: ${JSON.stringify(fitResult.history)}`);
+    const epochLosses = fitResult.history.loss;
+    console.log(`Loss: ${epochLosses[epochLosses.length - 1]}`);
   }
   encodeValues(players: Players, values: PlayerValues): ReadonlyArray<number> {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
@@ -581,7 +579,7 @@ export class KingdominoTrainingModel
 
   // Visible for testing
   encodePolicy(
-    visitCounts: Map<KingdominoAction, number>
+    visitCounts: Map<KingdominoAction, ActionStatistics>
   ): ReadonlyArray<number> {
     const claimProbabilities = Array<number>(
       claimProbabilitiesCodec.columnCount
@@ -591,19 +589,19 @@ export class KingdominoTrainingModel
       placeProbabilitiesCodec.columnCount
     ).fill(0);
 
-    for (const [action, visitCount] of visitCounts.entries()) {
+    for (const [action, statistics] of visitCounts.entries()) {
       switch (action.data.case) {
         case ActionCase.CLAIM: {
-          claimProbabilities[action.data.claim.offerIndex] = visitCount;
+          claimProbabilities[action.data.claim.offerIndex] = statistics.visitCount;
           break;
         }
         case ActionCase.DISCARD: {
-          discardProbability = visitCount;
+          discardProbability = statistics.visitCount;
           break;
         }
         case ActionCase.PLACE: {
           placeProbabilities[placementToCodecIndex(action.data.place)] =
-            visitCount;
+            statistics.visitCount;
           break;
         }
       }

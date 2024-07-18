@@ -12,6 +12,7 @@ import { EpisodeConfiguration, Player, Players } from "./game.js";
 import { EpisodeTrainingData, StateSearchData } from "./train.js";
 import { List, Range, Set } from "immutable";
 import { StateTrainingData } from "./model.js";
+import { rand } from "@tensorflow/tfjs-core";
 
 // const buffer = new EpisodeBuffer<
 //   PickANumberConfiguration,
@@ -34,7 +35,7 @@ import { StateTrainingData } from "./model.js";
 // }
 
 class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
-  constructor(private readonly array: ReadonlyArray<T>) {}
+  constructor(private readonly array: ReadonlyArray<T>) { }
   count(): number {
     return this.array.length;
   }
@@ -43,16 +44,19 @@ class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
   }
 }
 
-test("addGame: exceeds max moves: purges older games", () => {
+test("addGame: can purge older game while remaining above target: purges older game", () => {
   const buffer = new EpisodeBuffer<number, SimpleArrayLike<number>>(5);
   const game1 = new SimpleArrayLike([1, 4, 9, 3]);
   const game2 = new SimpleArrayLike([4, 9, 3, 2]);
+  const game3 = new SimpleArrayLike([7, 8, 1, 5]);
 
   buffer.addEpisode(game1);
   buffer.addEpisode(game2);
+  buffer.addEpisode(game3);
 
-  assert.equal(buffer.sampleCount(), 4);
-  assert.isTrue(_.isEqual(game2, buffer.randomGame()));
+  assert.equal(buffer.sampleCount(), 8);
+  const randomEpisode = buffer.randomGame();
+  assert.isTrue(_.isEqual(game2, randomEpisode) || _.isEqual(game3, randomEpisode));
 });
 
 test("sampleCount: returns number of states in single game", () => {

@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { Kingdomino } from "./kingdomino.js";
-import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
+import { ActionStatistics, EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import {
   KingdominoModel,
   placementToCodecIndex,
@@ -51,8 +51,8 @@ test("encodePolicy: stores placement values at expected index", () => {
   const placement1 = new PlaceTile(new Vector2(-4, -3), Direction.LEFT);
   const placement2 = new PlaceTile(new Vector2(1, 2), Direction.DOWN);
   const actionToVisitCount = Map([
-    [KingdominoAction.placeTile(placement1), 1],
-    [KingdominoAction.placeTile(placement2), 2],
+    [KingdominoAction.placeTile(placement1), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+    [KingdominoAction.placeTile(placement2), new ActionStatistics(0.5, 2, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
   ]);
 
   const policyVector = model.trainingModel().encodePolicy(actionToVisitCount);

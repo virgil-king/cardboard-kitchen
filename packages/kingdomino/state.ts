@@ -34,6 +34,8 @@ import * as io from "io-ts";
 const playerStateJson = io.type({
   board: playerBoardJson,
   bonusPoints: io.number,
+  /** Score is included for diagnostic purposes only since it's derived from the board and bonus points */
+  score: io.number,
 });
 
 type EncodedPlayerState = io.TypeOf<typeof playerStateJson>;
@@ -42,7 +44,10 @@ export class KingdominoPlayerState implements ValueObject {
   // readonly bonusPoints: number;
   // Cache score since board.score() is expensive
   readonly score: number;
-  constructor(readonly board: PlayerBoard, private readonly bonusPoints: number) {
+  constructor(
+    readonly board: PlayerBoard,
+    private readonly bonusPoints: number
+  ) {
     // this.bonusPoints = board.score();
     this.score = board.score() + bonusPoints;
   }
@@ -56,7 +61,11 @@ export class KingdominoPlayerState implements ValueObject {
     return new KingdominoPlayerState(this.board, bonusPoints);
   }
   toJson(): EncodedPlayerState {
-    return { board: this.board.toJson(), bonusPoints: this.bonusPoints };
+    return {
+      board: this.board.toJson(),
+      bonusPoints: this.bonusPoints,
+      score: this.score,
+    };
   }
   static decode(encoded: any): KingdominoPlayerState {
     const decoded = decodeOrThrow(playerStateJson, encoded);
@@ -79,9 +88,14 @@ export class KingdominoPlayerState implements ValueObject {
 }
 
 export enum NextAction {
-  CLAIM_OFFER,
-  RESOLVE_OFFER,
+  CLAIM_OFFER = "CLAIM_OFFER",
+  RESOLVE_OFFER = "RESOLVE_OFFER",
 }
+
+const nextActionJson = io.union([
+  io.literal(NextAction.CLAIM_OFFER),
+  io.literal(NextAction.RESOLVE_OFFER),
+]);
 
 export const nextActions: ReadonlyArray<NextAction> = [
   NextAction.CLAIM_OFFER,
@@ -103,7 +117,7 @@ export type Props = {
 export const propsJson = io.type({
   playerIdToState: io.array(io.tuple([io.string, playerStateJson])),
   currentPlayerId: io.union([io.string, io.undefined]),
-  nextAction: io.union([io.number, io.undefined]),
+  nextAction: io.union([nextActionJson, io.undefined]),
   drawnTileNumbers: io.array(io.number),
   previousOffers: io.union([tileOffersJson, io.undefined]),
   nextOffers: io.union([tileOffersJson, io.undefined]),
@@ -226,7 +240,10 @@ export class KingdominoState implements GameState {
         ])
       ),
       currentPlayerId: decoded.currentPlayerId,
-      nextAction: decoded.nextAction,
+      nextAction:
+        decoded.nextAction == undefined
+          ? undefined
+          : NextAction[decoded.nextAction],
       drawnTileNumbers: Set(decoded.drawnTileNumbers),
       previousOffers:
         decoded.previousOffers == undefined

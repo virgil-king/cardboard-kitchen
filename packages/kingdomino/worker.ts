@@ -1,6 +1,5 @@
 import { SettablePromise, requireDefined, sleep } from "studio-util";
 import { KingdominoModel } from "./model.js";
-import tfcore from "@tensorflow/tfjs-core";
 import {
   EpisodeConfiguration,
   MctsConfig,
@@ -13,6 +12,8 @@ import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import { Map } from "immutable";
+import * as fs from "node:fs";
+import { fileSystem } from "@tensorflow/tfjs-node-gpu/dist/io/file_system.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -27,7 +28,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 128,
+  simulationCount: 64,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 
@@ -41,6 +42,11 @@ messagePort.on("message", async (message: any) => {
   console.log(`Received new model`);
   ready.fulfill(undefined);
 });
+
+
+const home = process.env.HOME;
+const gamesDir = `${home}/ckdata/kingdomino/games`;
+fs.mkdirSync(gamesDir, { recursive: true });
 
 async function main() {
   await ready.promise;
@@ -74,6 +80,11 @@ async function main() {
     // console.log(`Completed episode`);
 
     messagePort.postMessage(episodeTrainingData.toJson());
+
+    const encoded = episodeTrainingData.toJson();
+    const path =
+      fs.writeFileSync(`${gamesDir}/${new Date().toISOString()}`, JSON.stringify(encoded, undefined, 1));
+
     await sleep(0);
   }
 }

@@ -19,7 +19,7 @@ const derek = new Player("derek", "Derek");
 // const episodeCount = 100;
 const batchSize = 128;
 // const batchCount = 2048;
-const sampleBufferSize = batchSize * 32;
+const sampleBufferSize = batchSize * 128;
 // for (let i = 0; i < episodeCount; i++) {
 // const episode = runEpisode(kingdomino, players, agents);
 // console.log(

@@ -3,12 +3,12 @@ import {
   EpisodeSnapshot,
   GameConfiguration,
   GameState,
-  JsonSerializable,
   PlayerValues,
 } from "./game.js";
 import { Map } from "immutable";
 import * as io from "io-ts";
 import tfcore from "@tensorflow/tfjs-core";
+import { ActionStatistics } from "./train.js";
 
 const StateTrainingDataJson = io.type({});
 
@@ -23,7 +23,7 @@ export class StateTrainingData<
     // self-play threads
     readonly snapshot: EpisodeSnapshot<C, S>,
     /** Used to train the policy function */
-    readonly actionToVisitCount: Map<A, number>,
+    readonly actionToStatistics: Map<A, ActionStatistics>,
     /** Used to train the value function */
     readonly terminalValues: PlayerValues
   ) {
