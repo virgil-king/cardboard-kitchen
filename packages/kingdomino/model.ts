@@ -24,7 +24,7 @@ import {
   TrainingModel,
 } from "game/model.js";
 import { Map, Seq } from "immutable";
-import tf from "@tensorflow/tfjs-node-gpu";
+import tf, { loadLayersModel } from "@tensorflow/tfjs-node-gpu";
 import tfcore from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
 import { requireDefined } from "studio-util";
@@ -183,7 +183,8 @@ export const policyCodec = new ObjectCodec({
 });
 
 export class KingdominoModel
-  implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction> {
+  implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction>
+{
   static maxPlayerCount = requireDefined(
     Seq(Kingdomino.INSTANCE.playerCounts).max()
   );
@@ -197,7 +198,8 @@ export class KingdominoModel
 
   static fresh(): KingdominoModel {
     console.log(
-      `Model has ${stateCodec.columnCount} input dimensions and ${valueCodec.columnCount + policyCodec.columnCount
+      `Model has ${stateCodec.columnCount} input dimensions and ${
+        valueCodec.columnCount + policyCodec.columnCount
       } output dimensions`
     );
     // Halfway between total input and output size
@@ -224,6 +226,14 @@ export class KingdominoModel
     });
 
     return new KingdominoModel(model);
+  }
+
+  /**
+   * @param path path to the directory containing the model files
+   */
+  static async load(path: string): Promise<KingdominoModel> {
+    const layersModel = await loadLayersModel(`file://${path}/model.json`);
+    return new KingdominoModel(layersModel);
   }
 
   constructor(model: tf.LayersModel) {
@@ -281,8 +291,7 @@ export class KingdominoModel
       playerState: _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
         (playerIndex) => {
           if (
-            playerIndex >=
-            snapshot.episodeConfiguration.players.players.count()
+            playerIndex >= snapshot.episodeConfiguration.players.players.count()
           ) {
             return undefined;
           }
@@ -317,8 +326,8 @@ export class KingdominoModel
           claim == undefined
             ? undefined
             : episodeConfig.players.players.findIndex(
-              (player) => player.id == claim.playerId
-            );
+                (player) => player.id == claim.playerId
+              );
         if (claimPlayerIndex == -1) {
           throw new Error(`Claim player was not found`);
         }
@@ -374,8 +383,9 @@ export class KingdominoModel
 
 export class KingdominoInferenceModel
   implements
-  InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction> {
-  constructor(private readonly model: KingdominoModel) { }
+    InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
+{
+  constructor(private readonly model: KingdominoModel) {}
 
   infer(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
@@ -493,7 +503,8 @@ export class KingdominoInferenceModel
 
 export class KingdominoTrainingModel
   implements
-  TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction> {
+    TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
+{
   private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
   private readonly optimizer: tf.Optimizer;
 
@@ -592,7 +603,8 @@ export class KingdominoTrainingModel
     for (const [action, statistics] of visitCounts.entries()) {
       switch (action.data.case) {
         case ActionCase.CLAIM: {
-          claimProbabilities[action.data.claim.offerIndex] = statistics.visitCount;
+          claimProbabilities[action.data.claim.offerIndex] =
+            statistics.visitCount;
           break;
         }
         case ActionCase.DISCARD: {

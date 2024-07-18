@@ -28,7 +28,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 64,
+  simulationCount: 128,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 
@@ -42,7 +42,6 @@ messagePort.on("message", async (message: any) => {
   console.log(`Received new model`);
   ready.fulfill(undefined);
 });
-
 
 const home = process.env.HOME;
 const gamesDir = `${home}/ckdata/kingdomino/games`;
@@ -69,10 +68,10 @@ async function main() {
       playerIdToMctsContext,
       episodeConfig
     );
-    const lastDataPoint =
-      episodeTrainingData.dataPoints[episodeTrainingData.dataPoints.length - 1];
+    // const lastDataPoint =
+    //   episodeTrainingData.dataPoints[episodeTrainingData.dataPoints.length - 1];
     console.log(
-      `Scores: ${lastDataPoint.state.props.playerIdToState
+      `Scores: ${episodeTrainingData.terminalState.props.playerIdToState
         .valueSeq()
         .map((state) => state.score)
         .toArray()}`
@@ -82,8 +81,10 @@ async function main() {
     messagePort.postMessage(episodeTrainingData.toJson());
 
     const encoded = episodeTrainingData.toJson();
-    const path =
-      fs.writeFileSync(`${gamesDir}/${new Date().toISOString()}`, JSON.stringify(encoded, undefined, 1));
+    const path = fs.writeFileSync(
+      `${gamesDir}/${new Date().toISOString()}`,
+      JSON.stringify(encoded, undefined, 1)
+    );
 
     await sleep(0);
   }

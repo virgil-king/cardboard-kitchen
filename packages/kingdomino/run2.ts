@@ -41,23 +41,35 @@ const sampleBufferSize = batchSize * 128;
 // );
 // }
 
-const model = KingdominoModel.fresh();
+async function main() {
+  const modelPath = process.argv.length > 2 ? process.argv[2] : undefined;
+  let model: KingdominoModel;
+  if (modelPath == undefined) {
+    model = KingdominoModel.fresh();
+    console.log("Created randomly initialized model");
+  } else {
+    model = await KingdominoModel.load(modelPath);
+    console.log(`Loaded model from ${modelPath}`);
+  }
+
+  const now = new Date();
+  const home = process.env.HOME;
+  // const modelsDir = `~/models/kingdomino/${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+  const modelsDir = `${home}/models/kingdomino/${now.toISOString()}`;
+
+  train_parallel(
+    Kingdomino.INSTANCE,
+    model,
+    batchSize,
+    sampleBufferSize,
+    "./out/worker.js",
+    modelsDir
+  );
+}
+
+main();
 
 // const filename = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
-
-const now = new Date();
-const home = process.env.HOME;
-// const modelsDir = `~/models/kingdomino/${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
-const modelsDir = `${home}/models/kingdomino/${now.toISOString()}`;
-
-train_parallel(
-  Kingdomino.INSTANCE,
-  model,
-  batchSize,
-  sampleBufferSize,
-  "./out/worker.js",
-  modelsDir
-);
 
 // const elapsed = Date.now() - start;
 // console.log(

@@ -16,8 +16,8 @@ import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 
-const model1 = loadModel(process.argv[2]);
-const model2 = loadModel(process.argv[3]);
+const model1 = KingdominoModel.load(process.argv[2]);
+const model2 = KingdominoModel.load(process.argv[3]);
 
 const episodeCount = parseInt(process.argv[4]);
 console.log(`episodeCount is ${episodeCount}`);
@@ -39,12 +39,6 @@ const mctsConfig = new MctsConfig<
 
 const player1 = new Player("player1", "Player 1");
 const player2 = new Player("player2", "Player 2");
-
-async function loadModel(path: string): Promise<KingdominoModel> {
-  const layersModel = await loadLayersModel(`file://${path}`);
-  //   console.log(layersModel.weights);
-  return new KingdominoModel(layersModel);
-}
 
 async function main() {
   const playerIdToMctsContext = Map<
