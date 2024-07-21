@@ -1,7 +1,6 @@
 import {
   SettablePromise,
   decodeOrThrow,
-  drawN,
   requireDefined,
   sleep,
 } from "studio-util";
@@ -16,25 +15,21 @@ import {
   PlayerValues,
   episodeConfigurationJson,
   playerValuesJson,
-} from "./game.js";
-import {
-  MctsConfig,
-  MctsContext,
-  MctsStats,
-  NonTerminalStateNode,
-} from "./mcts.js";
-import { Map, Range, Seq } from "immutable";
-import {
-  InferenceModel,
-  TrainingModel,
-  StateTrainingData,
-  Model,
-} from "./model.js";
-import { EpisodeBuffer, ReadonlyArrayLike } from "./episodebuffer.js";
+} from "game";
+import { MctsContext, NonTerminalStateNode } from "./mcts.js";
+import { List, Map, Range, Seq } from "immutable";
+import { Model } from "./model.js";
+import { EpisodeBuffer } from "./episodebuffer.js";
 import * as io from "io-ts";
 import * as os from "os";
 import * as worker_threads from "node:worker_threads";
-import * as fs from "node:fs";
+import * as fs from "fs";
+import {
+  ActionStatistics,
+  EpisodeTrainingData,
+  StateSearchData,
+  StateTrainingData,
+} from "training-data";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
@@ -177,9 +172,18 @@ export async function train_parallel<
   let episodesBetweenModelUpdates = workerCount * 2;
   let episodesReceivedAtLastModelUpdate = 0;
   let lastSaveTime = performance.now();
+  let trailingLosses = List<number>();
   while (true) {
     const batch = buffer.sample(batchSize);
-    await trainingModel.train(batch);
+    const loss = await trainingModel.train(batch);
+    trailingLosses = trailingLosses.push(loss);
+    if (trailingLosses.count() > 100) {
+      trailingLosses = trailingLosses.shift();
+    }
+    const trailingLoss =
+      trailingLosses.reduce((reduction, next) => reduction + next, 0) /
+      trailingLosses.count();
+    console.log(`Sliding window loss: ${trailingLoss}`);
     await sleep(0);
     if (
       episodesReceived - episodesReceivedAtLastModelUpdate >
@@ -208,143 +212,28 @@ export async function train_parallel<
   }
 }
 
-export class ActionStatistics {
-  constructor(
-    /** Predicted probability that the current player would select this action */
-    readonly prior: number,
-    /** Number of times the action was visited by MCTS */
-    readonly visitCount: number,
-    /** Player values assigned by MCTS for the action */
-    readonly expectedValues: PlayerValues
-  ) { }
-  toJson(): EncodedActionStatistics {
-    return { prior: this.prior, visitCount: this.visitCount, expectedValues: this.expectedValues.toJson() };
-  }
-  static decode(encoded: any): ActionStatistics {
-    const decoded = decodeOrThrow(actionStatisticsJson, encoded);
-    return new ActionStatistics(decoded.prior, decoded.visitCount, PlayerValues.decode(decoded.expectedValues));
-  }
-}
-
-const actionStatisticsJson = io.type({ prior: io.number, visitCount: io.number, expectedValues: playerValuesJson });
-type EncodedActionStatistics = io.TypeOf<typeof actionStatisticsJson>;
-
-const stateSearchDataJson = io.type({
-  state: io.any,
-  predictedValues: playerValuesJson,
-  actionToStatistics: io.array(io.tuple([io.any, actionStatisticsJson])),
-});
-
-type EncodedStateSearchData = io.TypeOf<typeof stateSearchDataJson>;
-
-export class StateSearchData<S extends GameState, A extends Action>
-  implements JsonSerializable {
-  constructor(
-    readonly state: S,
-    /** Model-predicted values for this state, for diagnostic purposes only */
-    readonly predictedValues: PlayerValues,
-    readonly actionToStatistics: Map<A, ActionStatistics>) { }
-  toJson(): EncodedStateSearchData {
-    return {
-      state: this.state.toJson(),
-      predictedValues: this.predictedValues.toJson(),
-      actionToStatistics: this.actionToStatistics
-        .entrySeq()
-        .map<[any, EncodedActionStatistics]>(([action, value]) => [action.toJson(), value.toJson()])
-        .toArray(),
-    };
-  }
-  static decode<S extends GameState, A extends Action>(
-    game: Game<GameConfiguration, S, A>,
-    encoded: EncodedStateSearchData
-  ): StateSearchData<S, A> {
-    const decoded = decodeOrThrow(stateSearchDataJson, encoded);
-    return new StateSearchData(
-      game.decodeState(decoded.state),
-      PlayerValues.decode(decoded.predictedValues),
-      Map(
-        decoded.actionToStatistics.map(([encodedAction, encodedValue]) => [
-          game.decodeAction(encodedAction),
-          ActionStatistics.decode(encodedValue),
-        ])
-      )
-    );
-  }
-}
-
-const episodeTrainingDataJson = io.type({
-  episodeConfig: episodeConfigurationJson,
-  gameConfig: io.any,
-  dataPoints: io.array(stateSearchDataJson),
-  terminalState: io.any,
-  terminalValues: playerValuesJson,
-});
-
-type EncodedEpisodeTrainingData = io.TypeOf<typeof episodeTrainingDataJson>;
-
-export class EpisodeTrainingData<
+function loadEpisodes<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements JsonSerializable, ReadonlyArrayLike<StateTrainingData<C, S, A>> {
-  constructor(
-    readonly episodeConfig: EpisodeConfiguration,
-    readonly gameConfig: C,
-    readonly dataPoints: Array<StateSearchData<S, A>>,
-    /** Terminal state, for diagnostic purposes only */
-    readonly terminalState: S,
-    /** Terminal values, for diagnostic purposes only */
-    readonly terminalValues: PlayerValues,
-  ) { }
-
-  count(): number {
-    return this.dataPoints.length;
+>(
+  episodesDir: string,
+  buffer: EpisodeBuffer<
+    StateTrainingData<C, S, A>,
+    EpisodeTrainingData<C, S, A>
+  >
+) {
+  const files = fs.readdirSync(episodesDir);
+  let filenameToModeTime = Map<string, number>();
+  for (const filename of files) {
+    const stat = fs.statSync(episodesDir + "/" + filename);
+    filenameToModeTime = filenameToModeTime.set(filename, stat.mtimeMs);
   }
-
-  get(index: number): StateTrainingData<C, S, A> {
-    return new StateTrainingData(
-      new EpisodeSnapshot(
-        this.episodeConfig,
-        this.gameConfig,
-        this.dataPoints[index].state
-      ),
-      this.dataPoints[index].actionToStatistics,
-      this.terminalValues
-    );
-  }
-
-  stateTrainingDataArray(): Array<StateTrainingData<C, S, A>> {
-    const result = new Array<StateTrainingData<C, S, A>>();
-    for (let i = 0; i < this.count(); i++) {
-      result.push(this.get(i));
-    }
-    return result;
-  }
-
-  toJson(): EncodedEpisodeTrainingData {
-    return {
-      episodeConfig: this.episodeConfig.toJson(),
-      gameConfig: this.gameConfig.toJson(),
-      terminalValues: this.terminalValues.toJson(),
-      dataPoints: this.dataPoints.map((it) => it.toJson()),
-      terminalState: this.terminalState.toJson()
-    };
-  }
-
-  static decode<
-    C extends GameConfiguration,
-    S extends GameState,
-    A extends Action
-  >(game: Game<C, S, A>, encoded: any): EpisodeTrainingData<C, S, A> {
-    const decoded = decodeOrThrow(episodeTrainingDataJson, encoded);
-    return new EpisodeTrainingData(
-      EpisodeConfiguration.decode(decoded.episodeConfig),
-      game.decodeConfiguration(decoded.gameConfig),
-      decoded.dataPoints.map((it) => StateSearchData.decode(game, it)),
-      game.decodeState(decoded.terminalState),
-      PlayerValues.decode(decoded.terminalValues),
-    );
-  }
+  const filesByDescendingModTime = files.sort(
+    (a, b) =>
+      requireDefined(filenameToModeTime.get(b)) -
+      requireDefined(filenameToModeTime.get(a))
+  );
 }
 
 /**
@@ -399,15 +288,16 @@ export function episode<
       Map(
         Seq(root.actionToChild.entries()).map(([action, child]) => [
           action,
-          new ActionStatistics(child.prior, child.visitCount, new PlayerValues(child.playerExpectedValues.playerIdToValue)),
+          new ActionStatistics(
+            child.prior,
+            child.visitCount,
+            new PlayerValues(child.playerExpectedValues.playerIdToValue)
+          ),
         ])
       )
     );
     nonTerminalStates.push(stateSearchData);
-    const [newState,] = game.apply(
-      snapshot,
-      actionWithGreatestExpectedValue
-    );
+    const [newState] = game.apply(snapshot, actionWithGreatestExpectedValue);
     snapshot = snapshot.derive(newState);
     if (game.result(snapshot) != undefined) {
       break;
@@ -451,6 +341,6 @@ export function episode<
     snapshot.gameConfiguration,
     nonTerminalStates,
     snapshot.state,
-    requireDefined(game.result(snapshot)),
+    requireDefined(game.result(snapshot))
   );
 }

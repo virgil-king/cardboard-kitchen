@@ -9,7 +9,7 @@ import {
   playerValuesToString,
   Player,
   Agent,
-} from "./game.js";
+} from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
 import { requireDefined, weightedMerge } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
@@ -40,21 +40,25 @@ export class MctsConfig<
   readonly explorationBias: number;
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
+  readonly minPrior: number;
   constructor({
     simulationCount = 32,
     explorationBias = Math.sqrt(2),
     randomPlayoutConfig = undefined,
     maxChanceBranches = 4,
+    minPolicyValue = 0.01,
   }: {
     simulationCount?: number;
     explorationBias?: number;
     randomPlayoutConfig?: RandomPlayoutConfig<C, S, A>;
     maxChanceBranches?: number;
+    minPolicyValue?: number;
   }) {
     this.simulationCount = simulationCount;
     this.explorationBias = explorationBias;
     this.randomPlayoutConfig = randomPlayoutConfig;
     this.maxChanceBranches = maxChanceBranches;
+    this.minPrior = minPolicyValue;
   }
 }
 
@@ -103,6 +107,9 @@ class ActionNode<
     readonly action: A,
     readonly prior: number
   ) {
+    if (prior < 0) {
+      throw new Error(`Negative prior ${prior}`);
+    }
     this.context.stats.actionNodesCreated++;
   }
 
@@ -192,7 +199,8 @@ export class NonTerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode {
+> implements StateNode
+{
   visitCount = 0;
   actionToChild: Map<A, ActionNode<C, S, A>>;
   readonly inferenceResult: InferenceResult<A>;
@@ -209,10 +217,11 @@ export class NonTerminalStateNode<
     let policy = this.inferenceResult.policy;
     // console.log(`policy is ${policy.toArray()}`);
 
-    // Make policy non-negative
+    // Shift priors if needed to honor the configured minimum prior
     const minPrior = requireDefined(Seq(policy.values()).min());
-    if (minPrior < 0) {
-      policy = policy.map((value) => value + minPrior);
+    if (minPrior < context.config.minPrior) {
+      const delta = context.config.minPrior - minPrior;
+      policy = policy.map((value) => value + delta);
       // console.log(`Compensated for negative policy values`);
     }
 
@@ -345,9 +354,10 @@ export class NonTerminalStateNode<
         requireDefined(
           child.playerExpectedValues.playerIdToValue.get(currentPlayer.id)
         ) +
-        child.prior *
-        this.context.config.explorationBias *
-        Math.sqrt(Math.log(this.visitCount) / child.visitCount);
+        (child.prior *
+          this.context.config.explorationBias *
+          Math.sqrt(Math.log(this.visitCount))) /
+          child.visitCount;
       if (ucb > maxUcb) {
         debugLog(
           () => `New max UCB ${ucb} for action ${JSON.stringify(action)}`
@@ -376,7 +386,8 @@ export class TerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode {
+> implements StateNode
+{
   result: PlayerValues;
   visitCount = 0;
   constructor(

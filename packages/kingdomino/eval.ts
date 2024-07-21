@@ -3,13 +3,16 @@ import { KingdominoModel } from "./model.js";
 import { Map, Range } from "immutable";
 import {
   EpisodeConfiguration,
+  Player,
+  Players,
+} from "game";
+import {
   MctsConfig,
   MctsContext,
   MctsStats,
-  Player,
-  Players,
   episode,
-} from "game";
+} from "training";
+
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoState } from "./state.js";
 import { KingdominoAction } from "./action.js";
@@ -86,11 +89,7 @@ async function main() {
     const player2Score = lastSnapshot.state.requirePlayerState(
       player2.id
     ).score;
-    console.log(
-      `Player 2 score: ${
-        lastSnapshot.state.requirePlayerState(player2.id).score
-      }`
-    );
+    console.log(`Player 2 score: ${player2Score}`);
     if (player1Score > player2Score) {
       playerIdToVictories = playerIdToVictories.set(
         player1.id,

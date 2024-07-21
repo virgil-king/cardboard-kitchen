@@ -10,7 +10,7 @@ import {
   JsonSerializable,
   GameConfiguration,
   EpisodeSnapshot,
-} from "./game.js";
+} from "game";
 
 import { test } from "vitest";
 import { assert } from "chai";
@@ -18,8 +18,9 @@ import { List, Map, Range, Set } from "immutable";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import { decodeOrThrow, requireDefined } from "studio-util";
 import { MctsConfig, mcts } from "./mcts.js";
-import { InferenceModel, StateTrainingData, TrainingModel } from "./model.js";
+import { InferenceModel, TrainingModel } from "./model.js";
 import * as io from "io-ts";
+import { StateTrainingData } from "training-data";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -232,7 +233,7 @@ class PickANumberModel
       PickANumberState,
       NumberAction
     >[]
-  ): Promise<void> {
+  ): Promise<number> {
     throw new Error("Method not implemented.");
   }
 }

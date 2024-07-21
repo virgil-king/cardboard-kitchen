@@ -1,7 +1,7 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { ActionStatistics, EpisodeTrainingData, StateSearchData } from "./train.js";
-import { EpisodeConfiguration, Player, PlayerValues, Players } from "./game.js";
+import { ActionStatistics, EpisodeTrainingData, StateSearchData } from "training-data";
+import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import {
   NumberAction,
   PickANumber,

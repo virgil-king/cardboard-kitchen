@@ -1,18 +1,8 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { EpisodeBuffer, ReadonlyArrayLike } from "./episodebuffer.js";
+import { EpisodeBuffer } from "./episodebuffer.js";
 import * as _ from "lodash";
-import {
-  NumberAction,
-  PickANumber,
-  PickANumberConfiguration,
-  PickANumberState,
-} from "./mcts.test.js";
-import { EpisodeConfiguration, Player, Players } from "./game.js";
-import { EpisodeTrainingData, StateSearchData } from "./train.js";
-import { List, Range, Set } from "immutable";
-import { StateTrainingData } from "./model.js";
-import { rand } from "@tensorflow/tfjs-core";
+import { ReadonlyArrayLike } from "training-data";
 
 // const buffer = new EpisodeBuffer<
 //   PickANumberConfiguration,

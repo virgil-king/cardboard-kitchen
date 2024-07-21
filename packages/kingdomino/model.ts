@@ -1,5 +1,4 @@
 import {
-  ActionStatistics,
   EpisodeConfiguration,
   EpisodeSnapshot,
   PlayerValues,
@@ -20,10 +19,9 @@ import {
   InferenceModel,
   InferenceResult,
   Model,
-  StateTrainingData,
   TrainingModel,
-} from "game/model.js";
-import { Map, Seq } from "immutable";
+} from "training";
+import { Map, Range, Seq } from "immutable";
 import tf, { loadLayersModel } from "@tensorflow/tfjs-node-gpu";
 import tfcore from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
@@ -43,6 +41,7 @@ import {
 } from "./codec.js";
 import { PlayerBoard } from "./board.js";
 import { Direction, Vector2 } from "./util.js";
+import { ActionStatistics, StateTrainingData } from "training-data";
 
 /*
  * This model is a function from state to per-player value and move
@@ -127,6 +126,7 @@ const playerStateCodec = new ObjectCodec({
 type PlayerStateValue = CodecValueType<typeof playerStateCodec>;
 
 // Visible for testing
+// TODO included drawn or remaining tile numbers
 export const stateCodec = new ObjectCodec({
   currentPlayerIndex: new OneHotCodec(Kingdomino.INSTANCE.maxPlayerCount),
   nextAction: new NextActionCodec(),
@@ -182,6 +182,17 @@ export const policyCodec = new ObjectCodec({
   placeProbabilities: placeProbabilitiesCodec,
 });
 
+export enum HiddenLayerStructure {
+  ONE_HALF_SIZE,
+  FOUR_EIGHTH_SIZE,
+}
+
+type AnyTensor =
+  | tf.SymbolicTensor
+  | tf.SymbolicTensor[]
+  | tf.Tensor<tf.Rank>
+  | tf.Tensor<tf.Rank>[];
+
 export class KingdominoModel
   implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction>
 {
@@ -196,7 +207,9 @@ export class KingdominoModel
   inferenceModel = new KingdominoInferenceModel(this);
   private _trainingModel: KingdominoTrainingModel | undefined;
 
-  static fresh(): KingdominoModel {
+  static fresh(
+    hiddenLayerStructure: HiddenLayerStructure = HiddenLayerStructure.ONE_HALF_SIZE
+  ): KingdominoModel {
     console.log(
       `Model has ${stateCodec.columnCount} input dimensions and ${
         valueCodec.columnCount + policyCodec.columnCount
@@ -204,17 +217,10 @@ export class KingdominoModel
     );
     // Halfway between total input and output size
     const inputLayer = tf.input({ shape: [stateCodec.columnCount] });
-    const hiddenLayerSize =
-      (stateCodec.columnCount +
-        valueCodec.columnCount +
-        policyCodec.columnCount) /
-      2;
-    const hiddenLayer = tf.layers.dense({
-      //   inputShape: [stateCodec.columnCount],
-      //   batchSize: batchSize,
-      units: hiddenLayerSize,
-    });
-    const hiddenOutput = hiddenLayer.apply(inputLayer);
+    let hiddenOutput = this.createHiddenLayers(
+      hiddenLayerStructure,
+      inputLayer
+    );
     const valueLayer = tf.layers.dense({ units: valueCodec.columnCount });
     const valueOutput = valueLayer.apply(hiddenOutput) as tf.SymbolicTensor;
     const policyLayer = tf.layers.dense({ units: policyCodec.columnCount });
@@ -226,6 +232,40 @@ export class KingdominoModel
     });
 
     return new KingdominoModel(model);
+  }
+
+  static createHiddenLayers(
+    hiddenLayerStructure: HiddenLayerStructure,
+    inputLayer: tf.SymbolicTensor
+  ): AnyTensor {
+    if (hiddenLayerStructure == HiddenLayerStructure.ONE_HALF_SIZE) {
+      const hiddenLayerSize =
+        (stateCodec.columnCount +
+          valueCodec.columnCount +
+          policyCodec.columnCount) /
+        2;
+      const hiddenLayer = tf.layers.dense({
+        //   inputShape: [stateCodec.columnCount],
+        //   batchSize: batchSize,
+        units: hiddenLayerSize,
+      });
+      return hiddenLayer.apply(inputLayer) as tf.SymbolicTensor;
+    } else {
+      const hiddenLayerSize = Math.round(
+        (stateCodec.columnCount +
+          valueCodec.columnCount +
+          policyCodec.columnCount) /
+          8
+      );
+      let input: AnyTensor = inputLayer;
+      let output: AnyTensor | undefined = undefined;
+      for (const layerIndex of Range(0, 4)) {
+        const layer = tf.layers.dense({ units: hiddenLayerSize });
+        output = layer.apply(input);
+        input = output;
+      }
+      return requireDefined(output);
+    }
   }
 
   /**
@@ -527,7 +567,7 @@ export class KingdominoTrainingModel
       KingdominoState,
       KingdominoAction
     >[]
-  ) {
+  ): Promise<number> {
     if (dataPoints.length != this.batchSize) {
       throw new Error(`Number of samples did not equal batch size`);
     }
@@ -569,7 +609,9 @@ export class KingdominoTrainingModel
     valueOutputTensor.dispose();
     policyOutputTensor.dispose();
     const epochLosses = fitResult.history.loss;
-    console.log(`Loss: ${epochLosses[epochLosses.length - 1]}`);
+    const loss = epochLosses[epochLosses.length - 1] as number;
+    console.log(`Losses: ${JSON.stringify(fitResult.history)}`);
+    return loss;
   }
   encodeValues(players: Players, values: PlayerValues): ReadonlyArray<number> {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(

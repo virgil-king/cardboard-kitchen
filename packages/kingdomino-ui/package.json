@@ -11,13 +11,18 @@
   "dependencies": {
     "effection": "^3.0.3",
     "game": "workspace:^",
+    "immutable": "5.0.0-beta.5",
     "kingdomino": "workspace:^",
+    "lodash": "^4.17.21",
     "next": "14.2.3",
     "pnpm": "^9.1.1",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "studio-util": "workspace:^",
+    "training-data": "workspace:^"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

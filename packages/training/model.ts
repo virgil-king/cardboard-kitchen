@@ -4,39 +4,12 @@ import {
   GameConfiguration,
   GameState,
   PlayerValues,
-} from "./game.js";
+} from "game";
 import { Map } from "immutable";
 import * as io from "io-ts";
 import tfcore from "@tensorflow/tfjs-core";
-import { ActionStatistics } from "./train.js";
-
-const StateTrainingDataJson = io.type({});
-
-export class StateTrainingData<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
-> {
-  constructor(
-    /** Game state */
-    // Consider pre-encoding as vectors to move work from the training thread to
-    // self-play threads
-    readonly snapshot: EpisodeSnapshot<C, S>,
-    /** Used to train the policy function */
-    readonly actionToStatistics: Map<A, ActionStatistics>,
-    /** Used to train the value function */
-    readonly terminalValues: PlayerValues
-  ) {
-    if (
-      snapshot.episodeConfiguration.players.players.count() !=
-      terminalValues.playerIdToValue.count()
-    ) {
-      throw new Error(
-        "Different player counts between config and terminal values"
-      );
-    }
-  }
-}
+import { StateTrainingData } from "training-data";
+// import { ActionStatistics } from "./train.js";
 
 export type InferenceResult<A extends Action> = {
   value: PlayerValues;
@@ -75,5 +48,5 @@ export interface TrainingModel<
   A extends Action
 > {
   /** Trains the model on the given data */
-  train(dataPoints: ReadonlyArray<StateTrainingData<C, S, A>>): Promise<void>;
+  train(dataPoints: ReadonlyArray<StateTrainingData<C, S, A>>): Promise<number>;
 }

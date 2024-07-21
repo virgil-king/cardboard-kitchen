@@ -1,0 +1,15 @@
+{
+  "extends": "tsconfig/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out",
+    "composite": true,
+    "declaration": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.ts"],
+  "references": [
+    {
+      "path": "../training-data"
+    }
+  ]
+}

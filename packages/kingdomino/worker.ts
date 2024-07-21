@@ -2,18 +2,19 @@ import { SettablePromise, requireDefined, sleep } from "studio-util";
 import { KingdominoModel } from "./model.js";
 import {
   EpisodeConfiguration,
-  MctsConfig,
-  MctsStats,
   Player,
   Players,
-  episode as gameEpisode,
 } from "game";
+import {
+  MctsConfig,
+  MctsStats,
+  episode as gameEpisode,
+} from "training";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import { Map } from "immutable";
-import * as fs from "node:fs";
-import { fileSystem } from "@tensorflow/tfjs-node-gpu/dist/io/file_system.js";
+import * as fs from "fs";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -28,14 +29,13 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 128,
+  simulationCount: 64,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  //   const artifacts = message: any.data as tfcore.io.ModelArtifacts;
   const newModel = await KingdominoModel.fromJson(message);
   model?.model.dispose();
   model = newModel;
@@ -68,15 +68,13 @@ async function main() {
       playerIdToMctsContext,
       episodeConfig
     );
-    // const lastDataPoint =
-    //   episodeTrainingData.dataPoints[episodeTrainingData.dataPoints.length - 1];
     console.log(
       `Scores: ${episodeTrainingData.terminalState.props.playerIdToState
         .valueSeq()
         .map((state) => state.score)
-        .toArray()}`
+        .toArray()
+        .sort((a, b) => a - b)}`
     );
-    // console.log(`Completed episode`);
 
     messagePort.postMessage(episodeTrainingData.toJson());
 

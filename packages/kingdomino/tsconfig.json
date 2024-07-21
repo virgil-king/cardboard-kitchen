@@ -13,6 +13,9 @@
       "path": "../game"
     },
     {
+      "path": "../training"
+    },
+    {
       "path": "../util"
     }
   ]

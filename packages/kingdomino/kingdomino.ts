@@ -35,6 +35,8 @@ export class Kingdomino
 {
   static INSTANCE = new Kingdomino();
 
+  static readonly GAMES_DIR = process.env.HOME + "/ckdata/kingdomino/games";
+
   playerCounts = [2, 3, 4];
 
   maxPlayerCount = requireDefined(Seq(this.playerCounts).max());
