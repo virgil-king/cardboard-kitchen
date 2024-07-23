@@ -7,6 +7,7 @@ import {
   KingdominoConfiguration,
   KingdominoState,
 } from "kingdomino";
+import { EpisodeSnapshot } from "game";
 import { useState } from "react";
 import { EpisodeTrainingData, StateTrainingData } from "training-data";
 
@@ -18,47 +19,71 @@ export function Replay(props: ReplayProps) {
   const episodeJson = JSON.parse(props.episodeJsonString);
   const episode = EpisodeTrainingData.decode(Kingdomino.INSTANCE, episodeJson);
 
-  const lastStateIndex = episode.dataPoints.length - 1;
-  let [stateIndex, setStateIndex] = useState(0);
+  const frames = new Array<() => JSX.Element>();
+  for (let i = 0; i < episode.dataPoints.length; i++) {
+    const dataPoint = episode.get(i);
+    frames.push(() => {
+      return (
+        <GameComponent
+          snapshot={dataPoint.snapshot}
+          predictedValues={dataPoint.predictedValues}
+          terminalValues={dataPoint.terminalValues}
+          actionToStatistics={dataPoint.actionToStatistics}
+        ></GameComponent>
+      );
+    });
+  }
+
+  // Last frame
+  frames.push(() => {
+    return (
+      <GameComponent
+        snapshot={
+          new EpisodeSnapshot(
+            episode.episodeConfig,
+            episode.gameConfig,
+            episode.terminalState
+          )
+        }
+      ></GameComponent>
+    );
+  });
+
+  const lastFrameIndex = frames.length - 1;
+  let [frameIndex, setFrameIndex] = useState(0);
 
   function back() {
-    if (stateIndex > 0) {
-      setStateIndex(stateIndex - 1);
+    if (frameIndex > 0) {
+      setFrameIndex(frameIndex - 1);
     }
   }
 
   function forward() {
-    if (stateIndex < lastStateIndex) {
-      setStateIndex(stateIndex + 1);
+    if (frameIndex < lastFrameIndex) {
+      setFrameIndex(frameIndex + 1);
     }
   }
 
-  const trainingData = episode.get(stateIndex);
+  const gameElement = frames[frameIndex]();
 
-  console.log(trainingData.predictedValues);
+  // console.log(trainingData.predictedValues);
 
   return (
     <>
-      <button onClick={back} disabled={stateIndex == 0}>
+      <button onClick={back} disabled={frameIndex == 0}>
         Back
       </button>
       <br></br>
-      <button onClick={forward} disabled={stateIndex == lastStateIndex}>
+      <button onClick={forward} disabled={frameIndex == lastFrameIndex}>
         Forward
       </button>
       <br></br>
-      <GameComponent
-        snapshot={trainingData.snapshot}
-        predictedValues={trainingData.predictedValues}
-        terminalValues={trainingData.terminalValues}
-      ></GameComponent>
+      {gameElement}
     </>
   );
 }
 
-function ActionInfoComponent() {
-
-}
+function ActionInfoComponent() {}
 
 // type TrainingInfoProps = {
 //   trainingData: StateTrainingData<

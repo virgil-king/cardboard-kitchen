@@ -122,7 +122,8 @@ export async function train_parallel<
   // batchCount: number,
   sampleBufferSize: number,
   workerScript: string,
-  modelsPath: string
+  modelsPath: string,
+  episodesDir?: string
 ) {
   const trainingModel = model.trainingModel(batchSize);
   const modelArtifacts = await model.toJson();
@@ -166,11 +167,31 @@ export async function train_parallel<
   }
   console.log(`Spawned ${workerCount} self play workers`);
 
+  let initialEpisodeCount = 0;
+  if (episodesDir != undefined) {
+    for (const encodedEpisode of loadEpisodes(episodesDir)) {
+      receiveEpisode(encodedEpisode);
+      initialEpisodeCount++;
+      if (buffer.sampleCount() >= sampleBufferSize) {
+        console.log(`Loaded ${initialEpisodeCount} episodes`);
+        break;
+      }
+      // const beforeSize = buffer.sampleCount();
+      // buffer.addEpisode(episode);
+      // episodeCount++;
+      // const afterSize = buffer.sampleCount();
+      // if (afterSize <= beforeSize) {
+      //   console.log(`Loaded ${episodeCount} episodes`);
+      //   break;
+      // }
+    }
+  }
+
   await bufferReady.promise;
 
   // for (let i = 0; i < batchCount; i++) {
   let episodesBetweenModelUpdates = workerCount * 2;
-  let episodesReceivedAtLastModelUpdate = 0;
+  let episodesReceivedAtLastModelUpdate = initialEpisodeCount;
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
   while (true) {
@@ -200,7 +221,7 @@ export async function train_parallel<
     }
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
-    if (timeSinceLastSave > 5 * 60 * 1_000) {
+    if (timeSinceLastSave > 60 * 60 * 1_000) {
       const path = `${modelsPath}/${new Date().toISOString()}`;
       fs.mkdirSync(path, { recursive: true });
       model.save(path);
@@ -212,17 +233,18 @@ export async function train_parallel<
   }
 }
 
-function loadEpisodes<
+function* loadEpisodes<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
 >(
-  episodesDir: string,
-  buffer: EpisodeBuffer<
-    StateTrainingData<C, S, A>,
-    EpisodeTrainingData<C, S, A>
-  >
-) {
+  // game: Game<C, S, A>,
+  episodesDir: string
+  // buffer: EpisodeBuffer<
+  //   StateTrainingData<C, S, A>,
+  //   EpisodeTrainingData<C, S, A>
+  // >
+): Generator<any> {
   const files = fs.readdirSync(episodesDir);
   let filenameToModeTime = Map<string, number>();
   for (const filename of files) {
@@ -234,6 +256,17 @@ function loadEpisodes<
       requireDefined(filenameToModeTime.get(b)) -
       requireDefined(filenameToModeTime.get(a))
   );
+  let episodeCount = 0;
+  for (const filename of filesByDescendingModTime) {
+    const path = episodesDir + "/" + filename;
+    console.log(`Loading episode ${path}`);
+    const episodeString = fs.readFileSync(path, {
+      encoding: "utf8",
+    });
+    const episodeJson = JSON.parse(episodeString);
+    // const episode = EpisodeTrainingData.decode(game, episodeJson);
+    yield episodeJson;
+  }
 }
 
 /**
@@ -264,24 +297,32 @@ export function episode<
   while (game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(game.currentPlayer(snapshot));
     // Run simulationCount steps or enough to try every possible action once
-    for (let i of Range(
-      0,
-      Math.max(
-        currentMctsContext.config.simulationCount,
-        root.actionToChild.size
-      )
-    )) {
+    let selectedAction: A | undefined = undefined;
+    if (root.actionToChild.size == 1) {
+      // When root has exactly one child, visit it once to populate the
+      // action statistics, but no further visits are necessary
       root.visit();
+      selectedAction = root.actionToChild.keys().next().value;
+    } else {
+      for (let i of Range(
+        0,
+        Math.max(
+          currentMctsContext.config.simulationCount,
+          root.actionToChild.size
+        )
+      )) {
+        root.visit();
+      }
+      // TODO incorporate noise
+      // TODO choose proportionally rather than greedily during training
+      [selectedAction] = requireDefined(
+        Seq(root.actionToChild.entries()).max(
+          ([, actionNode1], [, actionNode2]) =>
+            actionNode1.requirePlayerValue(currentPlayer) -
+            actionNode2.requirePlayerValue(currentPlayer)
+        )
+      );
     }
-    // TODO incorporate noise
-    // TODO choose proportionally rather than greedily during training
-    const [actionWithGreatestExpectedValue] = requireDefined(
-      Seq(root.actionToChild.entries()).max(
-        ([, actionNode1], [, actionNode2]) =>
-          actionNode1.requirePlayerValue(currentPlayer) -
-          actionNode2.requirePlayerValue(currentPlayer)
-      )
-    );
     const stateSearchData = new StateSearchData(
       snapshot.state,
       root.inferenceResult.value,
@@ -297,7 +338,7 @@ export function episode<
       )
     );
     nonTerminalStates.push(stateSearchData);
-    const [newState] = game.apply(snapshot, actionWithGreatestExpectedValue);
+    const [newState] = game.apply(snapshot, requireDefined(selectedAction));
     snapshot = snapshot.derive(newState);
     if (game.result(snapshot) != undefined) {
       break;

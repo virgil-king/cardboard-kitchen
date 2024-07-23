@@ -1,5 +1,5 @@
 import { loadLayersModel } from "@tensorflow/tfjs-node-gpu";
-import { KingdominoModel } from "./model.js";
+import { KingdominoModel } from "./model-linear.js";
 import { Map, Range } from "immutable";
 import {
   EpisodeConfiguration,

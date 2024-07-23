@@ -385,6 +385,8 @@ export class KingdominoState implements GameState {
           .toArray();
         // console.log(`remainingTiles is ${JSON.stringify(remainingTiles)}`);
         const tileNumbers = drawN(remainingTiles, config.turnsPerRound);
+        tileNumbers.sort((a, b) => a - b);
+
         // The tile numbers themselves are a minimal representation of the
         // chance involved in this transition
         return [this.withNextOfferTileNumbers(tileNumbers), tileNumbers];

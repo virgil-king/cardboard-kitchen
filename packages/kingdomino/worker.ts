@@ -1,5 +1,5 @@
 import { SettablePromise, requireDefined, sleep } from "studio-util";
-import { KingdominoModel } from "./model.js";
+import { KingdominoModel } from "./model-linear.js";
 import {
   EpisodeConfiguration,
   Player,
@@ -15,10 +15,11 @@ import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import { Map } from "immutable";
 import * as fs from "fs";
+import { KingdominoConvolutionalModel } from "./model-cnn.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
-let model: KingdominoModel | undefined;
+let model: KingdominoConvolutionalModel | undefined;
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -36,7 +37,7 @@ const mctsConfig = new MctsConfig({
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  const newModel = await KingdominoModel.fromJson(message);
+  const newModel = await KingdominoConvolutionalModel.fromJson(message);
   model?.model.dispose();
   model = newModel;
   console.log(`Received new model`);

@@ -49,11 +49,11 @@ export class Vector2 implements ValueObject, JsonSerializable {
 }
 
 export class Direction {
-  private constructor(readonly offset: Vector2) {}
-  static readonly LEFT = new Direction(new Vector2(-1, 0));
-  static readonly UP = new Direction(new Vector2(0, 1));
-  static readonly RIGHT = new Direction(new Vector2(1, 0));
-  static readonly DOWN = new Direction(new Vector2(0, -1));
+  private constructor(readonly offset: Vector2, readonly label: string) {}
+  static readonly LEFT = new Direction(new Vector2(-1, 0), "left");
+  static readonly UP = new Direction(new Vector2(0, 1), "up");
+  static readonly RIGHT = new Direction(new Vector2(1, 0), "right");
+  static readonly DOWN = new Direction(new Vector2(0, -1), "down");
   opposite(): Direction {
     const result = Direction.withOffset(this.offset.multiply(-1));
     if (result == undefined) {

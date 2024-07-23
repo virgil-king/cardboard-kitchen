@@ -29,7 +29,7 @@ import { requireDefined } from "studio-util";
 import _ from "lodash";
 import { LocationProperties, Terrain, Tile, terrainValues } from "./tile.js";
 import {
-  TensorCodec,
+  VectorCodec,
   OneHotCodec,
   ObjectCodec,
   ArrayCodec,
@@ -53,7 +53,7 @@ import { ActionStatistics, StateTrainingData } from "training-data";
 
 const SCHEMA_VERSION = 0;
 
-class TerrainTypeCodec implements TensorCodec<Terrain> {
+class TerrainTypeCodec implements VectorCodec<Terrain> {
   private readonly oneHotCodec = new OneHotCodec(terrainValues.length);
   readonly columnCount = this.oneHotCodec.columnCount;
   encode(value: Terrain): ReadonlyArray<number> {
@@ -64,7 +64,7 @@ class TerrainTypeCodec implements TensorCodec<Terrain> {
   }
 }
 
-class NextActionCodec implements TensorCodec<NextAction> {
+class NextActionCodec implements VectorCodec<NextAction> {
   readonly codec = new OneHotCodec(nextActions.length);
   readonly columnCount = this.codec.columnCount;
   private readonly zeros = new Array(this.columnCount).fill(0);

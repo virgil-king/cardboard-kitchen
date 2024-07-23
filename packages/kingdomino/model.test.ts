@@ -1,16 +1,17 @@
 import { test } from "vitest";
 import { Kingdomino } from "./kingdomino.js";
-import { ActionStatistics, EpisodeConfiguration, Player, PlayerValues, Players } from "game";
+import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import {
   KingdominoModel,
   placementToCodecIndex,
   policyCodec,
-} from "./model.js";
+} from "./model-linear.js";
 import { assert } from "chai";
 import { Map, Seq } from "immutable";
 import { KingdominoAction } from "./action.js";
 import { PlaceTile } from "./base.js";
 import { Vector2, Direction } from "./util.js";
+import { ActionStatistics } from "training-data";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");

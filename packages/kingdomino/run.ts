@@ -1,7 +1,7 @@
 import { Player, Players } from "game";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import _ from "lodash";
-import { KingdominoModel } from "./model.js";
+import { KingdominoModel } from "./model-linear.js";
 
 // const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");

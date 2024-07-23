@@ -1,18 +1,18 @@
 import { Seq } from "immutable";
 import { requireDefined } from "studio-util";
 
-export interface TensorCodec<ValueT> {
+export interface VectorCodec<ValueT> {
   columnCount: number;
   encode(value: ValueT): ReadonlyArray<number>;
   decode(values: ReadonlyArray<number>): ValueT;
 }
 
 // The value type of T if it's a TensorCodec or otherwise never
-export type CodecValueType<CodecT> = CodecT extends TensorCodec<infer input>
+export type CodecValueType<CodecT> = CodecT extends VectorCodec<infer input>
   ? input
   : never;
 
-export class ScalarCodec implements TensorCodec<number> {
+export class ScalarCodec implements VectorCodec<number> {
   readonly columnCount = 1;
   encode(value: number): number[] {
     return [value];
@@ -30,7 +30,7 @@ function oneHotValues(count: number, hot: number): Array<number> {
 }
 
 /** Stores a required non-negative integer */
-export class OneHotCodec implements TensorCodec<number> {
+export class OneHotCodec implements VectorCodec<number> {
   readonly columnCount: number;
   constructor(possibleValueCount: number) {
     this.columnCount = possibleValueCount;
@@ -44,7 +44,7 @@ export class OneHotCodec implements TensorCodec<number> {
 }
 
 /** Stores an optional non-negative integer */
-export class OptionalOneHotCodec implements TensorCodec<number | undefined> {
+export class OptionalOneHotCodec implements VectorCodec<number | undefined> {
   readonly columnCount: number;
   private readonly zeros: ReadonlyArray<number>;
   constructor(maxValue: number) {
@@ -65,9 +65,9 @@ export class OptionalOneHotCodec implements TensorCodec<number | undefined> {
  * Encodes defined inputs using a delegate codec and encodes undefined input as
  * all zeros
  */
-export class OptionalCodec<T> implements TensorCodec<T | undefined> {
+export class OptionalCodec<T> implements VectorCodec<T | undefined> {
   private zeros: ReadonlyArray<number>;
-  constructor(readonly codec: TensorCodec<T>) {
+  constructor(readonly codec: VectorCodec<T>) {
     this.zeros = Array(codec.columnCount).fill(0);
   }
   get columnCount(): number {
@@ -81,9 +81,9 @@ export class OptionalCodec<T> implements TensorCodec<T | undefined> {
   }
 }
 
-export class ObjectCodec<T extends { [key: string]: TensorCodec<unknown> }>
+export class ObjectCodec<T extends { [key: string]: VectorCodec<unknown> }>
   implements
-    TensorCodec<{
+    VectorCodec<{
       [Property in keyof T]: CodecValueType<T[Property]>;
     }>
 {
@@ -120,9 +120,9 @@ export class ObjectCodec<T extends { [key: string]: TensorCodec<unknown> }>
   }
 }
 
-export class ArrayCodec<T> implements TensorCodec<ReadonlyArray<T>> {
+export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
   columnCount: number;
-  constructor(readonly itemCodec: TensorCodec<T>, readonly length: number) {
+  constructor(readonly itemCodec: VectorCodec<T>, readonly length: number) {
     this.columnCount = itemCodec.columnCount * length;
   }
   encode(values: ReadonlyArray<T>): ReadonlyArray<number> {
@@ -153,7 +153,7 @@ export class ArrayCodec<T> implements TensorCodec<ReadonlyArray<T>> {
 }
 
 /** Codec that passes through the array of numbers in both directions */
-export class RawCodec implements TensorCodec<ReadonlyArray<number>> {
+export class RawCodec implements VectorCodec<ReadonlyArray<number>> {
   constructor(readonly columnCount: number) {}
   encode(value: readonly number[]): readonly number[] {
     return value;
