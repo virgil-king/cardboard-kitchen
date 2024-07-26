@@ -1,8 +1,8 @@
 import { GameConfiguration, JsonSerializable, Player } from "game";
-import { Direction, Vector2, neighbors, vector2Json } from "./util.js";
+import { Direction, Vector2, vector2Json } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 
-import { List, Map, ValueObject, hash } from "immutable";
+import { List, Map, ValueObject, hash, Range } from "immutable";
 import _ from "lodash";
 import {
   combineHashes,
@@ -11,6 +11,7 @@ import {
   valueObjectsEqual,
 } from "studio-util";
 import * as io from "io-ts";
+import { tiles } from "./tile.js";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -34,13 +35,32 @@ export const locationStateJson = io.type({
 type LocationStateJson = io.TypeOf<typeof locationStateJson>;
 
 export class LocationState implements ValueObject {
-  constructor(
+  static cache = Array<Array<LocationState>>();
+
+  static {
+    for (const tileNumber of Range(
+      tiles[0].number,
+      tiles[tiles.length - 1].number + 1
+    )) {
+      this.cache[tileNumber] = [
+        new LocationState(tileNumber, 0),
+        new LocationState(tileNumber, 1),
+      ];
+    }
+  }
+
+  static instance(tileNumber: number, tileLocationIndex: number) {
+    return this.cache[tileNumber][tileLocationIndex];
+  }
+
+  private constructor(
     readonly tileNumber: number,
     readonly tileLocationIndex: number
   ) {}
+
   static fromJson(json: unknown): LocationState {
     const decoded = decodeOrThrow(locationStateJson, json);
-    return new LocationState(decoded.tileNumber, decoded.tileLocationIndex);
+    return this.instance(decoded.tileNumber, decoded.tileLocationIndex);
   }
   properties(): LocationProperties {
     return Tile.withNumber(this.tileNumber).properties[this.tileLocationIndex];
@@ -305,7 +325,7 @@ export class PlaceTile implements ValueObject, JsonSerializable {
   static fromJson(json: unknown) {
     const parsed = decodeOrThrow(placeJson, json);
     return new PlaceTile(
-      Vector2.fromJson(parsed.location),
+      KingdominoVectors.fromJson(parsed.location),
       Direction.fromIndex(parsed.direction)
     );
   }
@@ -319,17 +339,14 @@ export class PlaceTile implements ValueObject, JsonSerializable {
     if (squareIndex != 1) {
       throw Error("Invalid tile square index");
     }
-    return this.location.plus(this.direction.offset);
+    return KingdominoVectors.plus(this.location, this.direction.offset);
   }
 
   /**
    * Returns a new placement with the tile flipped to cover the same locations in the other orientation
    */
   flip() {
-    return new PlaceTile(
-      this.location.plus(this.direction.offset),
-      this.direction.opposite()
-    );
+    return new PlaceTile(this.squareLocation(1), this.direction.opposite());
   }
   equals(other: unknown): boolean {
     if (!(other instanceof PlaceTile)) {
@@ -351,4 +368,55 @@ export class PlaceTile implements ValueObject, JsonSerializable {
       direction: this.direction.index(),
     };
   }
+}
+
+export class KingdominoVectors {
+  private static vectorCache = Array<Array<Vector2>>();
+  // Cache instances up to two steps out of bounds since those vectors
+  // may be created before they are found to be out of bounds
+  private static radius = playAreaRadius + 2;
+
+  static {
+    for (const x of Range(-this.radius, this.radius + 1)) {
+      const row = new Array<Vector2>();
+      this.vectorCache[this.naturalToCacheIndex(x)] = row;
+      for (const y of Range(-this.radius, this.radius + 1)) {
+        row[this.naturalToCacheIndex(y)] = new Vector2(x, y);
+      }
+    }
+  }
+
+  private static naturalToCacheIndex(index: number) {
+    return index + this.radius;
+  }
+
+  static instance(x: number, y: number) {
+    const cacheX = this.naturalToCacheIndex(x);
+    if (cacheX < 0 || cacheX > this.vectorCache.length - 1) {
+      throw new Error(`x out of range: ${x}`);
+    }
+    // console.log(`Cache is ${this.vectorCache}`);
+    const cacheRow = this.vectorCache[cacheX];
+    const cacheY = this.naturalToCacheIndex(y);
+    if (cacheY < 0 || cacheY > cacheRow.length) {
+      throw new Error(`y out of range: ${y}`);
+    }
+    return cacheRow[cacheY];
+  }
+
+  static plus(a: Vector2, b: Vector2) {
+    return this.instance(a.x + b.x, a.y + b.y);
+  }
+
+  static fromJson(json: unknown): Vector2 {
+    const parsed = decodeOrThrow(vector2Json, json);
+    return this.instance(parsed.x, parsed.y);
+  }
+}
+
+export function* neighbors(location: Vector2): Generator<Vector2> {
+  yield KingdominoVectors.plus(location, Direction.LEFT.offset);
+  yield KingdominoVectors.plus(location, Direction.UP.offset);
+  yield KingdominoVectors.plus(location, Direction.RIGHT.offset);
+  yield KingdominoVectors.plus(location, Direction.DOWN.offset);
 }

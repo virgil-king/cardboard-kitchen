@@ -17,14 +17,14 @@ import { Tile } from "./tile.js";
 test("occupiedRectangle: tiles reach top right of play area: result includes edges", () => {
   const board = new PlayerBoard(
     Map([
-      [new Vector2(centerX + 1, centerY), new LocationState(1, 0)],
-      [new Vector2(centerX + 2, centerY), new LocationState(1, 1)],
-      [new Vector2(centerX + 3, centerY), new LocationState(2, 0)],
-      [new Vector2(centerX + 4, centerY), new LocationState(2, 1)],
-      [new Vector2(centerX + 4, centerY + 1), new LocationState(3, 0)],
-      [new Vector2(centerX + 4, centerY + 2), new LocationState(3, 1)],
-      [new Vector2(centerX + 4, centerY + 3), new LocationState(4, 0)],
-      [new Vector2(centerX + 4, centerY + 4), new LocationState(4, 1)],
+      [new Vector2(centerX + 1, centerY), LocationState.instance(1, 0)],
+      [new Vector2(centerX + 2, centerY), LocationState.instance(1, 1)],
+      [new Vector2(centerX + 3, centerY), LocationState.instance(2, 0)],
+      [new Vector2(centerX + 4, centerY), LocationState.instance(2, 1)],
+      [new Vector2(centerX + 4, centerY + 1), LocationState.instance(3, 0)],
+      [new Vector2(centerX + 4, centerY + 2), LocationState.instance(3, 1)],
+      [new Vector2(centerX + 4, centerY + 3), LocationState.instance(4, 0)],
+      [new Vector2(centerX + 4, centerY + 4), LocationState.instance(4, 1)],
     ])
   );
 
@@ -40,14 +40,14 @@ test("occupiedRectangle: tiles reach top right of play area: result includes edg
 test("occupiedRectangle: tiles reach bottom left of play area: result includes edges", () => {
   const board = new PlayerBoard(
     Map([
-      [new Vector2(centerX - 1, centerY), new LocationState(1, 0)],
-      [new Vector2(centerX - 2, centerY), new LocationState(1, 1)],
-      [new Vector2(centerX - 3, centerY), new LocationState(2, 0)],
-      [new Vector2(centerX - 4, centerY), new LocationState(2, 1)],
-      [new Vector2(centerX - 4, centerY - 1), new LocationState(3, 0)],
-      [new Vector2(centerX - 4, centerY - 2), new LocationState(3, 1)],
-      [new Vector2(centerX - 4, centerY - 3), new LocationState(4, 0)],
-      [new Vector2(centerX - 4, centerY - 4), new LocationState(4, 1)],
+      [new Vector2(centerX - 1, centerY), LocationState.instance(1, 0)],
+      [new Vector2(centerX - 2, centerY), LocationState.instance(1, 1)],
+      [new Vector2(centerX - 3, centerY), LocationState.instance(2, 0)],
+      [new Vector2(centerX - 4, centerY), LocationState.instance(2, 1)],
+      [new Vector2(centerX - 4, centerY - 1), LocationState.instance(3, 0)],
+      [new Vector2(centerX - 4, centerY - 2), LocationState.instance(3, 1)],
+      [new Vector2(centerX - 4, centerY - 3), LocationState.instance(4, 0)],
+      [new Vector2(centerX - 4, centerY - 4), LocationState.instance(4, 1)],
     ])
   );
 
@@ -205,10 +205,10 @@ test("extend: already included: unchanged", () => {
 
 test("equals: equal: returns true", () => {
   const a = new PlayerBoard(
-    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+    Map([[new Vector2(1, 2), LocationState.instance(2, 0)]])
   );
   const b = new PlayerBoard(
-    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+    Map([[new Vector2(1, 2), LocationState.instance(2, 0)]])
   );
 
   assert.isTrue(a.equals(b));
@@ -216,10 +216,10 @@ test("equals: equal: returns true", () => {
 
 test("equals: not equal: returns false", () => {
   const a = new PlayerBoard(
-    Map([[new Vector2(1, 2), new LocationState(2, 0)]])
+    Map([[new Vector2(1, 2), LocationState.instance(2, 0)]])
   );
   const b = new PlayerBoard(
-    Map([[new Vector2(3, 2), new LocationState(2, 0)]])
+    Map([[new Vector2(3, 2), LocationState.instance(2, 0)]])
   );
 
   assert.isFalse(a.equals(b));
@@ -227,7 +227,7 @@ test("equals: not equal: returns false", () => {
 
 test("isCentered: not centered: returns false", () => {
   const a = new PlayerBoard(
-    Map([[new Vector2(1, 0), new LocationState(2, 0)]])
+    Map([[new Vector2(1, 0), LocationState.instance(2, 0)]])
   );
 
   assert.isFalse(a.isCentered());
@@ -236,8 +236,8 @@ test("isCentered: not centered: returns false", () => {
 test("isCentered: centered: returns true", () => {
   const a = new PlayerBoard(
     Map([
-      [new Vector2(1, 0), new LocationState(2, 0)],
-      [new Vector2(-1, 0), new LocationState(2, 0)],
+      [new Vector2(1, 0), LocationState.instance(2, 0)],
+      [new Vector2(-1, 0), LocationState.instance(2, 0)],
     ])
   );
 
@@ -246,7 +246,7 @@ test("isCentered: centered: returns true", () => {
 
 test("isFilled: not filled: returns false", () => {
   const a = new PlayerBoard(
-    Map([[new Vector2(1, 0), new LocationState(2, 0)]])
+    Map([[new Vector2(1, 0), LocationState.instance(2, 0)]])
   );
 
   assert.isFalse(a.isFilled());
@@ -261,7 +261,7 @@ test("isFilled filled: returns true", () => {
       }
       locationStates = locationStates.set(
         new Vector2(x, y),
-        new LocationState(1, 0)
+        LocationState.instance(1, 0)
       );
     }
   }

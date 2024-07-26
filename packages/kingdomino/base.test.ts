@@ -4,15 +4,15 @@ import { ClaimTile, KingdominoConfiguration, LocationState, PlaceTile } from "./
 import { Direction, Vector2 } from "./util.js";
 
 test("LocationState.equals: equal: returns true", () => {
-  const a = new LocationState(5, 1);
-  const b = new LocationState(5, 1);
+  const a = LocationState.instance(5, 1);
+  const b = LocationState.instance(5, 1);
 
   assert.isTrue(a.equals(b));
 });
 
 test("LocationState.equals: not equal: returns false", () => {
-  const a = new LocationState(5, 1);
-  const b = new LocationState(7, 1);
+  const a = LocationState.instance(5, 1);
+  const b = LocationState.instance(7, 1);
 
   assert.isFalse(a.equals(b));
 });
@@ -43,7 +43,7 @@ test("KingdominoConfiguration: codec round trip", () => {
 });
 
 test("LocationState: codec round trip", () => {
-  const before = new LocationState(5, 1);
+  const before = LocationState.instance(5, 1);
 
   const after = LocationState.fromJson(before.toJson());
 

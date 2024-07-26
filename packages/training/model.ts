@@ -6,10 +6,8 @@ import {
   PlayerValues,
 } from "game";
 import { Map } from "immutable";
-import * as io from "io-ts";
 import tfcore from "@tensorflow/tfjs-core";
 import { StateTrainingData } from "training-data";
-// import { ActionStatistics } from "./train.js";
 
 export type InferenceResult<A extends Action> = {
   value: PlayerValues;

@@ -16,6 +16,7 @@ import { randomBetween, requireDefined } from "studio-util";
 
 import { Seq, Set } from "immutable";
 import { KingdominoSnapshot } from "./kingdomino.js";
+import { KingdominoVectors } from "./base.js";
 
 export class RandomKingdominoAgent
   implements Agent<KingdominoConfiguration, KingdominoState, KingdominoAction>
@@ -35,7 +36,9 @@ export class RandomKingdominoAgent
       }
       default: {
         throw new Error(
-          `Unexpected case ${nextAction}; state is ${JSON.stringify(snapshot.state)}`
+          `Unexpected case ${nextAction}; state is ${JSON.stringify(
+            snapshot.state
+          )}`
         );
       }
     }
@@ -78,7 +81,7 @@ export function randomPlacement(state: KingdominoState): KingdominoAction {
 export function* adjacentEmptyLocations(
   currentPlayerBoard: PlayerBoard
 ): Generator<Vector2> {
-  const center = new Vector2(centerX, centerY);
+  const center = PlayerBoard.center;
   // Contains both occupied and empty locations.
   // We use an immutable Set here, even though a mutable set would be more convenient in this case,
   // because JS mutable sets don't support deep equality behavior (ValueObject in this case)
@@ -99,7 +102,7 @@ function* visit(
 ): Generator<[Vector2, Set<Vector2>]> {
   let localVisited = visited;
   for (const direction of Direction.values()) {
-    const neighbor = location.plus(direction.offset);
+    const neighbor = KingdominoVectors.plus(location, direction.offset);
     if (localVisited.contains(neighbor)) {
       continue;
     }

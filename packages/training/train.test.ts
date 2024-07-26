@@ -1,6 +1,10 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { ActionStatistics, EpisodeTrainingData, StateSearchData } from "training-data";
+import {
+  ActionStatistics,
+  EpisodeTrainingData,
+  StateSearchData,
+} from "training-data";
 import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import {
   NumberAction,
@@ -23,10 +27,39 @@ test("EpisodeTrainingData: codec round trip", () => {
   dataPoints.push(
     new StateSearchData(
       snapshot.state,
-      new PlayerValues(Map([[alice.id, 0], [bob.id, 1]])),
+      new PlayerValues(
+        Map([
+          [alice.id, 0],
+          [bob.id, 1],
+        ])
+      ),
       Map([
-        [new NumberAction(3), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
-        [new NumberAction(5), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+        [
+          new NumberAction(3),
+          new ActionStatistics(
+            0.5,
+            1,
+            new PlayerValues(
+              Map([
+                [alice.id, 1],
+                [bob.id, 2],
+              ])
+            )
+          ),
+        ],
+        [
+          new NumberAction(5),
+          new ActionStatistics(
+            0.5,
+            1,
+            new PlayerValues(
+              Map([
+                [alice.id, 1],
+                [bob.id, 2],
+              ])
+            )
+          ),
+        ],
       ])
     )
   );
@@ -34,10 +67,39 @@ test("EpisodeTrainingData: codec round trip", () => {
   dataPoints.push(
     new StateSearchData(
       state,
-      new PlayerValues(Map([[alice.id, 0], [bob.id, 1]])),
+      new PlayerValues(
+        Map([
+          [alice.id, 0],
+          [bob.id, 1],
+        ])
+      ),
       Map([
-        [new NumberAction(6), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
-        [new NumberAction(2), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+        [
+          new NumberAction(6),
+          new ActionStatistics(
+            0.5,
+            1,
+            new PlayerValues(
+              Map([
+                [alice.id, 1],
+                [bob.id, 2],
+              ])
+            )
+          ),
+        ],
+        [
+          new NumberAction(2),
+          new ActionStatistics(
+            0.5,
+            1,
+            new PlayerValues(
+              Map([
+                [alice.id, 1],
+                [bob.id, 2],
+              ])
+            )
+          ),
+        ],
       ])
     )
   );
@@ -51,15 +113,27 @@ test("EpisodeTrainingData: codec round trip", () => {
         [alice.id, 1],
         [bob.id, 0],
       ])
-    ),
+    )
   );
 
-  const copy = EpisodeTrainingData.decode(
-    PickANumber.INSTANCE,
-    trainingData.toJson()
-  );
+  const jsonObject = trainingData.toJson();
+  const fromJsonObject = EpisodeTrainingData.decode(PickANumber.INSTANCE, jsonObject);
+  const jsonString = JSON.stringify(jsonObject);
+  const fromJsonString = EpisodeTrainingData.decode(PickANumber.INSTANCE, JSON.parse(jsonString));
+  const secondJsonString = JSON.stringify(fromJsonString.toJson());
 
-  assert.isTrue(copy.episodeConfig.players.equals(trainingData.episodeConfig.players));
-  assert.isTrue(copy.gameConfig.availableNumbers.equals(trainingData.gameConfig.availableNumbers));
-  assert.isTrue(copy.terminalValues.playerIdToValue.equals(trainingData.terminalValues.playerIdToValue));
+  assert.isTrue(
+    fromJsonObject.episodeConfig.players.equals(trainingData.episodeConfig.players)
+  );
+  assert.isTrue(
+    fromJsonObject.gameConfig.availableNumbers.equals(
+      trainingData.gameConfig.availableNumbers
+    )
+  );
+  assert.isTrue(
+    fromJsonObject.terminalValues.playerIdToValue.equals(
+      trainingData.terminalValues.playerIdToValue
+    )
+  );
+  assert.equal(jsonString, secondJsonString);
 });

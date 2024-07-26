@@ -12,6 +12,7 @@ import {
   boardIndices,
   playAreaRadius,
   playAreaSize,
+  KingdominoVectors,
 } from "./base.js";
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
@@ -386,7 +387,7 @@ export class KingdominoModel
     const result = new Array<LocationProperties>();
     for (const x of _.range(-playAreaRadius, playAreaRadius + 1)) {
       for (const y of _.range(-playAreaRadius, playAreaRadius + 1)) {
-        result.push(board.getLocationState(new Vector2(x, y)));
+        result.push(board.getLocationState(KingdominoVectors.instance(x, y)));
       }
     }
     return result;
@@ -509,7 +510,7 @@ export class KingdominoInferenceModel
       for (const y of boardIndices) {
         for (const direction of Direction.valuesArray) {
           const action = KingdominoAction.placeTile(
-            new PlaceTile(new Vector2(x, y), direction)
+            new PlaceTile(KingdominoVectors.instance(x, y), direction)
           );
           if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
             policy = policy.set(

@@ -1,4 +1,4 @@
-import { Map, ValueObject } from "immutable";
+import { Map, Seq, ValueObject } from "immutable";
 import * as io from "io-ts";
 import * as fp from "fp-ts";
 
@@ -131,8 +131,8 @@ export function valueObjectsEqual(
   return a.equals(b);
 }
 
-export function proportionalRandom<K>(options: Map<K, number>) {
-  const sum = options.reduce((reduction, item) => reduction + item, 0);
+export function proportionalRandom<K>(options: Seq.Keyed<K, number>): K {
+  const sum = options.reduce((reduction, value) => reduction + value, 0);
   const random = Math.random();
   let skipped = 0;
   for (const [key, value] of options.entries()) {

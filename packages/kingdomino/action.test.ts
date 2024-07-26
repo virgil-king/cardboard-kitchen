@@ -149,24 +149,33 @@ test("claim: codec round trip", () => {
   const claim = KingdominoAction.claimTile(new ClaimTile(2));
   
   const json = claim.toJson();
+  const jsonString = JSON.stringify(json);
+  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
 
   assert.isTrue(claim.equals(KingdominoAction.fromJson(json)));
+  assert.equal(jsonString, secondJsonString);
 });
 
 test("place: codec round trip", () => {
   const place = KingdominoAction.placeTile(new PlaceTile(new Vector2(-1, 1), Direction.LEFT));
   
   const json = place.toJson();
+  const jsonString = JSON.stringify(json);
+  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
 
   assert.isTrue(place.equals(KingdominoAction.fromJson(json)));
+  assert.equal(jsonString, secondJsonString);
 });
 
 test("discard: codec round trip", () => {
   const discard = KingdominoAction.discardTile();
   
   const json = discard.toJson();
+  const jsonString = JSON.stringify(json);
+  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
 
   assert.isTrue(discard.equals(KingdominoAction.fromJson(json)));
+  assert.equal(jsonString, secondJsonString);
 });
 
 function episodeWithPlayers(

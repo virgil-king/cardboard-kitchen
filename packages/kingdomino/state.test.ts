@@ -233,13 +233,17 @@ test("placeTile: end of game: center bonus applied correctly", () => {
     KingdominoAction.placeTile(
       new PlaceTile(new Vector2(-1, 0), Direction.LEFT)
     ),
-    KingdominoAction.placeTile(
-      new PlaceTile(new Vector2(0, 1), Direction.UP)
-    )
+    KingdominoAction.placeTile(new PlaceTile(new Vector2(0, 1), Direction.UP))
   );
 
-  assert.equal(episode.currentSnapshot.state.requirePlayerState(alice.id).score, 10);
-  assert.equal(episode.currentSnapshot.state.requirePlayerState(bob.id).score, 0);
+  assert.equal(
+    episode.currentSnapshot.state.requirePlayerState(alice.id).score,
+    10
+  );
+  assert.equal(
+    episode.currentSnapshot.state.requirePlayerState(bob.id).score,
+    0
+  );
   // const result = episode.currentSnapshot.state.result;
   // assert.equal(episode.currentSnapshot.state.nextAction, undefined);
 });
@@ -257,12 +261,10 @@ test("encode/decode round trip", () => {
   );
   const beforeState = episode.currentSnapshot.state;
 
-  const afterState = KingdominoState.decode(
-    episode.currentSnapshot.state.toJson()
-  );
-
-  // console.log(JSON.stringify(beforeState, undefined, 1));
-  // console.log(JSON.stringify(afterState, undefined, 1));
+  const jsonObject = episode.currentSnapshot.state.toJson();
+  const afterState = KingdominoState.decode(jsonObject);
+  const jsonString = JSON.stringify(jsonObject);
+  const secondJsonString = JSON.stringify(KingdominoState.decode(JSON.parse(jsonString)).toJson());
 
   assert.equal(
     beforeState.props.currentPlayerId,
@@ -288,6 +290,7 @@ test("encode/decode round trip", () => {
     beforeState.props.offsetInScriptedTileNumbers,
     afterState.props.offsetInScriptedTileNumbers
   );
+  assert.equal(jsonString, secondJsonString);
 });
 
 function episodeWithPlayers(

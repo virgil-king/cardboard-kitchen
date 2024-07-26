@@ -10,6 +10,7 @@ import {
   adjacentExternalLocations,
   playAreaRadius,
   locationStateJson,
+  KingdominoVectors
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import { Vector2, Rectangle, Direction, vector2Json } from "./util.js";
@@ -43,7 +44,7 @@ export class PlayerBoard implements ValueObject {
     return new PlayerBoard(
       Map(
         decoded.locationStates.map(([locationJson, stateJson]) => [
-          Vector2.fromJson(locationJson),
+          KingdominoVectors.fromJson(locationJson),
           LocationState.fromJson(stateJson),
         ])
       )
@@ -61,7 +62,7 @@ export class PlayerBoard implements ValueObject {
     return locationState.properties();
   }
 
-  static center: Vector2 = new Vector2(centerX, centerY);
+  static center: Vector2 = Vector2.origin;
 
   toAssociationList(): Array<[Vector2, LocationState]> {
     return [...this.locationStates.entries()];
@@ -74,7 +75,7 @@ export class PlayerBoard implements ValueObject {
     let result: PlayerBoard = this;
     for (const tileLocationIndex of [0, 1]) {
       const squareLocation = placement.squareLocation(tileLocationIndex);
-      const locationState = new LocationState(tileNumber, tileLocationIndex);
+      const locationState = LocationState.instance(tileNumber, tileLocationIndex);
       result = result.withLocationState(squareLocation, locationState);
     }
     return result;
@@ -90,7 +91,7 @@ export class PlayerBoard implements ValueObject {
   private computeOccupiedRectangle(): Rectangle {
     const isEmpty = (x: number, y: number) => {
       return (
-        this.getLocationState(new Vector2(x, y)).terrain ==
+        this.getLocationState(KingdominoVectors.instance(x, y)).terrain ==
         Terrain.TERRAIN_EMPTY
       );
     };
@@ -256,7 +257,7 @@ export class PlayerBoard implements ValueObject {
     let crownCount = locationState.crowns;
     let queue = Set<Vector2>();
     for (const direction of Direction.values()) {
-      const neighborLocation = location.plus(direction.offset);
+      const neighborLocation = KingdominoVectors.plus(location, direction.offset);
       if (scored.contains(neighborLocation)) {
         continue;
       }

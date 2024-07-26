@@ -1,8 +1,6 @@
 import { combineHashes, decodeOrThrow } from "studio-util";
 import { Seq, ValueObject, hash } from "immutable";
 import * as io from "io-ts";
-import * as fp from "fp-ts";
-// import { isLeft } from "fp-ts/Either";
 import { JsonSerializable } from "game";
 
 export const vector2Json = io.type({
@@ -55,11 +53,7 @@ export class Direction {
   static readonly RIGHT = new Direction(new Vector2(1, 0), "right");
   static readonly DOWN = new Direction(new Vector2(0, -1), "down");
   opposite(): Direction {
-    const result = Direction.withOffset(this.offset.multiply(-1));
-    if (result == undefined) {
-      throw new Error("Direction had no opposite direction!");
-    }
-    return result;
+    return Direction.opposites[Direction.valuesArray.indexOf(this)];
   }
   index(): number {
     return Direction.valuesArray.indexOf(this);
@@ -79,16 +73,15 @@ export class Direction {
     Direction.RIGHT,
     Direction.DOWN,
   ];
+  static readonly opposites: ReadonlyArray<Direction> = [
+    Direction.RIGHT,
+    Direction.DOWN,
+    Direction.LEFT,
+    Direction.UP,
+  ];
   static withOffset(offset: Vector2) {
     return Seq(Direction.values()).find((d) => d.offset.equals(offset));
   }
-}
-
-export function* neighbors(location: Vector2): Generator<Vector2> {
-  yield location.plus(Direction.LEFT.offset);
-  yield location.plus(Direction.UP.offset);
-  yield location.plus(Direction.RIGHT.offset);
-  yield location.plus(Direction.DOWN.offset);
 }
 
 export class Rectangle implements ValueObject {

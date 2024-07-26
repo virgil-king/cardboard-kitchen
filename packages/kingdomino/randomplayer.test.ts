@@ -49,8 +49,8 @@ test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations",
     adjacentEmptyLocations(
       new PlayerBoard(
         Map([
-          [new Vector2(centerX + 1, centerY), new LocationState(1, 0)],
-          [new Vector2(centerX + 2, centerY), new LocationState(1, 1)],
+          [new Vector2(centerX + 1, centerY), LocationState.instance(1, 0)],
+          [new Vector2(centerX + 2, centerY), LocationState.instance(1, 1)],
         ])
       )
     )

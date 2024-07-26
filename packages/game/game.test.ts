@@ -7,7 +7,7 @@ import {
 
 import { test } from "vitest";
 import { assert } from "chai";
-import { List, Map } from "immutable";
+import { Map } from "immutable";
 
 test("Player.equals: equal: returns true", () => {
   const p1 = new Player("p1", "P1");
@@ -41,20 +41,6 @@ test("Players.equals: not equal: returns false", () => {
   assert.isFalse(players1.equals(players2));
 });
 
-// test("PlayerState.equals: equal: returns true", () => {
-//   const a = new PlayerState(2);
-//   const b = new PlayerState(2);
-
-//   assert.isTrue(a.equals(b));
-// });
-
-// test("PlayerState.equals: not equal: returns false", () => {
-//   const a = new PlayerState(5);
-//   const b = new PlayerState(12);
-
-//   assert.isFalse(a.equals(b));
-// });
-
 test("tiersToPlayerValues: half point for each player in the same tier", () => {
   const result = tiersToPlayerValues([["alice", "bob", "cecile"]]);
 
@@ -83,14 +69,13 @@ test("scoresToPlayerValues: tied players in same tier", () => {
 });
 
 test("scoresToPlayerValues: non-tied players in different tiers", () => {
-    const result = scoresToPlayerValues(
-      Map([
-        ["alice", 5],
-        ["bob", 11],
-      ])
-    );
-  
-    assert.equal(result.playerIdToValue.get("alice"), 0);
-    assert.equal(result.playerIdToValue.get("bob"), 1);
-  });
-  
+  const result = scoresToPlayerValues(
+    Map([
+      ["alice", 5],
+      ["bob", 11],
+    ])
+  );
+
+  assert.equal(result.playerIdToValue.get("alice"), 0);
+  assert.equal(result.playerIdToValue.get("bob"), 1);
+});

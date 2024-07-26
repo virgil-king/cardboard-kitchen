@@ -13,6 +13,7 @@ import {
   defaultLocationProperties,
   playAreaRadius,
   playAreaSize,
+  KingdominoVectors,
 } from "./base.js";
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
@@ -275,18 +276,30 @@ export class KingdominoConvolutionalModel
       linearStateCodec.columnCount + 4 * BoardModule.unitCount;
     console.log(`Computed concat output size is ${concatOutputSize}`);
 
-    const hiddenOutput = tf.layers
+    let hiddenOutput = tf.layers
       .dense({
         units: 256,
+        // activation: "relu",
         name: "hidden",
       })
       .apply(concat);
+    hiddenOutput = tf.layers.batchNormalization().apply(hiddenOutput);
+    hiddenOutput = tf.layers.reLU().apply(hiddenOutput);
 
     const valueOutput = tf.layers
-      .dense({ units: valueCodec.columnCount, name: "value_output" })
+      .dense({
+        units: valueCodec.columnCount,
+        activation: "relu",
+        name: "value_output",
+      })
       .apply(hiddenOutput) as tf.SymbolicTensor;
+
     const policyOutput = tf.layers
-      .dense({ units: policyCodec.columnCount, name: "policy_output" })
+      .dense({
+        units: policyCodec.columnCount,
+        activation: "relu",
+        name: "policy_output",
+      })
       .apply(hiddenOutput) as tf.SymbolicTensor;
 
     console.log(
@@ -310,45 +323,12 @@ export class KingdominoConvolutionalModel
     return new KingdominoConvolutionalModel(model);
   }
 
-  // static createHiddenLayers(
-  //   hiddenLayerStructure: HiddenLayerStructure,
-  //   inputLayer: tf.SymbolicTensor
-  // ): AnyTensor {
-  //   if (hiddenLayerStructure == HiddenLayerStructure.ONE_HALF_SIZE) {
-  //     const hiddenLayerSize =
-  //       (stateCodec.columnCount +
-  //         valueCodec.columnCount +
-  //         policyCodec.columnCount) /
-  //       2;
-  //     const hiddenLayer = tf.layers.dense({
-  //       //   inputShape: [stateCodec.columnCount],
-  //       //   batchSize: batchSize,
-  //       units: hiddenLayerSize,
-  //     });
-  //     return hiddenLayer.apply(inputLayer) as tf.SymbolicTensor;
-  //   } else {
-  //     const hiddenLayerSize = Math.round(
-  //       (stateCodec.columnCount +
-  //         valueCodec.columnCount +
-  //         policyCodec.columnCount) /
-  //         8
-  //     );
-  //     let input: AnyTensor = inputLayer;
-  //     let output: AnyTensor | undefined = undefined;
-  //     for (const layerIndex of Range(0, 4)) {
-  //       const layer = tf.layers.dense({ units: hiddenLayerSize });
-  //       output = layer.apply(input);
-  //       input = output;
-  //     }
-  //     return requireDefined(output);
-  //   }
-  // }
-
   /**
    * @param path path to the directory containing the model files
    */
   static async load(path: string): Promise<KingdominoConvolutionalModel> {
     const layersModel = await loadLayersModel(`file://${path}/model.json`);
+    // console.log(layersModel.getWeights().toString());
     return new KingdominoConvolutionalModel(layersModel);
   }
 
@@ -492,7 +472,9 @@ export class KingdominoConvolutionalModel
       result[matrixX] = new Array<ReadonlyArray<number>>(playAreaSize);
       for (const gameY of _.range(-playAreaRadius, playAreaRadius + 1)) {
         const matrixY = gameY + 4;
-        const properties = board.getLocationState(new Vector2(gameX, gameY));
+        const properties = board.getLocationState(
+          KingdominoVectors.instance(gameX, gameY)
+        );
         const locationArray =
           properties == defaultLocationProperties
             ? BoardModule.locationZeros
@@ -608,41 +590,44 @@ export class KingdominoInferenceModel
   ): Map<KingdominoAction, number> {
     const output = policyCodec.decode(vector);
     let policy = Map<KingdominoAction, number>();
+    const nextAction = snapshot.state.props.nextAction;
 
-    // Claim actions
-    policy = policy.merge(
-      Seq(output.claimProbabilities)
-        .map<[KingdominoAction, number]>((probability, index) => [
-          KingdominoAction.claimTile(new ClaimTile(index)),
-          probability,
-        ])
-        .filter(([action]) => {
-          const result = Kingdomino.INSTANCE.isLegalAction(snapshot, action);
-          return result;
-        })
-    );
+    if (nextAction == NextAction.CLAIM_OFFER) {
+      // Claim actions
+      policy = policy.merge(
+        Seq(output.claimProbabilities)
+          .map<[KingdominoAction, number]>((probability, index) => [
+            KingdominoAction.claimTile(new ClaimTile(index)),
+            probability,
+          ])
+          .filter(([action]) => {
+            const result = Kingdomino.INSTANCE.isLegalAction(snapshot, action);
+            return result;
+          })
+      );
+    } else if (nextAction == NextAction.RESOLVE_OFFER) {
+      // Discard action
+      const discardAction = KingdominoAction.discardTile();
+      if (Kingdomino.INSTANCE.isLegalAction(snapshot, discardAction)) {
+        policy = policy.set(discardAction, output.discardProbability);
+      }
 
-    // Discard action
-    const discardAction = KingdominoAction.discardTile();
-    if (Kingdomino.INSTANCE.isLegalAction(snapshot, discardAction)) {
-      policy = policy.set(discardAction, output.discardProbability);
-    }
-
-    // Place actions
-    let placeProbabilityIndex = 0;
-    for (const x of boardIndices) {
-      for (const y of boardIndices) {
-        for (const direction of Direction.valuesArray) {
-          const action = KingdominoAction.placeTile(
-            new PlaceTile(new Vector2(x, y), direction)
-          );
-          if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
-            policy = policy.set(
-              action,
-              output.placeProbabilities[placeProbabilityIndex]
+      // Place actions
+      let placeProbabilityIndex = 0;
+      for (const x of boardIndices) {
+        for (const y of boardIndices) {
+          for (const direction of Direction.valuesArray) {
+            const action = KingdominoAction.placeTile(
+              new PlaceTile(KingdominoVectors.instance(x, y), direction)
             );
+            if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
+              policy = policy.set(
+                action,
+                output.placeProbabilities[placeProbabilityIndex]
+              );
+            }
+            placeProbabilityIndex++;
           }
-          placeProbabilityIndex++;
         }
       }
     }
@@ -679,6 +664,7 @@ class BoardResidualBlock {
     output = tf.layers.batchNormalization().apply(output);
     output = tf.layers.reLU().apply(output);
     output = this.conv2.apply(output) as tf.SymbolicTensor;
+    output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
     output = tf.layers.add().apply([input, output]);
     return tf.layers.reLU().apply(output) as tf.SymbolicTensor;
   }
@@ -687,7 +673,6 @@ class BoardResidualBlock {
     return tf.layers.separableConv2d({
       kernelSize: 3,
       filters: this.filterCount,
-      activation: "relu",
       padding: "same",
       strides: 1,
       depthwiseInitializer: "glorotNormal",
@@ -732,6 +717,17 @@ class BoardModule {
   }
 }
 
+function scaledLossOrMetric(
+  fn: (yTrue: tf.Tensor, yPred: tf.Tensor) => tf.Tensor,
+  scale: number
+) {
+  const scalar = tf.scalar(scale);
+  return (yTrue: tf.Tensor, yPred: tf.Tensor) => {
+    const upstream = fn(yTrue, yPred);
+    return upstream.mul(scalar);
+  };
+}
+
 export class KingdominoTrainingModel
   implements
     TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
@@ -743,12 +739,16 @@ export class KingdominoTrainingModel
     private readonly model: KingdominoConvolutionalModel,
     private readonly batchSize: number = 128
   ) {
-    this.optimizer = tf.train.momentum(0.001, 0.5);
+    // this.optimizer = tf.train.momentum(0.001, 0.9);
+    this.optimizer = tf.train.adam();
 
     this.model.model.compile({
       optimizer: this.optimizer,
       // MSE for value and crossentry for policy
-      loss: [tf.losses.meanSquaredError, tf.losses.softmaxCrossEntropy],
+      loss: [
+        tf.losses.meanSquaredError,
+        scaledLossOrMetric(tf.losses.softmaxCrossEntropy, 0.2),
+      ],
     });
   }
 
@@ -810,7 +810,7 @@ export class KingdominoTrainingModel
       [valueOutputTensor, policyOutputTensor],
       {
         batchSize: this.batchSize,
-        epochs: 3,
+        epochs: 1,
         verbose: 0,
         callbacks: this.tensorboard,
       }

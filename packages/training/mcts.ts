@@ -43,7 +43,7 @@ export class MctsConfig<
   readonly minPrior: number;
   constructor({
     simulationCount = 32,
-    explorationBias = Math.sqrt(2),
+    explorationBias = 3, // Math.sqrt(2),
     randomPlayoutConfig = undefined,
     maxChanceBranches = 4,
     minPolicyValue = 0.01,
@@ -68,6 +68,7 @@ export class MctsStats {
   terminalStatesReached = 0;
   inferences = 0;
   inferenceTimeMs = 0;
+  randomPlayoutTimeMs = 0;
 }
 
 export interface MctsContext<
@@ -266,6 +267,7 @@ export class NonTerminalStateNode<
     // Random playout
     const randomPlayoutConfig = this.context.config.randomPlayoutConfig;
     if (randomPlayoutConfig != undefined) {
+      const startMs = performance.now();
       const randomPlayoutValues = this.randomPlayout(randomPlayoutConfig.agent);
       predictedValues = new PlayerValues(
         weightedMerge(
@@ -275,6 +277,7 @@ export class NonTerminalStateNode<
           randomPlayoutConfig.weight
         )
       );
+      this.context.stats.randomPlayoutTimeMs += performance.now() - startMs;
     }
 
     return predictedValues;

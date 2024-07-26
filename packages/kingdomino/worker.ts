@@ -1,15 +1,7 @@
 import { SettablePromise, requireDefined, sleep } from "studio-util";
 import { KingdominoModel } from "./model-linear.js";
-import {
-  EpisodeConfiguration,
-  Player,
-  Players,
-} from "game";
-import {
-  MctsConfig,
-  MctsStats,
-  episode as gameEpisode,
-} from "training";
+import { EpisodeConfiguration, Player, Players } from "game";
+import { MctsConfig, MctsStats, episode as gameEpisode } from "training";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
@@ -30,7 +22,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const randomAgent = new RandomKingdominoAgent();
 
 const mctsConfig = new MctsConfig({
-  simulationCount: 64,
+  simulationCount: 128,
   randomPlayoutConfig: { weight: 1, agent: randomAgent },
 });
 
@@ -64,6 +56,7 @@ async function main() {
       players.players.map((player) => [player.id, mctsContext])
     );
 
+    const startMs = performance.now();
     const episodeTrainingData = gameEpisode(
       Kingdomino.INSTANCE,
       playerIdToMctsContext,
@@ -77,10 +70,22 @@ async function main() {
         .sort((a, b) => a - b)}`
     );
 
+    const elapsedMs = performance.now() - startMs;
+    console.log(
+      `Inference time: ${
+        mctsContext.stats.inferenceTimeMs / elapsedMs
+      } of total`
+    );
+    console.log(
+      `Random playout time: ${
+        mctsContext.stats.randomPlayoutTimeMs / elapsedMs
+      } of total`
+    );
+
     messagePort.postMessage(episodeTrainingData.toJson());
 
     const encoded = episodeTrainingData.toJson();
-    const path = fs.writeFileSync(
+    fs.writeFileSync(
       `${gamesDir}/${new Date().toISOString()}`,
       JSON.stringify(encoded, undefined, 1)
     );
