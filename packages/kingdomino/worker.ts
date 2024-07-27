@@ -1,5 +1,4 @@
 import { SettablePromise, requireDefined, sleep } from "studio-util";
-import { KingdominoModel } from "./model-linear.js";
 import { EpisodeConfiguration, Player, Players } from "game";
 import { MctsConfig, MctsStats, episode as gameEpisode } from "training";
 import { RandomKingdominoAgent } from "./randomplayer.js";

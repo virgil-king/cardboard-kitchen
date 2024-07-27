@@ -3,6 +3,16 @@ import { Action, GameConfiguration, GameState } from "game";
 import { randomBelow, requireDefined } from "studio-util";
 import { ReadonlyArrayLike } from "training-data";
 
+export class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
+  constructor(private readonly array: ReadonlyArray<T>) { }
+  count(): number {
+    return this.array.length;
+  }
+  get(index: number): T {
+    return this.array[index];
+  }
+}
+
 export class EpisodeBuffer<
   //   C extends GameConfiguration,
   //   S extends GameState,

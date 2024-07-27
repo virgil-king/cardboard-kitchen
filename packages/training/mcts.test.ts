@@ -191,7 +191,7 @@ export class PickANumber
 class PickANumberModel
   implements
     InferenceModel<GameConfiguration, PickANumberState, NumberAction>,
-    TrainingModel<GameConfiguration, PickANumberState, NumberAction>
+    TrainingModel<GameConfiguration, PickANumberState, NumberAction, any>
 {
   static INSTANCE = new PickANumberModel();
 
@@ -225,6 +225,12 @@ class PickANumberModel
     return new PlayerValues(
       Map(players.map((player) => [player.id, PickANumberModel.STATE_VALUE]))
     );
+  }
+
+  encodeSample(
+    sample: StateTrainingData<GameConfiguration, PickANumberState, NumberAction>
+  ) {
+    throw new Error("Method not implemented.");
   }
 
   async train(

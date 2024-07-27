@@ -1,5 +1,3 @@
-import { loadLayersModel } from "@tensorflow/tfjs-node-gpu";
-import { KingdominoModel } from "./model-linear.js";
 import { Map, Range, Seq } from "immutable";
 import {
   Action,
@@ -12,14 +10,12 @@ import {
   generateEpisode,
   Player,
   Players,
-  PlayerValues,
 } from "game";
 import {
   MctsConfig,
   MctsContext,
   MctsStats,
   NonTerminalStateNode,
-  episode,
   newestModelPath,
 } from "training";
 
@@ -29,8 +25,7 @@ import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
-import { proportionalRandom, requireDefined } from "studio-util";
-import { StateSearchData, ActionStatistics } from "training-data";
+import { requireDefined } from "studio-util";
 
 // const model1 = KingdominoModel.load(process.argv[2]);
 // const model2 = KingdominoModel.load(process.argv[3]);
@@ -41,6 +36,7 @@ if (modelPath == undefined) {
 }
 
 const model = KingdominoConvolutionalModel.load(modelPath);
+console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);
 console.log(`episodeCount is ${episodeCount}`);
@@ -50,13 +46,12 @@ const mctsConfig = new MctsConfig<
   KingdominoState,
   KingdominoAction
 >({
-  simulationCount: 256,
+  simulationCount: 512,
   randomPlayoutConfig: {
     weight: 1,
     agent: new RandomKingdominoAgent(),
   },
-  explorationBias: Math.sqrt(2),
-  //   randomPlayoutConfig: undefined,
+  // explorationBias: Math.sqrt(2),
   //   maxChanceBranches: 4,
 });
 

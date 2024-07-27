@@ -16,7 +16,7 @@ import {
 import { MctsContext, NonTerminalStateNode } from "./mcts.js";
 import { List, Map, Range, Seq } from "immutable";
 import { Model } from "./model.js";
-import { EpisodeBuffer } from "./episodebuffer.js";
+import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as os from "os";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
@@ -37,10 +37,11 @@ const decimalFormat = Intl.NumberFormat(undefined, {
 export async function train_parallel<
   C extends GameConfiguration,
   S extends GameState,
-  A extends Action
+  A extends Action,
+  EncodedSampleT
 >(
   game: Game<C, S, A>,
-  model: Model<C, S, A>,
+  model: Model<C, S, A, EncodedSampleT>,
   batchSize: number,
   // batchCount: number,
   sampleBufferSize: number,
@@ -52,15 +53,18 @@ export async function train_parallel<
   const modelArtifacts = await model.toJson();
 
   const buffer = new EpisodeBuffer<
-    StateTrainingData<C, S, A>,
-    EpisodeTrainingData<C, S, A>
+    EncodedSampleT,
+    SimpleArrayLike<EncodedSampleT>
   >(sampleBufferSize);
 
   const bufferReady = new SettablePromise<undefined>();
 
   function processEpisode(message: any) {
     const decoded = EpisodeTrainingData.decode(game, message);
-    buffer.addEpisode(decoded);
+    const encodedSamples = decoded
+      .stateTrainingDataArray()
+      .map((sample) => trainingModel.encodeSample(sample));
+    buffer.addEpisode(new SimpleArrayLike(encodedSamples));
     if (buffer.sampleCount() >= batchSize) {
       bufferReady.fulfill(undefined);
     }
@@ -72,10 +76,12 @@ export async function train_parallel<
       processEpisode(encodedEpisode);
       initialEpisodeCount++;
       if (buffer.sampleCount() >= sampleBufferSize) {
-        console.log(`Loaded ${initialEpisodeCount} episodes`);
         break;
       }
     }
+    console.log(
+      `Loaded ${initialEpisodeCount} episodes; sample buffer size is ${buffer.sampleCount()} with maximum ${sampleBufferSize}`
+    );
   }
 
   let episodesReceived = 0;
@@ -168,7 +174,6 @@ function* loadEpisodes<
       requireDefined(filenameToModeTime.get(b)) -
       requireDefined(filenameToModeTime.get(a))
   );
-  let episodeCount = 0;
   for (const filename of filesByDescendingModTime) {
     const path = episodesDir + "/" + filename;
     console.log(`Loading episode ${path}`);

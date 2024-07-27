@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { EpisodeBuffer } from "./episodebuffer.js";
+import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as _ from "lodash";
 import { ReadonlyArrayLike } from "training-data";
 
@@ -23,16 +23,6 @@ import { ReadonlyArrayLike } from "training-data";
 //     // const dataPoints = moves.map((move) => new StateSearchData());
 //     // const episode = new EpisodeTrainingData(episodeConfig, new PickANumberConfiguration(Set(Range(1, 10))));
 // }
-
-class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
-  constructor(private readonly array: ReadonlyArray<T>) { }
-  count(): number {
-    return this.array.length;
-  }
-  get(index: number): T {
-    return this.array[index];
-  }
-}
 
 test("addGame: can purge older game while remaining above target: purges older game", () => {
   const buffer = new EpisodeBuffer<number, SimpleArrayLike<number>>(5);

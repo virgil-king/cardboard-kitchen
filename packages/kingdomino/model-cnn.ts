@@ -199,25 +199,28 @@ type AnyTensor =
 type BoardMatrix = ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
 
 class EncodedState {
-  // readonly linearStateTensor: tf.Tensor;
-  // readonly boardTensors: ReadonlyArray<tf.Tensor>;
   constructor(
     readonly linearStateArray: ReadonlyArray<number>,
     readonly boardStatesArray: ReadonlyArray<BoardMatrix>
-  ) {
-    // this.linearStateTensor = tf.tensor(linearStateArray);
-    // this.boardTensors = boardStatesArray.map((array) => tf.tensor(array));
-  }
-  // dispose() {
-  //   this.linearStateTensor.dispose();
-  //   for (const boardTensor of this.boardTensors) {
-  //     boardTensor.dispose();
-  //   }
-  // }
+  ) {}
+}
+
+export class EncodedSample {
+  constructor(
+    readonly state: EncodedState,
+    readonly valueOutput: ReadonlyArray<number>,
+    readonly policyOutput: ReadonlyArray<number>
+  ) {}
 }
 
 export class KingdominoConvolutionalModel
-  implements Model<KingdominoConfiguration, KingdominoState, KingdominoAction>
+  implements
+    Model<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction,
+      EncodedSample
+    >
 {
   static maxPlayerCount = requireDefined(
     Seq(Kingdomino.INSTANCE.playerCounts).max()
@@ -730,7 +733,12 @@ function scaledLossOrMetric(
 
 export class KingdominoTrainingModel
   implements
-    TrainingModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
+    TrainingModel<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction,
+      EncodedSample
+    >
 {
   private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
   private readonly optimizer: tf.Optimizer;
@@ -752,13 +760,23 @@ export class KingdominoTrainingModel
     });
   }
 
-  async train(
-    dataPoints: StateTrainingData<
+  encodeSample(
+    sample: StateTrainingData<
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    >[]
-  ): Promise<number> {
+    >
+  ): EncodedSample {
+    const state = this.model.encodeState(sample.snapshot);
+    const value = this.encodeValues(
+      sample.snapshot.episodeConfiguration.players,
+      sample.terminalValues
+    );
+    const policy = this.encodePolicy(sample.actionToStatistics);
+    return new EncodedSample(state, value, policy);
+  }
+
+  async train(dataPoints: ReadonlyArray<EncodedSample>): Promise<number> {
     if (dataPoints.length != this.batchSize) {
       throw new Error(`Number of samples did not equal batch size`);
     }
@@ -769,8 +787,8 @@ export class KingdominoTrainingModel
     for (const i of Range(0, Kingdomino.INSTANCE.maxPlayerCount)) {
       boardMatrix[i] = new Array<BoardMatrix>();
     }
-    for (const dataPoint of dataPoints) {
-      const encodedState = this.model.encodeState(dataPoint.snapshot);
+    for (const encodedSample of dataPoints) {
+      const encodedState = encodedSample.state;
       linearStateMatrix.push(encodedState.linearStateArray);
       for (let i = 0; i < encodedState.boardStatesArray.length; i++) {
         boardMatrix[i].push(encodedState.boardStatesArray[i]);
@@ -781,15 +799,10 @@ export class KingdominoTrainingModel
     //   .map((sample) => this.model.encodeState(sample.snapshot))
     //   .toArray();
     const valuesMatrix = Seq(dataPoints)
-      .map((sample) =>
-        this.encodeValues(
-          sample.snapshot.episodeConfiguration.players,
-          sample.terminalValues
-        )
-      )
+      .map((sample) => sample.valueOutput)
       .toArray();
     const policyMatrix = Seq(dataPoints)
-      .map((sample) => this.encodePolicy(sample.actionToStatistics))
+      .map((sample) => sample.policyOutput)
       .toArray();
     // console.log(
     //   `Calling fit with expected values ${JSON.stringify(
@@ -827,14 +840,17 @@ export class KingdominoTrainingModel
     console.log(`Losses: ${JSON.stringify(fitResult.history)}`);
     return loss;
   }
-  encodeValues(players: Players, values: PlayerValues): ReadonlyArray<number> {
+  encodeValues(
+    players: Players,
+    terminalValues: PlayerValues
+  ): ReadonlyArray<number> {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
       (playerIndex) => {
         if (playerIndex >= players.players.count()) {
           return 0;
         }
         return requireDefined(
-          values.playerIdToValue.get(
+          terminalValues.playerIdToValue.get(
             requireDefined(players.players.get(playerIndex)).id
           )
         );
