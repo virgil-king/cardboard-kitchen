@@ -14,16 +14,10 @@ importers:
     devDependencies:
       turbo:
         specifier: latest
-        version: 1.13.3
+        version: 2.0.7
 
   packages/game:
     dependencies:
-      '@tensorflow/tfjs-core':
-        specifier: ^4.20.0
-        version: 4.20.0
-      '@tensorflow/tfjs-node-gpu':
-        specifier: ^4.19.0
-        version: 4.19.0(seedrandom@3.0.5)
       immutable:
         specifier: 5.0.0-beta.5
         version: 5.0.0-beta.5
@@ -118,6 +112,12 @@ importers:
       studio-util:
         specifier: workspace:^
         version: link:../util
+      training:
+        specifier: workspace:*
+        version: link:../training
+      training-data:
+        specifier: workspace:^
+        version: link:../training-data
     devDependencies:
       '@types/lodash':
         specifier: ^4.17.1
@@ -155,9 +155,15 @@ importers:
       game:
         specifier: workspace:^
         version: link:../game
+      immutable:
+        specifier: 5.0.0-beta.5
+        version: 5.0.0-beta.5
       kingdomino:
         specifier: workspace:^
         version: link:../kingdomino
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       next:
         specifier: 14.2.3
         version: 14.2.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -170,7 +176,16 @@ importers:
       react-dom:
         specifier: ^18
         version: 18.3.1(react@18.3.1)
+      studio-util:
+        specifier: workspace:^
+        version: link:../util
+      training-data:
+        specifier: workspace:^
+        version: link:../training-data
     devDependencies:
+      '@types/lodash':
+        specifier: ^4.17.1
+        version: 4.17.4
       '@types/node':
         specifier: ^20
         version: 20.12.12
@@ -186,6 +201,113 @@ importers:
       typescript:
         specifier: ^5
         version: 5.4.5
+
+  packages/training:
+    dependencies:
+      '@tensorflow/tfjs-core':
+        specifier: ^4.20.0
+        version: 4.20.0
+      '@tensorflow/tfjs-node-gpu':
+        specifier: ^4.19.0
+        version: 4.19.0(seedrandom@3.0.5)
+      game:
+        specifier: workspace:*
+        version: link:../game
+      immutable:
+        specifier: 5.0.0-beta.5
+        version: 5.0.0-beta.5
+      io-ts:
+        specifier: ^2.2.21
+        version: 2.2.21(fp-ts@2.16.8)
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
+      lru-cache:
+        specifier: ^10.2.2
+        version: 10.4.3
+      pnpm:
+        specifier: ^9.1.1
+        version: 9.1.1
+      studio-util:
+        specifier: workspace:*
+        version: link:../util
+      training-data:
+        specifier: workspace:^
+        version: link:../training-data
+    devDependencies:
+      '@types/lodash':
+        specifier: ^4.17.1
+        version: 4.17.4
+      '@vitest/coverage-v8':
+        specifier: ^1.6.0
+        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+      chai:
+        specifier: ^5.1.1
+        version: 5.1.1
+      long:
+        specifier: ^5.2.3
+        version: 5.2.3
+      tsconfig:
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.4.5
+        version: 5.4.5
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.0(@types/node@20.12.12)
+
+  packages/training-data:
+    dependencies:
+      '@tensorflow/tfjs-core':
+        specifier: ^4.20.0
+        version: 4.20.0
+      '@tensorflow/tfjs-node-gpu':
+        specifier: ^4.19.0
+        version: 4.19.0(seedrandom@3.0.5)
+      game:
+        specifier: workspace:*
+        version: link:../game
+      immutable:
+        specifier: 5.0.0-beta.5
+        version: 5.0.0-beta.5
+      io-ts:
+        specifier: ^2.2.21
+        version: 2.2.21(fp-ts@2.16.8)
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
+      lru-cache:
+        specifier: ^10.2.2
+        version: 10.4.3
+      pnpm:
+        specifier: ^9.1.1
+        version: 9.1.1
+      studio-util:
+        specifier: workspace:*
+        version: link:../util
+    devDependencies:
+      '@types/lodash':
+        specifier: ^4.17.1
+        version: 4.17.4
+      '@vitest/coverage-v8':
+        specifier: ^1.6.0
+        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+      chai:
+        specifier: ^5.1.1
+        version: 5.1.1
+      long:
+        specifier: ^5.2.3
+        version: 5.2.3
+      tsconfig:
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5.4.5
+        version: 5.4.5
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.0(@types/node@20.12.12)
 
   packages/tsconfig: {}
 
@@ -738,6 +860,7 @@ packages:
   are-we-there-yet@2.0.0:
     resolution: {integrity: sha512-Ci/qENmwHnsYo9xKIcUJN5LeDKdJ6R1Z1j9V/J5wyq8nh/mYPEpIKJbBZXtZjG04HiK7zV/p6Vs9952MrMeUIw==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
@@ -944,6 +1067,7 @@ packages:
   gauge@3.0.2:
     resolution: {integrity: sha512-+5J6MS/5XksCuXq++uFRsnUd7Ovu1XenbeuIuNRJxYWjgQbPuFhT14lAvsWfqfAmnwluf1OwMjz39HjfLPci0Q==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -958,6 +1082,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   google-protobuf@3.21.2:
     resolution: {integrity: sha512-3MSOYFO5U9mPGikIYCzK0SaThypfGgS6bHqrUGXG3DPHCrb+txNqeEcns1W0lkGfk0rCyNXm7xB9rMxnCiZOoA==}
@@ -992,6 +1117,7 @@ packages:
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
+    deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
@@ -1186,6 +1312,7 @@ packages:
 
   npmlog@5.0.1:
     resolution: {integrity: sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw==}
+    deprecated: This package is no longer supported.
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -1284,10 +1411,12 @@ packages:
 
   rimraf@2.7.1:
     resolution: {integrity: sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w==}
+    deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
   rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
+    deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
   rollup@4.17.2:
@@ -1429,38 +1558,38 @@ packages:
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
 
-  turbo-darwin-64@1.13.3:
-    resolution: {integrity: sha512-glup8Qx1qEFB5jerAnXbS8WrL92OKyMmg5Hnd4PleLljAeYmx+cmmnsmLT7tpaVZIN58EAAwu8wHC6kIIqhbWA==}
+  turbo-darwin-64@2.0.7:
+    resolution: {integrity: sha512-J1RBvQGqKeUwLJrZbfrm4tHshagdMeGAwd7rpLpfUrw0PNmGfcBazJf6dIGXG59/GHzJmS0/eAZ8qDchfVbIFA==}
     cpu: [x64]
     os: [darwin]
 
-  turbo-darwin-arm64@1.13.3:
-    resolution: {integrity: sha512-/np2xD+f/+9qY8BVtuOQXRq5f9LehCFxamiQnwdqWm5iZmdjygC5T3uVSYuagVFsZKMvX3ycySwh8dylGTl6lg==}
+  turbo-darwin-arm64@2.0.7:
+    resolution: {integrity: sha512-h1JK8uuEjoHx1SvvTZiottj+4kDmiv+hivnLUzNwO75qKblMsd38IsFB0J2sMRz7JacFlf+3ry8SItznBW67Xw==}
     cpu: [arm64]
     os: [darwin]
 
-  turbo-linux-64@1.13.3:
-    resolution: {integrity: sha512-G+HGrau54iAnbXLfl+N/PynqpDwi/uDzb6iM9hXEDG+yJnSJxaHMShhOkXYJPk9offm9prH33Khx2scXrYVW1g==}
+  turbo-linux-64@2.0.7:
+    resolution: {integrity: sha512-dsr7GFeHAYVMnXWDDjhpsAQetejU4OlkNBRA5hfmnIcl2sSyOYa3EvoeJ6j5z5vTNIJ9VO4I1h0jK3lTjEoonA==}
     cpu: [x64]
     os: [linux]
 
-  turbo-linux-arm64@1.13.3:
-    resolution: {integrity: sha512-qWwEl5VR02NqRyl68/3pwp3c/olZuSp+vwlwrunuoNTm6JXGLG5pTeme4zoHNnk0qn4cCX7DFrOboArlYxv0wQ==}
+  turbo-linux-arm64@2.0.7:
+    resolution: {integrity: sha512-bJbwXvyX1XPzY1jHgkqggls/L4yFyHVK8GGACF3kcg6x7lYV2SXkUYRyOC3WqzW7euqa9Zw/32jrIPP4Qy31Vw==}
     cpu: [arm64]
     os: [linux]
 
-  turbo-windows-64@1.13.3:
-    resolution: {integrity: sha512-Nudr4bRChfJzBPzEmpVV85VwUYRCGKecwkBFpbp2a4NtrJ3+UP1VZES653ckqCu2FRyRuS0n03v9euMbAvzH+Q==}
+  turbo-windows-64@2.0.7:
+    resolution: {integrity: sha512-aBH+5A7IN957MqXMrw8xN0CWtH/fPFL+xTlloO6074Eaa8WfnctSAnaSujm6f4xF2T8lFx+ZprBvnO9oKvLQQQ==}
     cpu: [x64]
     os: [win32]
 
-  turbo-windows-arm64@1.13.3:
-    resolution: {integrity: sha512-ouJCgsVLd3icjRLmRvHQDDZnmGzT64GBupM1Y+TjtYn2LVaEBoV6hicFy8x5DUpnqdLy+YpCzRMkWlwhmkX7sQ==}
+  turbo-windows-arm64@2.0.7:
+    resolution: {integrity: sha512-ButUCpO5nTi+jyTSIY2mQ9dVz+mCGxJ6sHyn0xGlNoJWdisKXb0BtWCLAjM26gg/yp9Kt1MBowMQyYVruPV0Qw==}
     cpu: [arm64]
     os: [win32]
 
-  turbo@1.13.3:
-    resolution: {integrity: sha512-n17HJv4F4CpsYTvKzUJhLbyewbXjq1oLCi90i5tW1TiWDz16ML1eDG7wi5dHaKxzh5efIM56SITnuVbMq5dk4g==}
+  turbo@2.0.7:
+    resolution: {integrity: sha512-76iNWZpmKAKjj+yL0Wtcu2LpDIM5Nz7JS3fHOZPYS0AKuC2boJ24276VAiK4PKwbpBB//TYKDpSLuQ6cfR49pg==}
     hasBin: true
 
   type-detect@4.0.8:
@@ -2722,32 +2851,32 @@ snapshots:
 
   tslib@2.6.2: {}
 
-  turbo-darwin-64@1.13.3:
+  turbo-darwin-64@2.0.7:
     optional: true
 
-  turbo-darwin-arm64@1.13.3:
+  turbo-darwin-arm64@2.0.7:
     optional: true
 
-  turbo-linux-64@1.13.3:
+  turbo-linux-64@2.0.7:
     optional: true
 
-  turbo-linux-arm64@1.13.3:
+  turbo-linux-arm64@2.0.7:
     optional: true
 
-  turbo-windows-64@1.13.3:
+  turbo-windows-64@2.0.7:
     optional: true
 
-  turbo-windows-arm64@1.13.3:
+  turbo-windows-arm64@2.0.7:
     optional: true
 
-  turbo@1.13.3:
+  turbo@2.0.7:
     optionalDependencies:
-      turbo-darwin-64: 1.13.3
-      turbo-darwin-arm64: 1.13.3
-      turbo-linux-64: 1.13.3
-      turbo-linux-arm64: 1.13.3
-      turbo-windows-64: 1.13.3
-      turbo-windows-arm64: 1.13.3
+      turbo-darwin-64: 2.0.7
+      turbo-darwin-arm64: 2.0.7
+      turbo-linux-64: 2.0.7
+      turbo-linux-arm64: 2.0.7
+      turbo-windows-64: 2.0.7
+      turbo-windows-arm64: 2.0.7
 
   type-detect@4.0.8: {}
 
