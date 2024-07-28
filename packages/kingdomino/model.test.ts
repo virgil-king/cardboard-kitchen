@@ -2,6 +2,8 @@ import { test } from "vitest";
 import { Kingdomino } from "./kingdomino.js";
 import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import {
+  BoardResidualBlock,
+  EncodedState,
   KingdominoConvolutionalModel,
   placementToCodecIndex,
   policyCodec,
@@ -9,9 +11,19 @@ import {
 import { assert } from "chai";
 import { Map, Seq } from "immutable";
 import { KingdominoAction } from "./action.js";
-import { PlaceTile } from "./base.js";
+import {
+  boardIndices,
+  PlaceTile,
+  playAreaRadius,
+  playAreaSize,
+} from "./base.js";
 import { Vector2, Direction } from "./util.js";
 import { ActionStatistics } from "training-data";
+import tf from "@tensorflow/tfjs-node-gpu";
+import * as _ from "lodash";
+import { PlayerBoard } from "./board.js";
+import { Tile } from "./tile.js";
+import { requireDefined } from "studio-util";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -39,32 +51,61 @@ test("encodeValues: two players: result has length four", () => {
   assert.equal(vector.length, 4);
 });
 
-test("decodeValues", () => {
+test("decodeValues: returns expected values", () => {
   const vector = [0.1, 0.2, 0.3, 0.4];
 
-  const playerValues = model.inferenceModel.decodeValues(players, vector);
+  const playerValues = model.inferenceModel.decodeValues(
+    players,
+    new Float32Array(vector)
+  );
 
-  assert.equal(playerValues.playerIdToValue.get(alice.id), 0.1);
-  assert.equal(playerValues.playerIdToValue.get(bob.id), 0.2);
+  assertClose(requireDefined(playerValues.playerIdToValue.get(alice.id)), 0.1);
+  assertClose(requireDefined(playerValues.playerIdToValue.get(bob.id)), 0.2);
 });
 
 test("encodePolicy: stores placement values at expected index", () => {
   const placement1 = new PlaceTile(new Vector2(-4, -3), Direction.LEFT);
   const placement2 = new PlaceTile(new Vector2(1, 2), Direction.DOWN);
   const actionToVisitCount = Map([
-    [KingdominoAction.placeTile(placement1), new ActionStatistics(0.5, 1, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
-    [KingdominoAction.placeTile(placement2), new ActionStatistics(0.5, 2, new PlayerValues(Map([[alice.id, 1], [bob.id, 2]])))],
+    [
+      KingdominoAction.placeTile(placement1),
+      new ActionStatistics(
+        0.5,
+        1,
+        new PlayerValues(
+          Map([
+            [alice.id, 1],
+            [bob.id, 2],
+          ])
+        )
+      ),
+    ],
+    [
+      KingdominoAction.placeTile(placement2),
+      new ActionStatistics(
+        0.5,
+        2,
+        new PlayerValues(
+          Map([
+            [alice.id, 1],
+            [bob.id, 2],
+          ])
+        )
+      ),
+    ],
   ]);
-
+  /*  */
   const policyVector = model.trainingModel().encodePolicy(actionToVisitCount);
-  const placeProbabilitiesVector =
-    policyCodec.decode(policyVector).placeProbabilities;
+  const placeProbabilitiesVector = policyCodec.decode(
+    policyVector,
+    0
+  ).placeProbabilities;
 
-  assert.equal(
+  assertClose(
     placeProbabilitiesVector[placementToCodecIndex(placement1)],
     1 / 3
   );
-  assert.equal(
+  assertClose(
     placeProbabilitiesVector[placementToCodecIndex(placement2)],
     2 / 3
   );
@@ -107,3 +148,54 @@ test("JSON + structured clone round trip: inference behavior is preserved", asyn
     prediction1.value.playerIdToValue.equals(prediction2.value.playerIdToValue)
   );
 });
+
+function assertClose(actual: number, expected: number) {
+  assert.isTrue(
+    Math.abs(actual - expected) < 0.01,
+    `${actual} was not close to ${expected}`
+  );
+}
+
+// test("tensor encoding", async () => {
+//   // const array = [1, 2, 3, 4, 5, 6];
+//   // const tensor = tf.tensor(array, [3, 2, 1]);
+//   // console.log(tensor.toString());
+
+//   // const array = _.range(0, 9 * 9 * 9);
+//   // const matrix = new Array<Array<Array<number>>>();
+//   // for (const x of boardIndices) {
+//   //   const xIndex = x + playAreaRadius;
+//   //   const row = new Array<Array<number>>();
+//   //   matrix[xIndex] = row;
+//   //   const xOffset = xIndex * 9 * 9;
+//   //   for (const y of boardIndices) {
+//   //     const yIndex = y + playAreaRadius;
+//   //     const yOffset = yIndex * 9;
+//   //     const start = xOffset + yOffset;
+//   //     row[yIndex] = array.slice(start, start + 9);
+//   //   }
+//   // }
+//   // console.log(`matrix: ${matrix}`);
+
+//   let board = new PlayerBoard(Map()).withTile(
+//     new PlaceTile(new Vector2(1, -1), Direction.DOWN),
+//     1
+//   );
+//   const tile = Tile.withNumber(1);
+
+//   const floatArray = KingdominoConvolutionalModel.encodeBoard(board);
+//   // console.log(`float array: ${floatArray}`);
+//   const tensor = tf.tensor(floatArray, [9, 9, 9]);
+//   // console.log(`tensor: ${tensor}`);
+//   const roundTripMatrix = await tensor.arraySync();
+//   // console.log(`roundTripMatrix: ${roundTripMatrix}`);
+//   // assert.isTrue(_.isEqual(matrix, roundTripMatrix));
+
+//   const yWidth = BoardResidualBlock.filterCount;
+//   const xWidth = playAreaSize * yWidth;
+//   assert.equal(
+//     roundTripMatrix[
+//       (1 + playAreaRadius) * xWidth + (-1 + playAreaRadius) * yWidth
+//     ]
+//   );
+// });

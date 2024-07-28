@@ -3,8 +3,8 @@ import { requireDefined } from "studio-util";
 
 export interface VectorCodec<ValueT> {
   columnCount: number;
-  encode(value: ValueT): ReadonlyArray<number>;
-  decode(values: ReadonlyArray<number>): ValueT;
+  encode(value: ValueT, into: Float32Array, offset: number): void;
+  decode(from: Float32Array, offset: number): ValueT;
 }
 
 // The value type of T if it's a TensorCodec or otherwise never
@@ -14,11 +14,11 @@ export type CodecValueType<CodecT> = CodecT extends VectorCodec<infer input>
 
 export class ScalarCodec implements VectorCodec<number> {
   readonly columnCount = 1;
-  encode(value: number): number[] {
-    return [value];
+  encode(value: number, into: Float32Array, offset: number): void {
+    into[offset] = value;
   }
-  decode(values: number[]): number {
-    return values[0];
+  decode(from: Float32Array, offset: number): number {
+    return from[offset];
   }
 }
 
@@ -32,34 +32,46 @@ function oneHotValues(count: number, hot: number): Array<number> {
 /** Stores a required non-negative integer */
 export class OneHotCodec implements VectorCodec<number> {
   readonly columnCount: number;
-  constructor(possibleValueCount: number) {
-    this.columnCount = possibleValueCount;
+  constructor(size: number) {
+    this.columnCount = size;
   }
-  encode(value: number): ReadonlyArray<number> {
-    return oneHotValues(this.columnCount, value);
+  encode(value: number, into: Float32Array, offset: number): void {
+    for (let index = offset; index < offset + this.columnCount; index++) {
+      const arrayValue = index - offset == value ? 1 : 0;
+      into[index] = arrayValue;
+    }
   }
-  decode(values: number[]): number {
-    return requireDefined(Seq(values).max());
+  decode(from: Float32Array, offset: number): number {
+    // Return the index with the greatest value
+    let max = Number.NEGATIVE_INFINITY;
+    let maxIndex = offset;
+    for (let index = offset; index < offset + this.columnCount; index++) {
+      if (from[index] > max) {
+        maxIndex = index;
+        max = from[index];
+      }
+    }
+    return maxIndex - offset;
   }
 }
 
 /** Stores an optional non-negative integer */
-export class OptionalOneHotCodec implements VectorCodec<number | undefined> {
-  readonly columnCount: number;
-  private readonly zeros: ReadonlyArray<number>;
-  constructor(maxValue: number) {
-    this.columnCount = maxValue + 1;
-    this.zeros = Array(this.columnCount).fill(0);
-  }
-  encode(value: number | undefined): ReadonlyArray<number> {
-    return value == undefined
-      ? this.zeros
-      : oneHotValues(this.columnCount, value);
-  }
-  decode(values: ReadonlyArray<number>): number {
-    return requireDefined(Seq(values).max());
-  }
-}
+// export class OptionalOneHotCodec implements VectorCodec<number | undefined> {
+//   readonly columnCount: number;
+//   private readonly zeros: ReadonlyArray<number>;
+//   constructor(maxValue: number) {
+//     this.columnCount = maxValue + 1;
+//     this.zeros = Array(this.columnCount).fill(0);
+//   }
+//   encode(value: number | undefined, into: Float32Array, offset: number): void {
+//     return value == undefined
+//       ? this.zeros
+//       : oneHotValues(this.columnCount, value);
+//   }
+//   decode(values: ReadonlyArray<number>): number {
+//     return requireDefined(Seq(values).max());
+//   }
+// }
 
 /**
  * Encodes defined inputs using a delegate codec and encodes undefined input as
@@ -73,10 +85,14 @@ export class OptionalCodec<T> implements VectorCodec<T | undefined> {
   get columnCount(): number {
     return this.codec.columnCount;
   }
-  encode(value: T | undefined): ReadonlyArray<number> {
-    return value == undefined ? this.zeros : this.codec.encode(value);
+  encode(value: T | undefined, into: Float32Array, offset: number): void {
+    if (value == undefined) {
+      into.set(this.zeros, offset);
+    } else {
+      this.codec.encode(value, into, offset);
+    }
   }
-  decode(values: ReadonlyArray<number>): T | undefined {
+  decode(from: Float32Array, offset: number): T | undefined {
     throw new Error("Method not implemented.");
   }
 }
@@ -87,34 +103,38 @@ export class ObjectCodec<T extends { [key: string]: VectorCodec<unknown> }>
       [Property in keyof T]: CodecValueType<T[Property]>;
     }>
 {
-  columnCount: number;
+  readonly columnCount: number;
   constructor(readonly props: T) {
     this.columnCount = Seq(Object.values(props))
       .map((value) => value.columnCount)
       .reduce((sum, value) => sum + value, 0);
   }
-  encode(value: {
-    [Property in keyof T]: CodecValueType<T[Property]>;
-  }): ReadonlyArray<number> {
-    const result: number[] = [];
+  encode(
+    value: {
+      [Property in keyof T]: CodecValueType<T[Property]>;
+    },
+    into: Float32Array,
+    offset: number
+  ): void {
+    let propertyOffset = offset;
     for (const [key, codec] of Object.entries(this.props)) {
-      result.push(...codec.encode(value[key]));
+      codec.encode(value[key], into, propertyOffset);
+      propertyOffset += codec.columnCount;
     }
-    return result;
   }
-  decode(values: ReadonlyArray<number>): {
+  decode(
+    from: Float32Array,
+    offset: number
+  ): {
     [Property in keyof T]: CodecValueType<T[Property]>;
   } {
     const result: { [key: string]: any } = {
       ...this.props,
     };
-    let columnOffset = 0;
+    let propertyOffset = offset;
     for (const [key, codec] of Object.entries(this.props)) {
-      const columnCount = codec.columnCount;
-      result[key] = codec.decode(
-        values.slice(columnOffset, columnOffset + columnCount)
-      );
-      columnOffset += columnCount;
+      result[key] = codec.decode(from, propertyOffset);
+      propertyOffset += codec.columnCount;
     }
     return result as any;
   }
@@ -125,28 +145,27 @@ export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
   constructor(readonly itemCodec: VectorCodec<T>, readonly length: number) {
     this.columnCount = itemCodec.columnCount * length;
   }
-  encode(values: ReadonlyArray<T>): ReadonlyArray<number> {
-    if (values.length != this.length) {
-      throw new Error(
-        `Received ${values.length} items but expected ${this.length}`
-      );
+  encode(value: ReadonlyArray<T>, into: Float32Array, offset: number): void {
+    // if (values.length != this.length) {
+    //   throw new Error(
+    //     `Received ${values.length} items but expected ${this.length}`
+    //   );
+    // }
+    // const result: number[] = [];
+    let itemOffset = offset;
+    for (const item of value) {
+      this.itemCodec.encode(item, into, itemOffset);
+      itemOffset += this.itemCodec.columnCount;
+      // result.push(...this.itemCodec.encode(item));
     }
-    const result: number[] = [];
-    for (const item of values) {
-      result.push(...this.itemCodec.encode(item));
-    }
-    return result;
+    // return result;
   }
-  decode(values: ReadonlyArray<number>): ReadonlyArray<T> {
+  decode(from: Float32Array, offset: number): ReadonlyArray<T> {
     const result: T[] = [];
-    let columnOffset = 0;
-    for (const item of values) {
-      result.push(
-        this.itemCodec.decode(
-          values.slice(columnOffset, columnOffset + this.itemCodec.columnCount)
-        )
-      );
-      columnOffset += this.itemCodec.columnCount;
+    let itemOffset = offset;
+    for (let i = 0; i < this.length; i++) {
+      result.push(this.itemCodec.decode(from, itemOffset));
+      itemOffset += this.itemCodec.columnCount;
     }
     return result;
   }
@@ -155,10 +174,10 @@ export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
 /** Codec that passes through the array of numbers in both directions */
 export class RawCodec implements VectorCodec<ReadonlyArray<number>> {
   constructor(readonly columnCount: number) {}
-  encode(value: readonly number[]): readonly number[] {
-    return value;
+  encode(value: readonly number[], into: Float32Array, offset: number): void {
+    into.set(value, offset);
   }
-  decode(values: readonly number[]): readonly number[] {
-    return values;
+  decode(from: Float32Array, offset: number): readonly number[] {
+    return [...from.slice(offset, offset + this.columnCount)];
   }
 }

@@ -24,7 +24,7 @@ import {
   TrainingModel,
 } from "training";
 import { Map, Range, Seq } from "immutable";
-import tf, { loadLayersModel } from "@tensorflow/tfjs-node-gpu";
+import tf from "@tensorflow/tfjs-node-gpu";
 import tfcore from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
 import { requireDefined } from "studio-util";
@@ -37,7 +37,6 @@ import {
   ArrayCodec,
   CodecValueType,
   ScalarCodec,
-  OptionalOneHotCodec,
   OptionalCodec,
   RawCodec,
 } from "./codec.js";
@@ -59,10 +58,10 @@ const SCHEMA_VERSION = 0;
 class TerrainTypeCodec implements VectorCodec<Terrain> {
   private readonly oneHotCodec = new OneHotCodec(terrainValues.length);
   readonly columnCount = this.oneHotCodec.columnCount;
-  encode(value: Terrain): ReadonlyArray<number> {
-    return this.oneHotCodec.encode(value);
+  encode(value: Terrain, into: Float32Array, offset: number): void {
+    this.oneHotCodec.encode(value, into, offset);
   }
-  decode(values: ReadonlyArray<number>): Terrain {
+  decode(from: Float32Array, offset: number): Terrain {
     throw new Error("Method not implemented.");
   }
 }
@@ -70,10 +69,10 @@ class TerrainTypeCodec implements VectorCodec<Terrain> {
 class NextActionCodec implements VectorCodec<NextAction> {
   readonly codec = new OneHotCodec(nextActions.length);
   readonly columnCount = this.codec.columnCount;
-  encode(value: NextAction): ReadonlyArray<number> {
-    return this.codec.encode(requireDefined(nextActions.indexOf(value)));
+  encode(value: NextAction, into: Float32Array, offset: number): void {
+    this.codec.encode(requireDefined(nextActions.indexOf(value)), into, offset);
   }
-  decode(values: ReadonlyArray<number>): NextAction {
+  decode(from: Float32Array, offset: number): NextAction {
     throw new Error("Method not implemented.");
   }
 }
@@ -110,8 +109,8 @@ type TileValue = CodecValueType<typeof tileCodec>;
 
 const tileOfferCodec = new ObjectCodec({
   locationProperties: new OptionalCodec(tileCodec),
-  claimPlayerIndex: new OptionalOneHotCodec(
-    Kingdomino.INSTANCE.maxPlayerCount - 1
+  claimPlayerIndex: new OptionalCodec(
+    new OneHotCodec(Kingdomino.INSTANCE.maxPlayerCount)
   ),
 });
 
@@ -198,18 +197,51 @@ type AnyTensor =
 
 type BoardMatrix = ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
 
-class EncodedState {
+// Visible for testing
+export class EncodedState {
   constructor(
-    readonly linearStateArray: ReadonlyArray<number>,
-    readonly boardStatesArray: ReadonlyArray<BoardMatrix>
+    readonly linearState: Float32Array,
+    readonly boards: ReadonlyArray<Float32Array>
   ) {}
+
+  // static boardMatrixToFloat32Array(boardMatrix: BoardMatrix) {
+  //   const result = new Float32Array(BoardModule.unitCount);
+  //   for (const [rowIndex, row] of boardMatrix.entries()) {
+  //     const rowOffset = rowIndex * 9 * 9;
+  //     for (const [columnIndex, column] of row.entries()) {
+  //       const columnOffset = rowOffset + columnIndex * 9;
+  //       result.set(column, columnOffset);
+  //     }
+  //   }
+  //   return result;
+  // }
 }
+
+// class EncodedState {
+//   // readonly linearFloat32Array: Float32Array;
+//   // readonly boardArrays: ReadonlyArray<Float32Array>;
+//   constructor(
+//     readonly linearStateArray: ReadonlyArray<number>,
+//     readonly boardStatesArray: ReadonlyArray<BoardMatrix>
+//   ) {
+//     // this.linearFloat32Array = new Float32Array(linearStateArray);
+//     // this.boardArrays = boardStatesArray.map((boardArray) => {
+//     //   const result = new Float32Array(BoardModule.unitCount);
+//     //   for (const [rowIndex, row] of boardArray.entries()) {
+//     //     for (const [columnIndex, column] of row.entries()) {
+
+//     //     }
+//     //   }
+//     //   return result;
+//     // });
+//   }
+// }
 
 export class EncodedSample {
   constructor(
     readonly state: EncodedState,
-    readonly valueOutput: ReadonlyArray<number>,
-    readonly policyOutput: ReadonlyArray<number>
+    readonly valueOutput: Float32Array,
+    readonly policyOutput: Float32Array
   ) {}
 }
 
@@ -258,18 +290,18 @@ export class KingdominoConvolutionalModel
         })
       )
       .toArray();
-    console.log(`Board input shapes are ${boardInputs.map((it) => it.shape)}`);
+    // console.log(`Board input shapes are ${boardInputs.map((it) => it.shape)}`);
 
     const boardOutputs = boardInputs.map((input) => {
       const residualStackOutput = boardModule.apply(input);
-      console.log(`Residual stack output is ${residualStackOutput.shape}`);
+      // console.log(`Residual stack output is ${residualStackOutput.shape}`);
       return tf.layers
         .flatten()
         .apply(residualStackOutput) as tf.SymbolicTensor;
     });
-    console.log(
-      `Board outputs are ${boardOutputs.map((output) => output.shape)}`
-    );
+    // console.log(
+    //   `Board outputs are ${boardOutputs.map((output) => output.shape)}`
+    // );
 
     const concat = tf.layers
       .concatenate({ name: "concat" })
@@ -283,6 +315,7 @@ export class KingdominoConvolutionalModel
       .dense({
         units: 512,
         name: "hidden",
+        // kernelRegularizer: tf.regularizers.l2
       })
       .apply(concat);
     hiddenOutput = tf.layers.batchNormalization().apply(hiddenOutput);
@@ -304,23 +337,23 @@ export class KingdominoConvolutionalModel
       })
       .apply(hiddenOutput) as tf.SymbolicTensor;
 
-    console.log(
-      `Input shapes are ${[linearInputLayer, ...boardInputs].map(
-        (input) => input.shape
-      )}`
-    );
-    console.log(
-      `Output shapes are ${[valueOutput, policyOutput].map(
-        (output) => output.shape
-      )}`
-    );
+    // console.log(
+    //   `Input shapes are ${[linearInputLayer, ...boardInputs].map(
+    //     (input) => input.shape
+    //   )}`
+    // );
+    // console.log(
+    //   `Output shapes are ${[valueOutput, policyOutput].map(
+    //     (output) => output.shape
+    //   )}`
+    // );
 
     const model = tf.model({
       inputs: [linearInputLayer, ...boardInputs],
       outputs: [valueOutput, policyOutput],
     });
 
-    model.summary();
+    // model.summary();
 
     return new KingdominoConvolutionalModel(model);
   }
@@ -329,8 +362,14 @@ export class KingdominoConvolutionalModel
    * @param path path to the directory containing the model files
    */
   static async load(path: string): Promise<KingdominoConvolutionalModel> {
-    const layersModel = await loadLayersModel(`file://${path}/model.json`);
+    const layersModel = await tf.loadLayersModel(`file://${path}/model.json`);
     // console.log(layersModel.getWeights().toString());
+    console.log(
+      `Input shape is ${(layersModel.input as tf.SymbolicTensor[]).map(
+        (t) => t.shape
+      )}`
+    );
+
     return new KingdominoConvolutionalModel(layersModel);
   }
 
@@ -369,7 +408,7 @@ export class KingdominoConvolutionalModel
           const player = requireDefined(
             snapshot.episodeConfiguration.players.players.get(playerIndex)
           );
-          return this.encodeBoard(
+          return KingdominoConvolutionalModel.encodeBoard(
             snapshot.state.requirePlayerState(player.id).board
           );
         }
@@ -382,7 +421,7 @@ export class KingdominoConvolutionalModel
   // Visible for testing
   encodeLinearState(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-  ): ReadonlyArray<number> {
+  ): Float32Array {
     const currentPlayer = requireDefined(
       Kingdomino.INSTANCE.currentPlayer(snapshot)
     );
@@ -431,8 +470,9 @@ export class KingdominoConvolutionalModel
         }
       ),
     };
-    const numbers = linearStateCodec.encode(stateValue);
-    return numbers;
+    const result = new Float32Array(linearStateCodec.columnCount);
+    linearStateCodec.encode(stateValue, result, 0);
+    return result;
   }
 
   private encodeTileOffers(
@@ -465,23 +505,37 @@ export class KingdominoConvolutionalModel
       .toArray();
   }
 
-  private encodeBoard(
-    board: PlayerBoard
-  ): ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>> {
-    const result = new Array<Array<ReadonlyArray<number>>>();
+  // Visible for testing
+  static encodeBoard(board: PlayerBoard): Float32Array {
+    const result = new Float32Array(BoardModule.inputSize);
+
+    // for (const [rowIndex, row] of boardMatrix.entries()) {
+    //   const rowOffset = rowIndex * 9 * 9;
+    //   for (const [columnIndex, column] of row.entries()) {
+    //     const columnOffset = rowOffset + columnIndex * 9;
+    //     result.set(column, columnOffset);
+    //   }
+    // }
+    // return result;
+
+    // const result = new Array<Array<ReadonlyArray<number>>>();
     for (const gameX of _.range(-playAreaRadius, playAreaRadius + 1)) {
-      const matrixX = gameX + 4;
-      result[matrixX] = new Array<ReadonlyArray<number>>(playAreaSize);
+      const matrixX = gameX + playAreaRadius;
+      const xOffset = matrixX * playAreaSize * BoardModule.inputChannelCount;
+      // result[matrixX] = new Array<ReadonlyArray<number>>(playAreaSize);
       for (const gameY of _.range(-playAreaRadius, playAreaRadius + 1)) {
-        const matrixY = gameY + 4;
+        const matrixY = gameY + playAreaRadius;
+        const yOffset = matrixY * BoardModule.inputChannelCount;
         const properties = board.getLocationState(
           KingdominoVectors.instance(gameX, gameY)
         );
-        const locationArray =
-          properties == defaultLocationProperties
-            ? BoardModule.locationZeros
-            : locationPropertiesCodec.encode(properties);
-        result[matrixX][matrixY] = locationArray;
+        if (properties == defaultLocationProperties) {
+          // Leave default zeros alone
+          continue;
+        }
+        locationPropertiesCodec.encode(properties, result, xOffset + yOffset);
+        // result[matrixX][matrixY] = locationArray;
+        // result.set(locationArray, xOffset + yOffset);
       }
     }
     return result;
@@ -532,9 +586,9 @@ export class KingdominoInferenceModel
     // ]);
     // const inputTensor = tf.tensor([]);
     // console.log(`tensor is ${tensor.toString()}`);
-    const linearTensor = tf.tensor([encodedInput.linearStateArray]);
-    const boardTensors = encodedInput.boardStatesArray.map((playerBoard) =>
-      tf.tensor([playerBoard])
+    const linearTensor = tf.tensor([encodedInput.linearState]);
+    const boardTensors = encodedInput.boards.map((playerBoard) =>
+      tf.tensor(playerBoard, [1, 9, 9, 9])
     );
     const inputTensors = [linearTensor, ...boardTensors];
     // console.log(inputTensors);
@@ -555,11 +609,11 @@ export class KingdominoInferenceModel
     // );
     const playerValues = this.decodeValues(
       snapshot.episodeConfiguration.players,
-      this.unwrapNestedArrays(outputTensor[0].arraySync())
+      new Float32Array(this.unwrapNestedArrays(outputTensor[0].arraySync()))
     );
     const policy = this.decodePolicy(
       snapshot,
-      this.unwrapNestedArrays(outputTensor[1].arraySync())
+      new Float32Array(this.unwrapNestedArrays(outputTensor[1].arraySync()))
     );
     for (const tensor of outputTensor) {
       tensor.dispose();
@@ -574,9 +628,9 @@ export class KingdominoInferenceModel
   }
 
   // Visible for testing
-  decodeValues(players: Players, vector: ReadonlyArray<number>): PlayerValues {
+  decodeValues(players: Players, vector: Float32Array): PlayerValues {
     // console.log(`decodeValues: vector is ${vector}`);
-    const output = valueCodec.decode(vector);
+    const output = valueCodec.decode(vector, 0);
     const playerIdToValue = Map(
       players.players.map((player, index) => [
         player.id,
@@ -588,9 +642,9 @@ export class KingdominoInferenceModel
 
   decodePolicy(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
-    vector: ReadonlyArray<number>
+    vector: Float32Array
   ): Map<KingdominoAction, number> {
-    const output = policyCodec.decode(vector);
+    const output = policyCodec.decode(vector, 0);
     let policy = Map<KingdominoAction, number>();
     const nextAction = snapshot.state.props.nextAction;
 
@@ -653,7 +707,8 @@ export class KingdominoInferenceModel
   }
 }
 
-class BoardResidualBlock {
+// Visible for testing
+export class BoardResidualBlock {
   private readonly conv1 = BoardResidualBlock.conv2D();
   private readonly conv2 = BoardResidualBlock.conv2D();
 
@@ -708,15 +763,10 @@ class BoardModule {
   static readonly locationZeros = new Array<number>(
     this.inputChannelCount
   ).fill(0);
-  static readonly boardZeros = Range(0, playAreaSize)
-    .map((x) =>
-      Range(0, playAreaSize)
-        .map((y) => this.locationZeros)
-        .toArray()
-    )
-    .toArray();
+  static readonly boardZeros = new Float32Array(this.inputSize);
 
   private inputLayer = tf.layers.conv2d({
+    // TODO this should probably be 1
     kernelSize: 3,
     filters: BoardModule.outputChannelCount,
     padding: "same",
@@ -800,18 +850,40 @@ export class KingdominoTrainingModel
     if (dataPoints.length != this.batchSize) {
       throw new Error(`Number of samples did not equal batch size`);
     }
-    // Indices: sample, linear state column
-    const linearStateMatrix = new Array<ReadonlyArray<number>>();
-    // Indices: player, sample, x, y, feature
-    const boardMatrix = new Array<Array<BoardMatrix>>();
-    for (const i of Range(0, Kingdomino.INSTANCE.maxPlayerCount)) {
-      boardMatrix[i] = new Array<BoardMatrix>();
-    }
-    for (const encodedSample of dataPoints) {
+    // Flattened indices: sample, linear state column
+    const linearStateArray = new Float32Array(
+      this.batchSize * linearStateCodec.columnCount
+    );
+    // Flattened indices: player, sample, x, y, feature
+    // const playerBoards = new Array<Array<Float32Array>>();
+    // for (const i of Range(0, Kingdomino.INSTANCE.maxPlayerCount)) {
+    //   playerBoards[i] = new Array<Float32Array>();
+    // }
+    const boardSize = BoardModule.inputSize;
+    // const sampleBoardsSize = Kingdomino.INSTANCE.maxPlayerCount * boardSize;
+    const playerBoardArrays = _.range(
+      0,
+      Kingdomino.INSTANCE.maxPlayerCount
+    ).map(() => new Float32Array(this.batchSize * boardSize));
+    for (const [sampleIndex, encodedSample] of dataPoints.entries()) {
       const encodedState = encodedSample.state;
-      linearStateMatrix.push(encodedState.linearStateArray);
-      for (let i = 0; i < encodedState.boardStatesArray.length; i++) {
-        boardMatrix[i].push(encodedState.boardStatesArray[i]);
+      linearStateArray.set(
+        encodedState.linearState,
+        sampleIndex * linearStateCodec.columnCount
+      );
+      for (const [
+        playerIndex,
+        playerBoard,
+      ] of encodedSample.state.boards.entries()) {
+        playerBoardArrays[playerIndex].set(
+          playerBoard,
+          sampleIndex * boardSize
+        );
+        // playerBoards[playerIndex].push(encodedState.boardArrays[playerIndex]);
+        // playerBoardArrays.set(
+        //   playerBoard,
+        //   sampleIndex * sampleBoardsSize + playerIndex * boardSize
+        // );
       }
       // boardMatrix.push(encodedState.boardStatesArray);
     }
@@ -832,21 +904,25 @@ export class KingdominoTrainingModel
     // const inputTensor = tf.tensor(
     //   statesMatrix.map((state) => [state.linearStateTensor, ...state.boardTensors])
     // );
-    const linearInputTensor = tf.tensor(linearStateMatrix);
-    const boardTensors = boardMatrix.map((boardMatrix) =>
-      tf.tensor(boardMatrix)
+    const linearInputTensor = tf.tensor(linearStateArray, [
+      dataPoints.length,
+      linearStateCodec.columnCount,
+    ]);
+    const boardTensors = playerBoardArrays.map((boards) =>
+      tf.tensor(boards, [dataPoints.length, 9, 9, 9])
     );
+    // console.log(`boardTensors: ${boardTensors}`);
     const valueOutputTensor = tf.tensor(valuesMatrix);
     const policyOutputTensor = tf.tensor(policyMatrix);
-    const fitResult = await this.model.model.fit(
+    const fitResult = await this.model.model.trainOnBatch(
       [linearInputTensor, ...boardTensors],
-      [valueOutputTensor, policyOutputTensor],
-      {
-        batchSize: this.batchSize,
-        epochs: 1,
-        verbose: 0,
-        callbacks: this.tensorboard,
-      }
+      [valueOutputTensor, policyOutputTensor]
+      // {
+      //   batchSize: this.batchSize,
+      //   epochs: 1,
+      //   verbose: 0,
+      //   callbacks: this.tensorboard,
+      // }
     );
     // console.log(`Loss: ${fitResult.onEpochEnd}`)
     linearInputTensor.dispose();
@@ -855,15 +931,18 @@ export class KingdominoTrainingModel
     }
     valueOutputTensor.dispose();
     policyOutputTensor.dispose();
-    const epochLosses = fitResult.history.loss;
-    const loss = epochLosses[epochLosses.length - 1] as number;
-    console.log(`Losses: ${JSON.stringify(fitResult.history)}`);
-    return loss;
+    console.log(fitResult);
+    // const epochLosses = fitResult.;
+    // const loss = epochLosses[epochLosses.length - 1] as number;
+    // console.log(`Losses: ${JSON.stringify(fitResult.history)}`);
+    return (fitResult as number[])[0];
   }
   encodeValues(
     players: Players,
     terminalValues: PlayerValues
-  ): ReadonlyArray<number> {
+    // into: Float32Array,
+    // offset: number
+  ): Float32Array {
     const valuesVector = _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
       (playerIndex) => {
         if (playerIndex >= players.players.count()) {
@@ -877,13 +956,15 @@ export class KingdominoTrainingModel
       }
     );
     // Using the codec here mainly just provides column count enforcement
-    return valueCodec.encode({ playerValues: valuesVector });
+    const result = new Float32Array(valueCodec.columnCount);
+    valueCodec.encode({ playerValues: valuesVector }, result, 0);
+    return result;
   }
 
   // Visible for testing
   encodePolicy(
     visitCounts: Map<KingdominoAction, ActionStatistics>
-  ): ReadonlyArray<number> {
+  ): Float32Array {
     const claimProbabilities = Array<number>(
       claimProbabilitiesCodec.columnCount
     ).fill(0);
@@ -911,12 +992,17 @@ export class KingdominoTrainingModel
       }
     }
 
-    const raw = policyCodec.encode({
-      claimProbabilities: claimProbabilities,
-      discardProbability: discardProbability,
-      placeProbabilities: placeProbabilities,
-    });
-    const sum = raw.reduce((reduction, next) => reduction + next, 0);
-    return raw.map((x) => x / sum);
+    const result = new Float32Array(policyCodec.columnCount);
+    policyCodec.encode(
+      {
+        claimProbabilities: claimProbabilities,
+        discardProbability: discardProbability,
+        placeProbabilities: placeProbabilities,
+      },
+      result,
+      0
+    );
+    const sum = result.reduce((reduction, next) => reduction + next, 0);
+    return result.map((x) => x / sum);
   }
 }
