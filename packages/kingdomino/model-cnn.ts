@@ -237,7 +237,7 @@ export class KingdominoConvolutionalModel
     console.log(
       `Model has ${
         linearStateCodec.columnCount +
-        Kingdomino.INSTANCE.maxPlayerCount * BoardModule.unitCount
+        Kingdomino.INSTANCE.maxPlayerCount * BoardModule.inputSize
       } input dimensions and ${
         valueCodec.columnCount + policyCodec.columnCount
       } output dimensions`
@@ -276,13 +276,12 @@ export class KingdominoConvolutionalModel
       .apply([linearInputLayer, ...boardOutputs]) as tf.SymbolicTensor;
     console.log(`Concat shape is ${concat.shape}`);
     const concatOutputSize =
-      linearStateCodec.columnCount + 4 * BoardModule.unitCount;
+      linearStateCodec.columnCount + 4 * BoardModule.outputSize;
     console.log(`Computed concat output size is ${concatOutputSize}`);
 
     let hiddenOutput = tf.layers
       .dense({
-        units: 256,
-        // activation: "relu",
+        units: 512,
         name: "hidden",
       })
       .apply(concat);
@@ -658,7 +657,7 @@ class BoardResidualBlock {
   private readonly conv1 = BoardResidualBlock.conv2D();
   private readonly conv2 = BoardResidualBlock.conv2D();
 
-  static filterCount = locationPropertiesCodec.columnCount;
+  static filterCount = 64;
 
   constructor() {}
 
@@ -673,34 +672,43 @@ class BoardResidualBlock {
   }
 
   static conv2D(): tf.layers.Layer {
-    return tf.layers.separableConv2d({
+    return tf.layers.conv2d({
       kernelSize: 3,
       filters: this.filterCount,
       padding: "same",
       strides: 1,
-      depthwiseInitializer: "glorotNormal",
-      pointwiseInitializer: "glorotNormal",
     });
   }
 }
 
+/**
+ * Network subgraph for processing player boards.
+ *
+ * Input format is 9x9x9: x => y => channel (terrain type and crown count)
+ * Output format is 9x9x64: x => y => output feature
+ */
 class BoardModule {
   /** Number of steps needed to traverse a kingdom from corner to corner */
   private static blockCount = 8;
 
-  static inputShape = [
+  static readonly inputChannelCount = locationPropertiesCodec.columnCount;
+  static readonly outputChannelCount = BoardResidualBlock.filterCount;
+
+  static readonly inputShape = [
     playAreaSize,
     playAreaSize,
-    BoardResidualBlock.filterCount,
+    this.inputChannelCount,
   ];
 
-  static unitCount =
-    playAreaSize * playAreaSize * BoardResidualBlock.filterCount;
+  static readonly inputSize =
+    playAreaSize * playAreaSize * this.inputChannelCount;
+  static readonly outputSize =
+    playAreaSize * playAreaSize * this.outputChannelCount;
 
-  static locationZeros = new Array<number>(BoardResidualBlock.filterCount).fill(
-    0
-  );
-  static boardZeros = Range(0, playAreaSize)
+  static readonly locationZeros = new Array<number>(
+    this.inputChannelCount
+  ).fill(0);
+  static readonly boardZeros = Range(0, playAreaSize)
     .map((x) =>
       Range(0, playAreaSize)
         .map((y) => this.locationZeros)
@@ -708,15 +716,27 @@ class BoardModule {
     )
     .toArray();
 
+  private inputLayer = tf.layers.conv2d({
+    kernelSize: 3,
+    filters: BoardModule.outputChannelCount,
+    padding: "same",
+    strides: 1,
+  });
+
   private readonly blocks = Range(0, BoardModule.blockCount).map((_) => {
     return new BoardResidualBlock();
   });
 
   apply(input: tf.SymbolicTensor): tf.SymbolicTensor {
+    // Project the input shape to the residual block shape
+    let output = this.inputLayer.apply(input) as tf.SymbolicTensor;
+    output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
+    output = tf.layers.reLU().apply(output) as tf.SymbolicTensor;
+
     for (const block of this.blocks) {
-      input = block.apply(input);
+      output = block.apply(output);
     }
-    return input;
+    return output;
   }
 }
 

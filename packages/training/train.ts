@@ -130,7 +130,7 @@ export async function train_parallel<
       trailingLosses.reduce((reduction, next) => reduction + next, 0) /
       trailingLosses.count();
     console.log(`Sliding window loss: ${trailingLoss}`);
-    await sleep(1_000);
+    await sleep(0);
     if (
       episodesReceived - episodesReceivedAtLastModelUpdate >
       episodesBetweenModelUpdates

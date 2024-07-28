@@ -7,10 +7,10 @@ import { KingdominoAction } from "./action.js";
 import { KingdominoState } from "./state.js";
 import { newestModelPath } from "training";
 
-const batchSize = 1024;
-const sampleBufferSize = batchSize * 1024;
+const batchSize = 128;
+const sampleBufferSize = 1024 * 512;
 
-const modelName = "conv2";
+const modelName = "conv3";
 const home = process.env.HOME;
 
 async function main() {
@@ -33,7 +33,7 @@ async function main() {
 async function createModel(): Promise<
   Model<KingdominoConfiguration, KingdominoState, KingdominoAction, any>
 > {
-  const modelPath = newestModelPath("kingdomino", "conv2");
+  const modelPath = newestModelPath("kingdomino", modelName);
   if (modelPath == undefined) {
     return freshModel();
   }
