@@ -7,7 +7,6 @@ import {
 import {
   Action,
   EpisodeConfiguration,
-  EpisodeSnapshot,
   Game,
   GameConfiguration,
   GameState,
@@ -24,7 +23,6 @@ import {
   ActionStatistics,
   EpisodeTrainingData,
   StateSearchData,
-  StateTrainingData,
 } from "training-data";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
@@ -115,8 +113,8 @@ export async function train_parallel<
 
   await bufferReady.promise;
 
-  let episodesBetweenModelUpdates = workerCount * 2;
-  let episodesReceivedAtLastModelUpdate = initialEpisodeCount;
+  let episodesBetweenModelUpdates = workerCount;
+  let episodesReceivedAtLastModelUpdate = 0;
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
   while (true) {
@@ -131,10 +129,10 @@ export async function train_parallel<
       trailingLosses.count();
     console.log(`Sliding window loss: ${trailingLoss}`);
     await sleep(0);
-    if (
-      episodesReceived - episodesReceivedAtLastModelUpdate >
-      episodesBetweenModelUpdates
-    ) {
+    const episodesReceivedSinceLastModelUpdate =
+      episodesReceived - episodesReceivedAtLastModelUpdate;
+    // console.log(`${newEpisodesReceived} new episodes received; `)
+    if (episodesReceivedSinceLastModelUpdate >= episodesBetweenModelUpdates) {
       console.log(
         `Broadcasting updated model after ${episodesReceived} total episodes`
       );

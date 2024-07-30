@@ -8,7 +8,7 @@ import { KingdominoState } from "./state.js";
 import { newestModelPath } from "training";
 
 const batchSize = 128;
-const sampleBufferSize = 1024 * 512;
+const sampleBufferSize = 1024 * 2048;
 
 const modelName = "conv3";
 const home = process.env.HOME;
