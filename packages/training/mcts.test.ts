@@ -197,11 +197,17 @@ class PickANumberModel
 
   static STATE_VALUE = 0.5;
 
-  infer(snapshot: EpisodeSnapshot<GameConfiguration, PickANumberState>): {
+  infer(
+    snapshots: ReadonlyArray<
+      EpisodeSnapshot<GameConfiguration, PickANumberState>
+    >
+  ): ReadonlyArray<{
     value: PlayerValues;
     policy: Map<NumberAction, number>;
-  } {
-    return { value: this.value(snapshot), policy: this.policy(snapshot) };
+  }> {
+    return snapshots.map((snapshot) => {
+      return { value: this.value(snapshot), policy: this.policy(snapshot) };
+    });
   }
 
   private policy(

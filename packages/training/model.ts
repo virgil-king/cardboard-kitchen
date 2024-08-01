@@ -37,8 +37,8 @@ export interface InferenceModel<
   S extends GameState,
   A extends Action
 > {
-  /** Returns value and policy results for {@link snapshot} */
-  infer(snapshot: EpisodeSnapshot<C, S>): InferenceResult<A>;
+  /** Returns value and policy results for {@link snapshots} */
+  infer(snapshots: ReadonlyArray<EpisodeSnapshot<C, S>>): ReadonlyArray<InferenceResult<A>>;
 }
 
 export interface TrainingModel<

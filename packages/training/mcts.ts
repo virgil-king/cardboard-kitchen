@@ -122,7 +122,9 @@ class ActionNode<
    * Updates the node by applying {@link action} to {@link episode} and then
    * creating or visiting the resulting state node
    */
-  visit(snapshot: EpisodeSnapshot<C, S>): PlayerValues {
+  *visit(
+    snapshot: EpisodeSnapshot<C, S>
+  ): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     const [childState, chanceKey] = this.context.game.apply(
       snapshot,
       this.action
@@ -136,7 +138,12 @@ class ActionNode<
       // );
       const childSnapshot = snapshot.derive(childState);
       if (this.context.game.result(childSnapshot) == undefined) {
-        stateNode = new NonTerminalStateNode(this.context, childSnapshot);
+        const inferenceResult = yield childSnapshot;
+        stateNode = new NonTerminalStateNode(
+          this.context,
+          childSnapshot,
+          inferenceResult
+        );
       } else {
         stateNode = new TerminalStateNode(this.context, childSnapshot);
       }
@@ -186,10 +193,14 @@ class ActionNode<
   }
 }
 
-interface StateNode {
+interface StateNode<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
   visitCount: number;
   predictedValues(): PlayerValues;
-  visit(): PlayerValues;
+  visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>>;
 }
 
 /**
@@ -200,21 +211,21 @@ export class NonTerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode
+> implements StateNode<C, S, A>
 {
   visitCount = 0;
   actionToChild: Map<A, ActionNode<C, S, A>>;
-  readonly inferenceResult: InferenceResult<A>;
   readonly playerValues = new NodeValues();
   constructor(
     readonly context: MctsContext<C, S, A>,
-    readonly snapshot: EpisodeSnapshot<C, S>
+    readonly snapshot: EpisodeSnapshot<C, S>,
+    readonly inferenceResult: InferenceResult<A>
   ) {
     this.context.stats.stateNodesCreated++;
-    const inferenceStartMs = performance.now();
-    this.inferenceResult = context.model.infer(snapshot);
-    this.context.stats.inferenceTimeMs += performance.now() - inferenceStartMs;
-    this.context.stats.inferences++;
+    // const inferenceStartMs = performance.now();
+    // this.inferenceResult = context.model.infer([snapshot])[0];
+    // this.context.stats.inferenceTimeMs += performance.now() - inferenceStartMs;
+    // this.context.stats.inferences++;
     let policy = this.inferenceResult.policy;
     // console.log(`policy is ${policy.toArray()}`);
 
@@ -242,7 +253,7 @@ export class NonTerminalStateNode<
   /**
    * Returns expected values computed using all enabled prediction methods
    */
-  predictedValues() {
+  predictedValues(): PlayerValues {
     const episodeResult = this.context.game.result(this.snapshot);
     if (episodeResult != undefined) {
       debugLog(
@@ -303,7 +314,7 @@ export class NonTerminalStateNode<
    * this node's expected values based on that visit, and returns this node's
    * new expected values
    */
-  visit(): PlayerValues {
+  *visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     this.visitCount++;
 
     const episodeResult = this.context.game.result(this.snapshot);
@@ -320,7 +331,7 @@ export class NonTerminalStateNode<
         "An action was visited which was not reported by the policy"
       );
     }
-    const childResult = child.visit(this.snapshot);
+    const childResult = yield* child.visit(this.snapshot);
     this.playerValues.merge(childResult);
     // debugLog(
     //   () =>
@@ -389,7 +400,7 @@ export class TerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode
+> implements StateNode<C, S, A>
 {
   result: PlayerValues;
   visitCount = 0;
@@ -408,7 +419,7 @@ export class TerminalStateNode<
     return this.result;
   }
 
-  visit(): PlayerValues {
+  *visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     this.visitCount++;
     return this.result;
   }
@@ -441,7 +452,8 @@ export function mcts<
     model: model,
     stats: new MctsStats(),
   };
-  const root = new NonTerminalStateNode(context, snapshot);
+  const inferenceResult = model.infer([snapshot])[0];
+  const root = new NonTerminalStateNode(context, snapshot, inferenceResult);
   for (let step = 0; step < config.simulationCount; step++) {
     debugLog(() => `New simulation`);
     root.visit();

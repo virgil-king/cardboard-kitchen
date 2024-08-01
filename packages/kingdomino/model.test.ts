@@ -116,8 +116,8 @@ test("JSON round trip: inference behavior is preserved", async () => {
   const model2 = await KingdominoConvolutionalModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
-  const prediction1 = model.inferenceModel.infer(snapshot);
-  const prediction2 = model2.inferenceModel.infer(snapshot);
+  const prediction1 = model.inferenceModel.infer([snapshot])[0];
+  const prediction2 = model2.inferenceModel.infer([snapshot])[0];
 
   // console.log(prediction1.policy.toArray());
   // console.log(prediction2.policy.toArray());
@@ -135,8 +135,8 @@ test("JSON + structured clone round trip: inference behavior is preserved", asyn
   const model2 = await KingdominoConvolutionalModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
-  const prediction1 = model.inferenceModel.infer(snapshot);
-  const prediction2 = model2.inferenceModel.infer(snapshot);
+  const prediction1 = model.inferenceModel.infer([snapshot])[0];
+  const prediction2 = model2.inferenceModel.infer([snapshot])[0];
 
   // console.log(prediction1.policy.toArray());
   // console.log(prediction2.policy.toArray());

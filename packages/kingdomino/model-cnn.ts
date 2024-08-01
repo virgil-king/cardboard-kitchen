@@ -541,6 +541,48 @@ export class KingdominoConvolutionalModel
     return result;
   }
 
+  /**
+   * Returns the batch of states encoded as one linear input tensor and an
+   * array of player board input tensors
+   */
+  stateBatchToTensors(
+    states: ReadonlyArray<EncodedState>
+  ): [tf.Tensor, ReadonlyArray<tf.Tensor>] {
+    // Allocate a single Float32Array for each output tensor and encode the
+    // batch into each of those arrays
+
+    // Flattened indices: sample, linear state column
+    const linearStateArray = new Float32Array(
+      states.length * linearStateCodec.columnCount
+    );
+    // Flattened indices: player, sample, x, y, feature
+    const boardSize = BoardModule.inputSize;
+    const playerBoardArrays = _.range(
+      0,
+      Kingdomino.INSTANCE.maxPlayerCount
+    ).map(() => new Float32Array(states.length * boardSize));
+    for (const [sampleIndex, encodedState] of states.entries()) {
+      linearStateArray.set(
+        encodedState.linearState,
+        sampleIndex * linearStateCodec.columnCount
+      );
+      for (const [playerIndex, playerBoard] of encodedState.boards.entries()) {
+        playerBoardArrays[playerIndex].set(
+          playerBoard,
+          sampleIndex * boardSize
+        );
+      }
+    }
+    const linearInputTensor = tf.tensor(linearStateArray, [
+      states.length,
+      linearStateCodec.columnCount,
+    ]);
+    const boardTensors = playerBoardArrays.map((boards) =>
+      tf.tensor(boards, [states.length, 9, 9, 9])
+    );
+    return [linearInputTensor, boardTensors];
+  }
+
   toJson(): Promise<tfcore.io.ModelArtifacts> {
     return new Promise((resolve) =>
       this.model.save({
@@ -577,24 +619,31 @@ export class KingdominoInferenceModel
   constructor(private readonly model: KingdominoConvolutionalModel) {}
 
   infer(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-  ): InferenceResult<KingdominoAction> {
-    const encodedInput = this.model.encodeState(snapshot);
+    snapshots: ReadonlyArray<
+      EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
+    >
+  ): ReadonlyArray<InferenceResult<KingdominoAction>> {
+    const encodedInputs = snapshots.map((snapshot) =>
+      this.model.encodeState(snapshot)
+    );
+    const [linearInput, boardInputs] =
+      this.model.stateBatchToTensors(encodedInputs);
+    // const encodedInput = this.model.encodeState(snapshots);
     // const inputTensor = tf.tensor([
     //   encodedInput.linearState,
     //   ...encodedInput.boardStates,
     // ]);
     // const inputTensor = tf.tensor([]);
     // console.log(`tensor is ${tensor.toString()}`);
-    const linearTensor = tf.tensor([encodedInput.linearState]);
-    const boardTensors = encodedInput.boards.map((playerBoard) =>
-      tf.tensor(playerBoard, [1, 9, 9, 9])
-    );
-    const inputTensors = [linearTensor, ...boardTensors];
-    // console.log(inputTensors);
-    let outputTensor = this.model.model.predict(inputTensors);
-    linearTensor.dispose();
-    for (const boardTensor of boardTensors) {
+    // const linearTensor = tf.tensor([encodedInput.linearState]);
+    // const boardTensors = encodedInput.boards.map((playerBoard) =>
+    //   tf.tensor(playerBoard, [1, 9, 9, 9])
+    // );
+    // const inputTensors = [linearTensor, ...boardTensors];
+
+    let outputTensor = this.model.model.predict([linearInput, ...boardInputs]);
+    linearInput.dispose();
+    for (const boardTensor of boardInputs) {
       boardTensor.dispose();
     }
     if (!Array.isArray(outputTensor)) {
@@ -607,24 +656,29 @@ export class KingdominoInferenceModel
     //   snapshot.episodeConfiguration.players,
     //   (prediction as tf.Tensor).arraySync() as number[]
     // );
-    const playerValues = this.decodeValues(
-      snapshot.episodeConfiguration.players,
-      new Float32Array(this.unwrapNestedArrays(outputTensor[0].arraySync()))
-    );
-    const policy = this.decodePolicy(
-      snapshot,
-      new Float32Array(this.unwrapNestedArrays(outputTensor[1].arraySync()))
-    );
+    const result = new Array<InferenceResult<KingdominoAction>>();
+    for (let i = 0; i < snapshots.length; i++) {
+      const snapshot = snapshots[i];
+      const playerValues = this.decodeValues(
+        snapshot.episodeConfiguration.players,
+        new Float32Array(this.unwrapNestedArrays(outputTensor[0].arraySync()))
+      );
+      const policy = this.decodePolicy(
+        snapshot,
+        new Float32Array(this.unwrapNestedArrays(outputTensor[1].arraySync()))
+      );
+      // console.log(
+      //   `infer: policy is ${JSON.stringify(policy.toArray(), undefined, 2)}`
+      // );
+      result.push({
+        value: playerValues,
+        policy: policy,
+      });
+    }
     for (const tensor of outputTensor) {
       tensor.dispose();
     }
-    // console.log(
-    //   `infer: policy is ${JSON.stringify(policy.toArray(), undefined, 2)}`
-    // );
-    return {
-      value: playerValues,
-      policy: policy,
-    };
+    return result;
   }
 
   // Visible for testing

@@ -7,6 +7,7 @@ import {
 import {
   Action,
   EpisodeConfiguration,
+  EpisodeSnapshot,
   Game,
   GameConfiguration,
   GameState,
@@ -14,7 +15,7 @@ import {
 } from "game";
 import { MctsContext, NonTerminalStateNode } from "./mcts.js";
 import { List, Map, Range, Seq } from "immutable";
-import { Model } from "./model.js";
+import { InferenceResult, Model } from "./model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as os from "os";
 import * as worker_threads from "node:worker_threads";
@@ -95,7 +96,7 @@ export async function train_parallel<
     );
   }
 
-  const workerCount = os.cpus().length - 2;
+  const workerCount = 1; // os.cpus().length - 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
   for (let i = 0; i < workerCount; i++) {
@@ -284,26 +285,32 @@ function* loadEpisodes<
  * Runs a new episode to completion and returns training data for each state in
  * the episode
  */
-export function episode<
+export function* episode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
 >(
   game: Game<C, S, A>,
-  playerIdToMctsContext: Map<string, MctsContext<C, S, A>>,
+  // playerIdToMctsContext: Map<string, MctsContext<C, S, A>>,
+  mctsContext: MctsContext<C, S, A>,
   episodeConfig: EpisodeConfiguration
-): EpisodeTrainingData<C, S, A> {
+): Generator<
+  EpisodeSnapshot<C, S>,
+  EpisodeTrainingData<C, S, A>,
+  InferenceResult<A>
+> {
   const startMs = performance.now();
   let snapshot = game.newEpisode(episodeConfig);
   if (game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
   }
-  function mctsContext(): MctsContext<C, S, A> {
-    const player = requireDefined(game.currentPlayer(snapshot));
-    return requireDefined(playerIdToMctsContext.get(player.id));
-  }
-  let currentMctsContext = mctsContext();
-  let root = new NonTerminalStateNode(currentMctsContext, snapshot);
+  // function mctsContext(): MctsContext<C, S, A> {
+  //   const player = requireDefined(game.currentPlayer(snapshot));
+  //   return requireDefined(playerIdToMctsContext.get(player.id));
+  // }
+  // let currentMctsContext = mctsContext();
+  const inferenceResult = yield snapshot;
+  let root = new NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
   const nonTerminalStates = new Array<StateSearchData<S, A>>();
   while (game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(game.currentPlayer(snapshot));
@@ -312,17 +319,14 @@ export function episode<
     if (root.actionToChild.size == 1) {
       // When root has exactly one child, visit it once to populate the
       // action statistics, but no further visits are necessary
-      root.visit();
+      yield* root.visit();
       selectedAction = root.actionToChild.keys().next().value;
     } else {
       for (let i of Range(
         0,
-        Math.max(
-          currentMctsContext.config.simulationCount,
-          root.actionToChild.size
-        )
+        Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
       )) {
-        root.visit();
+        yield* root.visit();
       }
       // TODO incorporate noise
       // [selectedAction] = requireDefined(
@@ -352,38 +356,34 @@ export function episode<
       )
     );
     nonTerminalStates.push(stateSearchData);
-    const [newState] = game.apply(snapshot, requireDefined(selectedAction));
+    const [newState, chanceKey] = game.apply(
+      snapshot,
+      requireDefined(selectedAction)
+    );
     snapshot = snapshot.derive(newState);
     if (game.result(snapshot) != undefined) {
       break;
     }
-    currentMctsContext = mctsContext();
+    // currentMctsContext = mctsContext();
 
     // Reuse the node for newState from the previous search tree if it exists.
     // It might not exist if there was non-determinism in the application of the
     // latest action.
-    // const existingStateNode = root.actionToChild
-    //   .get(actionWithGreatestExpectedValue)
-    //   ?.chanceKeyToChild.get(chanceKey);
-    // if (existingStateNode != undefined) {
-    //   if (!(existingStateNode instanceof NonTerminalStateNode)) {
-    //     throw new Error(
-    //       `Node for non-terminal state was not NonTerminalStateNode`
-    //     );
-    //   }
-    //   if (existingStateNode.context == currentMctsContext) {
-    //     root = existingStateNode;
-    //   } else {
-    //     console.log(
-    //       "Ignoring current child node because it has a different current player"
-    //     );
-    //     root = new NonTerminalStateNode(currentMctsContext, snapshot);
-    //   }
-    // } else {
-    //   root = new NonTerminalStateNode(currentMctsContext, snapshot);
-    // }
+    const existingStateNode = root.actionToChild
+      .get(requireDefined(selectedAction))
+      ?.chanceKeyToChild.get(chanceKey);
+    if (existingStateNode != undefined) {
+      if (!(existingStateNode instanceof NonTerminalStateNode)) {
+        throw new Error(
+          `Node for non-terminal state was not NonTerminalStateNode`
+        );
+      }
+      root = existingStateNode;
+    } else {
+      root = new NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
+    }
 
-    root = new NonTerminalStateNode(currentMctsContext, snapshot);
+    // root = new NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
 
     // console.log(`New root node has ${root.visitCount} visits`);
   }
