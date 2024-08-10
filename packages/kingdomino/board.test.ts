@@ -4,6 +4,7 @@ import { test } from "vitest";
 import { assert } from "chai";
 import { Map, Range } from "immutable";
 import {
+  KingdominoVectors,
   LocationState,
   PlaceTile,
   boardIndices,
@@ -12,7 +13,7 @@ import {
   playAreaRadius,
 } from "./base.js";
 import { PlayerBoard, extend } from "./board.js";
-import { Tile } from "./tile.js";
+import { Terrain, Tile } from "./tile.js";
 
 test("occupiedRectangle: tiles reach top right of play area: result includes edges", () => {
   const board = new PlayerBoard(
@@ -267,7 +268,129 @@ test("isFilled filled: returns true", () => {
   }
   const board = new PlayerBoard(locationStates);
 
-  // console.log(board.locationStates.count());
-
   assert.isTrue(board.isFilled());
+});
+
+test("rotate: parameter too low: throws", () => {
+  const board = new PlayerBoard(Map());
+
+  assert.throws(() => board.rotate(0));
+});
+
+test("rotate: parameter too high: throws", () => {
+  const board = new PlayerBoard(Map());
+
+  assert.throws(() => board.rotate(4));
+});
+
+test("rotate: 90 degrees", () => {
+  const board = new PlayerBoard(
+    Map([
+      [new Vector2(-1, 1), LocationState.instance(13, 0)],
+      [new Vector2(-1, 2), LocationState.instance(13, 1)],
+    ])
+  );
+
+  const rotated = board.rotate(1);
+
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 2)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, 1)).terrain,
+    Terrain.TERRAIN_HAY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(2, 1)).terrain,
+    Terrain.TERRAIN_FOREST
+  );
+});
+
+test("rotate: 180 degrees", () => {
+  const board = new PlayerBoard(
+    Map([
+      [new Vector2(-1, 1), LocationState.instance(13, 0)],
+      [new Vector2(-1, 2), LocationState.instance(13, 1)],
+    ])
+  );
+
+  const rotated = board.rotate(2);
+
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 2)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, -1)).terrain,
+    Terrain.TERRAIN_HAY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, -2)).terrain,
+    Terrain.TERRAIN_FOREST
+  );
+});
+
+test("rotate: 270 degrees", () => {
+  const board = new PlayerBoard(
+    Map([
+      [new Vector2(-1, 1), LocationState.instance(13, 0)],
+      [new Vector2(-1, 2), LocationState.instance(13, 1)],
+    ])
+  );
+
+  const rotated = board.rotate(3);
+
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 2)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, -1)).terrain,
+    Terrain.TERRAIN_HAY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-2, -1)).terrain,
+    Terrain.TERRAIN_FOREST
+  );
+});
+
+test("mirror: returns mirrored board", () => {
+  const board = new PlayerBoard(
+    Map([
+      [new Vector2(-1, 1), LocationState.instance(13, 0)],
+      [new Vector2(-1, 2), LocationState.instance(13, 1)],
+    ])
+  );
+
+  const rotated = board.mirror();
+
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 2)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, 1)).terrain,
+    Terrain.TERRAIN_HAY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, 2)).terrain,
+    Terrain.TERRAIN_FOREST
+  );
 });

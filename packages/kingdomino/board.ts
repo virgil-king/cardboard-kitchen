@@ -294,12 +294,42 @@ export class PlayerBoard implements ValueObject {
     return this.locationStates.count() == 24;
   }
 
+  rotate(quarterTurns: number): PlayerBoard {
+    if (quarterTurns < 1 || quarterTurns > 3) {
+      throw new Error(`Invalid number of turns: ${quarterTurns}`);
+    }
+    var map = Map<Vector2, LocationState>();
+    for (const [location, state] of this.locationStates) {
+      var newLocation = location;
+      for (let i = 0; i < quarterTurns; i++) {
+        newLocation = KingdominoVectors.instance(newLocation.y, -newLocation.x);
+      }
+      map = map.set(newLocation, state);
+    }
+    return new PlayerBoard(map);
+  }
+
+  /**
+   * Returns {@link this} mirrored around the y axis.
+   *
+   * Mirroring around the x axis can be achieve by combining rotation and mirroring.
+   */
+  mirror(): PlayerBoard {
+    var map = Map<Vector2, LocationState>();
+    for (const [location, state] of this.locationStates) {
+      var newLocation = KingdominoVectors.instance(-location.x, location.y);
+      map = map.set(newLocation, state);
+    }
+    return new PlayerBoard(map);
+  }
+
   equals(other: unknown): boolean {
     if (!(other instanceof PlayerBoard)) {
       return false;
     }
     return this.locationStates.equals(other.locationStates);
   }
+
   hashCode(): number {
     return this.locationStates.hashCode();
   }
