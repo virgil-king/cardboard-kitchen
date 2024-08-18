@@ -43,6 +43,14 @@ test("Direction#opposite: returns opposite direction", () => {
   assert.equal(Direction.LEFT.opposite(), Direction.RIGHT);
 });
 
+test("Direction#transform: mirror", () => {
+  assert.equal(Direction.LEFT.transform({ mirror: true }), Direction.RIGHT);
+});
+
+test("Direction#transform: rotate", () => {
+  assert.equal(Direction.UP.transform({ quarterTurns: 2 }), Direction.DOWN);
+});
+
 test("Rectangle#height: returns expected value", () => {
   assert(new Rectangle(1, 5, 3, 2).height == 3);
 });

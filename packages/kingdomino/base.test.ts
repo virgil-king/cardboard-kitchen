@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { ClaimTile, KingdominoConfiguration, LocationState, PlaceTile } from "./base.js";
+import { ClaimTile, KingdominoConfiguration, KingdominoVectors, LocationState, PlaceTile } from "./base.js";
 import { Direction, Vector2 } from "./util.js";
 
 test("LocationState.equals: equal: returns true", () => {
@@ -26,16 +26,26 @@ test("ClaimTile: codec round trip", () => {
 });
 
 test("PlaceTile: codec round trip", () => {
-    const place = new PlaceTile(new Vector2(2, -4), Direction.UP);
+  const place = new PlaceTile(new Vector2(2, -4), Direction.UP);
 
-    const json = place.toJson();
+  const json = place.toJson();
 
-    assert.isTrue(place.equals(PlaceTile.fromJson(json)));
+  assert.isTrue(place.equals(PlaceTile.fromJson(json)));
+});
+
+test("PlaceTile: transform", () => {
+  const place = new PlaceTile(new Vector2(2, -1), Direction.RIGHT);
+
+  const transformed = place.transform({ mirror: true, quarterTurns: 1 });
+
+  assert.equal(transformed.location.x, -1);
+  assert.equal(transformed.location.y, 2);
+  assert.equal(transformed.direction, Direction.UP);
 });
 
 test("KingdominoConfiguration: codec round trip", () => {
   const before = new KingdominoConfiguration(3, [1, 2, 3]);
-  
+
   const after = KingdominoConfiguration.fromJson(before.toJson());
 
   assert.equal(before.playerCount, after.playerCount);
@@ -48,4 +58,13 @@ test("LocationState: codec round trip", () => {
   const after = LocationState.fromJson(before.toJson());
 
   assert.isTrue(before.equals(after));
+});
+
+test("KingdominoVectors: transform", () => {
+  const before = KingdominoVectors.instance(-3, -2);
+
+  const after = KingdominoVectors.transform(before, { mirror: true, quarterTurns: 3 });
+
+  assert.equal(after.x, 2);
+  assert.equal(after.y, 3);
 });

@@ -1,6 +1,7 @@
 import {
   SettablePromise,
   proportionalRandom,
+  randomBetween,
   requireDefined,
   sleep,
 } from "studio-util";
@@ -24,11 +25,19 @@ import {
   ActionStatistics,
   EpisodeTrainingData,
   StateSearchData,
+  StateTrainingData,
 } from "training-data";
+import { LogDirectory } from "./logdirectory.js";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
 });
+
+const gbBytes = 1024 * 1024 * 1024;
+const maxModelBytes = 16 * gbBytes;
+const maxEpisodeBytes = 64 * gbBytes;
+
+const textEncoder = new TextEncoder();
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -42,27 +51,33 @@ export async function train_parallel<
   game: Game<C, S, A>,
   model: Model<C, S, A, EncodedSampleT>,
   batchSize: number,
-  // batchCount: number,
   sampleBufferSize: number,
   workerScript: string,
-  modelsPath: string,
-  episodesDir?: string
+  modelsDirPath: string,
+  episodesDirPath?: string
 ) {
   const trainingModel = model.trainingModel(batchSize);
   const modelArtifacts = await model.toJson();
+  const modelsDir =
+    modelsDirPath == undefined
+      ? undefined
+      : new LogDirectory(modelsDirPath, maxModelBytes);
+  const episodesDir =
+    episodesDirPath == undefined
+      ? undefined
+      : new LogDirectory(episodesDirPath, maxEpisodeBytes);
 
   const buffer = new EpisodeBuffer<
-    EncodedSampleT,
-    SimpleArrayLike<EncodedSampleT>
+    StateTrainingData<C, S, A>,
+    SimpleArrayLike<StateTrainingData<C, S, A>>
   >(sampleBufferSize);
 
   const bufferReady = new SettablePromise<undefined>();
 
-  function processEpisode(message: any) {
+  function addEpisodeToBuffer(message: any) {
     const decoded = EpisodeTrainingData.decode(game, message);
-    const encodedSamples = decoded
-      .stateTrainingDataArray()
-      .map((sample) => trainingModel.encodeSample(sample));
+    const encodedSamples = decoded.stateTrainingDataArray();
+    // .map((sample) => trainingModel.encodeSample(sample));
     buffer.addEpisode(new SimpleArrayLike(encodedSamples));
     if (buffer.sampleCount() >= batchSize) {
       bufferReady.fulfill(undefined);
@@ -70,9 +85,9 @@ export async function train_parallel<
   }
 
   let initialEpisodeCount = 0;
-  if (episodesDir != undefined) {
-    for (const encodedEpisode of loadEpisodes(episodesDir)) {
-      processEpisode(encodedEpisode);
+  if (episodesDirPath != undefined) {
+    for (const encodedEpisode of loadEpisodesJson(episodesDirPath)) {
+      addEpisodeToBuffer(encodedEpisode);
       initialEpisodeCount++;
       if (buffer.sampleCount() >= sampleBufferSize) {
         break;
@@ -84,10 +99,19 @@ export async function train_parallel<
   }
 
   let episodesReceived = 0;
+  let episodeBatchesReceived = 0;
   const workersStartedMs = performance.now();
-  function receiveEpisode(message: any) {
-    processEpisode(message);
-    episodesReceived++;
+  function receiveEpisodeBatch(episodes: Array<any>) {
+    for (const episodeJson of episodes) {
+      addEpisodeToBuffer(episodeJson);
+      if (episodesDir != undefined) {
+        episodesDir.writeData(
+          textEncoder.encode(JSON.stringify(episodeJson, undefined, 1))
+        );
+      }
+      episodesReceived++;
+    }
+    episodeBatchesReceived++;
     const sinceWorkersStartedMs = performance.now() - workersStartedMs;
     console.log(
       `Seconds per episode: ${decimalFormat.format(
@@ -96,12 +120,12 @@ export async function train_parallel<
     );
   }
 
-  const workerCount = 1; // os.cpus().length - 2;
+  const workerCount = 16; // os.cpus().length - 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
   for (let i = 0; i < workerCount; i++) {
     const channel = new worker_threads.MessageChannel();
-    channel.port1.on("message", receiveEpisode);
+    channel.port1.on("message", receiveEpisodeBatch);
     const worker = new worker_threads.Worker(workerScript, {
       workerData: channel.port2,
       transferList: [channel.port2],
@@ -114,12 +138,14 @@ export async function train_parallel<
 
   await bufferReady.promise;
 
-  let episodesBetweenModelUpdates = workerCount;
-  let episodesReceivedAtLastModelUpdate = 0;
+  let episodeBatchesBetweenModelUpdates = workerCount;
+  let episodeBatchesReceivedAtLastModelUpdate = 0;
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
   while (true) {
-    const batch = buffer.sample(batchSize);
+    const batch = buffer.sample(batchSize).map((sample) => {
+      return trainingModel.encodeSample(sample);
+    });
     const loss = await trainingModel.train(batch);
     trailingLosses = trailingLosses.push(loss);
     if (trailingLosses.count() > 100) {
@@ -130,14 +156,17 @@ export async function train_parallel<
       trailingLosses.count();
     console.log(`Sliding window loss: ${trailingLoss}`);
     await sleep(0);
-    const episodesReceivedSinceLastModelUpdate =
-      episodesReceived - episodesReceivedAtLastModelUpdate;
+    const episodeBatchesReceivedSinceLastModelUpdate =
+      episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
     // console.log(`${newEpisodesReceived} new episodes received; `)
-    if (episodesReceivedSinceLastModelUpdate >= episodesBetweenModelUpdates) {
+    if (
+      episodeBatchesReceivedSinceLastModelUpdate >=
+      episodeBatchesBetweenModelUpdates
+    ) {
       console.log(
-        `Broadcasting updated model after ${episodesReceived} total episodes`
+        `Broadcasting updated model after ${episodeBatchesReceived} episode batches`
       );
-      episodesReceivedAtLastModelUpdate = episodesReceived;
+      episodeBatchesReceivedAtLastModelUpdate = episodeBatchesReceived;
       const modelArtifacts = await model.toJson();
       for (const port of workerPorts) {
         port.postMessage(modelArtifacts);
@@ -145,10 +174,14 @@ export async function train_parallel<
     }
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
-    if (timeSinceLastSave > 15 * 60 * 1_000) {
-      const path = `${modelsPath}/${new Date().toISOString()}`;
-      fs.mkdirSync(path, { recursive: true });
-      model.save(path);
+    if (modelsDir != undefined && timeSinceLastSave > 15 * 60 * 1_000) {
+      // const path = `${modelsDirPath}/${new Date().toISOString()}`;
+      // fs.mkdirSync(path, { recursive: true });
+      // model.save(path);
+      modelsDir.write((path) => {
+        fs.mkdirSync(path);
+        model.save(path);
+      });
       lastSaveTime = now;
       console.log(
         `Saved model after ${decimalFormat.format(timeSinceLastSave)} ms`
@@ -157,11 +190,7 @@ export async function train_parallel<
   }
 }
 
-function* loadEpisodes<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
->(episodesDir: string): Generator<any> {
+function* loadEpisodesJson(episodesDir: string): Generator<any> {
   const files = fs.readdirSync(episodesDir);
   let filenameToModeTime = Map<string, number>();
   for (const filename of files) {
@@ -179,8 +208,7 @@ function* loadEpisodes<
     const episodeString = fs.readFileSync(path, {
       encoding: "utf8",
     });
-    const episodeJson = JSON.parse(episodeString);
-    yield episodeJson;
+    yield JSON.parse(episodeString);
   }
 }
 

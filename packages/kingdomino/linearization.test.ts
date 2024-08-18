@@ -1,6 +1,8 @@
 import { test } from "vitest";
 import { assert } from "chai";
 import { Linearization } from "./linearization.js";
+import _ from "lodash";
+import { requireDefined } from "studio-util";
 
 test("constructor: too few dimensions: throws", () => {
   assert.throws(() => {
@@ -107,6 +109,54 @@ test("get: five dimensions: round trip", () => {
   linearization.set(array, value, 1, 0, 1, 1, 0);
 
   assertClose(linearization.get(array, 1, 0, 1, 1, 0), value);
+});
+
+test("getOffset: one dimension", () => {
+  const linearization = new Linearization([2, 3, 4]);
+  const array = new Float32Array(24);
+
+  assert.equal(12, linearization.getOffset(1));
+});
+
+test("getOffset: two dimensions", () => {
+  const linearization = new Linearization([3, 5, 2]);
+  const array = new Float32Array(30);
+
+  assert.equal(26, linearization.getOffset(2, 3));
+});
+
+test("scan: two dimensions", () => {
+  const linearization = new Linearization([3, 5]);
+  const array = new Float32Array(15);
+  array[linearization.getOffset(1, 1)] = 4;
+  array[linearization.getOffset(2, 3)] = 7;
+  const visited = new Array<[number, number, number]>();
+
+  linearization.scan(array, (value, dim0, dim1) => {
+    if (value != 0) {
+      visited.push([value, dim0, dim1]);
+    }
+  });
+
+  assert.isTrue(_.isEqual(visited[0], [4, 1, 1]));
+  assert.isTrue(_.isEqual(visited[1], [7, 2, 3]));
+});
+
+test("scan: three dimensions", () => {
+  const linearization = new Linearization([3, 3, 4]);
+  const array = new Float32Array(36);
+  array[linearization.getOffset(1, 1, 2)] = 4;
+  array[linearization.getOffset(2, 1, 3)] = 7;
+  const visited = new Array<[number, number, number, number]>();
+
+  linearization.scan(array, (value, dim0, dim1, dim2) => {
+    if (value != 0) {
+      visited.push([value, dim0, dim1, requireDefined(dim2)]);
+    }
+  });
+
+  assert.isTrue(_.isEqual(visited[0], [4, 1, 1, 2]));
+  assert.isTrue(_.isEqual(visited[1], [7, 2, 1, 3]));
 });
 
 function assertClose(actual: number, expected: number) {

@@ -1,5 +1,10 @@
 import { GameConfiguration, JsonSerializable, Player } from "game";
-import { Direction, Vector2, vector2Json } from "./util.js";
+import {
+  BoardTransformation,
+  Direction,
+  Vector2,
+  vector2Json,
+} from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 
 import { List, Map, ValueObject, hash, Range } from "immutable";
@@ -56,7 +61,7 @@ export class LocationState implements ValueObject {
   private constructor(
     readonly tileNumber: number,
     readonly tileLocationIndex: number
-  ) {}
+  ) { }
 
   static fromJson(json: unknown): LocationState {
     const decoded = decodeOrThrow(locationStateJson, json);
@@ -149,7 +154,7 @@ export const playerCountToConfiguration = Map<
 ]);
 
 export class TileClaim implements ValueObject {
-  constructor(readonly playerId: string) {}
+  constructor(readonly playerId: string) { }
   equals(other: unknown): boolean {
     if (!(other instanceof TileClaim)) {
       return false;
@@ -171,7 +176,7 @@ type TileOfferJson = io.TypeOf<typeof tileOfferJson>;
 export class TileOffer implements JsonSerializable, ValueObject {
   static readonly EMPTY = new TileOffer();
 
-  constructor(readonly tileNumber?: number, readonly claim?: TileClaim) {}
+  constructor(readonly tileNumber?: number, readonly claim?: TileClaim) { }
   static fromJson(json: unknown): TileOffer {
     const decoded = decodeOrThrow(tileOfferJson, json);
     const claim =
@@ -218,7 +223,7 @@ export const tileOffersJson = io.type({ offers: io.array(tileOfferJson) });
 type TileOffersJson = io.TypeOf<typeof tileOffersJson>;
 
 export class TileOffers implements JsonSerializable, ValueObject {
-  constructor(readonly offers: List<TileOffer>) {}
+  constructor(readonly offers: List<TileOffer>) { }
   static fromJson(json: unknown): TileOffers {
     const decoded = decodeOrThrow(tileOffersJson, json);
     return new TileOffers(
@@ -303,7 +308,7 @@ export const claimJson = io.type({
 type ClaimJson = io.TypeOf<typeof claimJson>;
 
 export class ClaimTile implements JsonSerializable {
-  constructor(readonly offerIndex: number) {}
+  constructor(readonly offerIndex: number) { }
   static fromJson(json: unknown): ClaimTile {
     const parsed = decodeOrThrow(claimJson, json);
     return new ClaimTile(parsed.offerIndex);
@@ -321,7 +326,7 @@ export const placeJson = io.type({
 type PlaceJson = io.TypeOf<typeof placeJson>;
 
 export class PlaceTile implements ValueObject, JsonSerializable {
-  constructor(readonly location: Vector2, readonly direction: Direction) {}
+  constructor(readonly location: Vector2, readonly direction: Direction) { }
   static fromJson(json: unknown) {
     const parsed = decodeOrThrow(placeJson, json);
     return new PlaceTile(
@@ -348,6 +353,11 @@ export class PlaceTile implements ValueObject, JsonSerializable {
   flip() {
     return new PlaceTile(this.squareLocation(1), this.direction.opposite());
   }
+  transform(transformation: BoardTransformation) {
+    var location = KingdominoVectors.transform(this.location, transformation);
+    var direction = this.direction.transform(transformation);
+    return new PlaceTile(location, direction);
+  }
   equals(other: unknown): boolean {
     if (!(other instanceof PlaceTile)) {
       return false;
@@ -365,7 +375,7 @@ export class PlaceTile implements ValueObject, JsonSerializable {
   toJson(): PlaceJson {
     return {
       location: this.location.toJson(),
-      direction: this.direction.index(),
+      direction: this.direction.index,
     };
   }
 }
@@ -406,6 +416,20 @@ export class KingdominoVectors {
 
   static plus(a: Vector2, b: Vector2) {
     return this.instance(a.x + b.x, a.y + b.y);
+  }
+
+  static transform(vector: Vector2, transformation: BoardTransformation): Vector2 {
+    var x = vector.x;
+    var y = vector.y;
+    if (transformation.mirror) {
+      x = -x;
+    }
+    for (let i = 0; i < (transformation.quarterTurns || 0); i++) {
+      const temp = x;
+      x = y;
+      y = -temp;
+    }
+    return this.instance(x, y);
   }
 
   static fromJson(json: unknown): Vector2 {

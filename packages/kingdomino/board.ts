@@ -13,7 +13,7 @@ import {
   KingdominoVectors
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
-import { Vector2, Rectangle, Direction, vector2Json } from "./util.js";
+import { Vector2, Rectangle, Direction, vector2Json, BoardTransformation } from "./util.js";
 import * as io from "io-ts";
 import { decodeOrThrow } from "studio-util";
 
@@ -294,8 +294,19 @@ export class PlayerBoard implements ValueObject {
     return this.locationStates.count() == 24;
   }
 
-  rotate(quarterTurns: number): PlayerBoard {
-    if (quarterTurns < 1 || quarterTurns > 3) {
+  transform(transformation: BoardTransformation): PlayerBoard {
+    var result: PlayerBoard = this;
+    if (transformation.mirror == true) {
+      result = this.mirror();
+    }
+    if (transformation.quarterTurns != undefined) {
+      result = result.rotate(transformation.quarterTurns);
+    }
+    return result;
+  }
+
+  private rotate(quarterTurns: number): PlayerBoard {
+    if (quarterTurns < 0 || quarterTurns > 3) {
       throw new Error(`Invalid number of turns: ${quarterTurns}`);
     }
     var map = Map<Vector2, LocationState>();
@@ -304,6 +315,7 @@ export class PlayerBoard implements ValueObject {
       for (let i = 0; i < quarterTurns; i++) {
         newLocation = KingdominoVectors.instance(newLocation.y, -newLocation.x);
       }
+      // console.log(`Rotating ${JSON.stringify(location)} to ${JSON.stringify(newLocation)}`);
       map = map.set(newLocation, state);
     }
     return new PlayerBoard(map);
@@ -314,10 +326,11 @@ export class PlayerBoard implements ValueObject {
    *
    * Mirroring around the x axis can be achieve by combining rotation and mirroring.
    */
-  mirror(): PlayerBoard {
+  private mirror(): PlayerBoard {
     var map = Map<Vector2, LocationState>();
     for (const [location, state] of this.locationStates) {
       var newLocation = KingdominoVectors.instance(-location.x, location.y);
+      // console.log(`Mirroring ${JSON.stringify(location)} to ${JSON.stringify(newLocation)}`);
       map = map.set(newLocation, state);
     }
     return new PlayerBoard(map);

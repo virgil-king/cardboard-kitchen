@@ -25,12 +25,12 @@ import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
-import { requireDefined } from "studio-util";
+import { driveGenerators, requireDefined } from "studio-util";
 
 // const model1 = KingdominoModel.load(process.argv[2]);
 // const model2 = KingdominoModel.load(process.argv[3]);
 
-const modelPath = newestModelPath("kingdomino", "conv2");
+const modelPath = newestModelPath("kingdomino", "conv3");
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
@@ -46,7 +46,7 @@ const mctsConfig = new MctsConfig<
   KingdominoState,
   KingdominoAction
 >({
-  simulationCount: 512,
+  simulationCount: 256,
   randomPlayoutConfig: {
     weight: 1,
     agent: new RandomKingdominoAgent(),
@@ -148,13 +148,18 @@ class MctsAgent<
     readonly mctsContext: MctsContext<C, S, A>
   ) {}
   act(snapshot: EpisodeSnapshot<C, S>): A {
-    const root = new NonTerminalStateNode(this.mctsContext, snapshot);
+    const root = new NonTerminalStateNode(
+      this.mctsContext,
+      snapshot,
+      this.mctsContext.model.infer([snapshot])[0]
+    );
     // Run simulationCount steps or enough to try every possible action once
     let selectedAction: A | undefined = undefined;
     if (root.actionToChild.size == 1) {
       // When root has exactly one child, visit it once to populate the
       // action statistics, but no further visits are necessary
-      root.visit();
+      // root.visit();
+      this.visit(root);
       return root.actionToChild.keys().next().value;
     } else {
       for (let i of Range(
@@ -164,7 +169,8 @@ class MctsAgent<
           root.actionToChild.size
         )
       )) {
-        root.visit();
+        // root.visit();
+        this.visit(root);
       }
       const currentPlayer = requireDefined(this.game.currentPlayer(snapshot));
       // Greedily select action with greatest expected value
@@ -176,58 +182,22 @@ class MctsAgent<
         )
       );
       return selectedAction;
-      // const actionToVisitCount = Seq.Keyed(root.actionToChild).map(
-      //   (node) => node.visitCount
-      // );
-      // selectedAction = proportionalRandom(actionToVisitCount);
     }
-    // const stateSearchData = new StateSearchData(
-    //   snapshot.state,
-    //   root.inferenceResult.value,
-    //   Map(
-    //     Seq(root.actionToChild.entries()).map(([action, child]) => [
-    //       action,
-    //       new ActionStatistics(
-    //         child.prior,
-    //         child.visitCount,
-    //         new PlayerValues(child.playerExpectedValues.playerIdToValue)
-    //       ),
-    //     ])
-    //   )
-    // );
-    // nonTerminalStates.push(stateSearchData);
-    // const [newState] = game.apply(snapshot, requireDefined(selectedAction));
-    // snapshot = snapshot.derive(newState);
-    // if (game.result(snapshot) != undefined) {
-    //   break;
-    // }
-    // currentMctsContext = mctsContext();
+  }
 
-    // Reuse the node for newState from the previous search tree if it exists.
-    // It might not exist if there was non-determinism in the application of the
-    // latest action.
-    // const existingStateNode = root.actionToChild
-    //   .get(actionWithGreatestExpectedValue)
-    //   ?.chanceKeyToChild.get(chanceKey);
-    // if (existingStateNode != undefined) {
-    //   if (!(existingStateNode instanceof NonTerminalStateNode)) {
-    //     throw new Error(
-    //       `Node for non-terminal state was not NonTerminalStateNode`
-    //     );
+  visit(node: NonTerminalStateNode<C, S, A>) {
+    const generator = node.visit();
+    // let next = generator.next();
+    // while (true) {
+    //   if (next.done) {
+    //     return;
     //   }
-    //   if (existingStateNode.context == currentMctsContext) {
-    //     root = existingStateNode;
-    //   } else {
-    //     console.log(
-    //       "Ignoring current child node because it has a different current player"
-    //     );
-    //     root = new NonTerminalStateNode(currentMctsContext, snapshot);
-    //   }
-    // } else {
-    //   root = new NonTerminalStateNode(currentMctsContext, snapshot);
+    //   const inference = this.mctsContext.model.infer([next.value])[0];
+    //   next = generator.next(inference);
     // }
-
-    // root = new NonTerminalStateNode(currentMctsContext, snapshot);
+    driveGenerators([generator], (snapshots) =>
+      this.mctsContext.model.infer(snapshots)
+    );
   }
 }
 

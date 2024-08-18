@@ -14,6 +14,7 @@ import {
   playAreaRadius,
   playAreaSize,
   KingdominoVectors,
+  LocationState,
 } from "./base.js";
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
@@ -25,9 +26,14 @@ import {
 } from "training";
 import { Map, Range, Seq } from "immutable";
 import tf from "@tensorflow/tfjs-node-gpu";
-import tfcore from "@tensorflow/tfjs-core";
+import tfcore, { Conv3DBackpropFilterV2 } from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
-import { requireDefined } from "studio-util";
+import {
+  randomBelow,
+  randomBetween,
+  randomBoolean,
+  requireDefined,
+} from "studio-util";
 import _ from "lodash";
 import { LocationProperties, Terrain, Tile, terrainValues } from "./tile.js";
 import {
@@ -39,11 +45,18 @@ import {
   ScalarCodec,
   OptionalCodec,
   RawCodec,
+  Sparse2dCodec,
 } from "./codec.js";
 import { PlayerBoard } from "./board.js";
-import { Direction, Vector2 } from "./util.js";
+import {
+  BoardTransformation,
+  Direction,
+  NO_TRANSFORM,
+  Vector2,
+} from "./util.js";
 import { ActionStatistics, StateTrainingData } from "training-data";
 import { stat } from "fs";
+import { Linearization } from "./linearization.js";
 
 /*
  * This model is a function from state to per-player value and move
@@ -62,7 +75,7 @@ class TerrainTypeCodec implements VectorCodec<Terrain> {
     this.oneHotCodec.encode(value, into, offset);
   }
   decode(from: Float32Array, offset: number): Terrain {
-    throw new Error("Method not implemented.");
+    return this.oneHotCodec.decode(from, offset);
   }
 }
 
@@ -77,35 +90,69 @@ class NextActionCodec implements VectorCodec<NextAction> {
   }
 }
 
-// const locationPropertiesCodec = new ObjectCodec({
-//   terrainType: new TerrainTypeCodec(),
-//   crownCount: new ScalarCodec(),
-// });
-
-// type LocationPropertiesValue = CodecValueType<typeof locationPropertiesCodec>;
-
-// class LocationPropertiesCodec implements TensorCodec<LocationProperties> {
-//   private readonly codec = new ObjectCodec({
-//     terrain: new TerrainTypeCodec(),
-//     crowns: new ScalarCodec(),
-//   });
-//   columnCount = this.codec.columnCount;
-//   toTensor(value: LocationProperties): readonly number[] {
-//     return this.codec.toTensor(value);
-//   }
-//   fromTensor(values: readonly number[]): LocationProperties {
-//     throw new Error("Method not implemented.");
-//   }
-// }
-
-const locationPropertiesCodec = new ObjectCodec({
+// Exported for testing
+export const locationPropertiesCodec = new ObjectCodec({
   terrain: new TerrainTypeCodec(),
   crowns: new ScalarCodec(),
 });
 
-const tileCodec = new ArrayCodec(locationPropertiesCodec, 2);
+export class LocationStateCodec implements VectorCodec<LocationState> {
+  columnCount = locationPropertiesCodec.columnCount;
+  encode(value: LocationState, into: Float32Array, offset: number): void {
+    const locationProperties = value.properties();
+    locationPropertiesCodec.encode(
+      {
+        terrain: locationProperties.terrain,
+        crowns: locationProperties.crowns,
+      },
+      into,
+      offset
+    );
+  }
+  decode(from: Float32Array, offset: number): LocationState {
+    throw new Error("Not implemented");
+  }
+}
 
-type TileValue = CodecValueType<typeof tileCodec>;
+// Exported for testing
+export const locationStateCodec = new LocationStateCodec();
+
+// Exported for testing
+export const boardCodec = new (class
+  implements VectorCodec<Map<Vector2, LocationState>>
+{
+  readonly mapCodec = new Sparse2dCodec(
+    -playAreaRadius,
+    playAreaRadius + 1,
+    -playAreaRadius,
+    playAreaRadius + 1,
+    locationStateCodec
+  );
+  readonly columnCount = this.mapCodec.columnCount;
+  readonly centerOffset = this.mapCodec.linearization.getOffset(
+    playAreaRadius,
+    playAreaRadius
+  );
+  readonly centerProperties = { terrain: Terrain.TERRAIN_CENTER, crowns: 0 };
+  encode(
+    value: Map<Vector2, LocationState>,
+    into: Float32Array,
+    offset: number
+  ): void {
+    this.mapCodec.encode(value, into, offset);
+    // Encode the center square which isn't included in board maps
+    locationPropertiesCodec.encode(
+      this.centerProperties,
+      into,
+      this.centerOffset
+    );
+  }
+  decode(from: Float32Array, offset: number): Map<Vector2, LocationState> {
+    throw new Error("Method not implemented.");
+  }
+})();
+
+const tileCodec = new ArrayCodec(locationPropertiesCodec, 2);
 
 const tileOfferCodec = new ObjectCodec({
   locationProperties: new OptionalCodec(tileCodec),
@@ -118,13 +165,7 @@ type TileOfferValue = CodecValueType<typeof tileOfferCodec>;
 
 const playerStateCodec = new ObjectCodec({
   score: new ScalarCodec(),
-  // locationState: new ArrayCodec(
-  //   locationPropertiesCodec,
-  //   playAreaSize * playAreaSize
-  // ),
 });
-
-// type PlayerStateValue = CodecValueType<typeof playerStateCodec>;
 
 // Visible for testing
 // TODO included drawn or remaining tile numbers
@@ -158,24 +199,25 @@ const discardProbabilityCodec = new ScalarCodec();
 // legality information which doesn't fit neatly into a value type.
 const placeProbabilitiesCodec = new RawCodec(playAreaSize * playAreaSize * 4);
 
-export function placementToCodecIndex(placeTile: PlaceTile): number {
-  const result =
-    (placeTile.location.x + playAreaRadius) * 9 * 4 +
-    (placeTile.location.y + playAreaRadius) * 4 +
-    requireDefined(Direction.valuesArray.indexOf(placeTile.direction));
-  // console.log(
-  //   `Using index ${result} for placement ${JSON.stringify(placeTile)}`
-  // );
-  return result;
-}
+// x => y => direction => prior
+export const policyLinearization = new Linearization(
+  [playAreaSize, playAreaSize, 4],
+  true
+);
 
-// export function codecIndexToPlacement(index: number): PlaceTile {
-//   const x = Math.floor(index / (9 * 4));
-//   let remainder = index % x;
-//   const y = Math.floor(remainder / 4);
-//   const direction = Direction.valuesArray[remainder % 4];
-//   return new PlaceTile(new Vector2(x, y), direction);
-// }
+export function setPlacementVisitCount(
+  placeTile: PlaceTile,
+  visitCount: number,
+  into: Float32Array
+) {
+  policyLinearization.set(
+    into,
+    visitCount,
+    placeTile.location.x + playAreaRadius,
+    placeTile.location.y + playAreaRadius,
+    placeTile.direction.index
+  );
+}
 
 // Visible for testing
 export const policyCodec = new ObjectCodec({
@@ -184,18 +226,10 @@ export const policyCodec = new ObjectCodec({
   placeProbabilities: placeProbabilitiesCodec,
 });
 
-export enum HiddenLayerStructure {
-  ONE_HALF_SIZE,
-  FOUR_EIGHTH_SIZE,
-}
-
-type AnyTensor =
-  | tf.SymbolicTensor
-  | tf.SymbolicTensor[]
-  | tf.Tensor<tf.Rank>
-  | tf.Tensor<tf.Rank>[];
-
-type BoardMatrix = ReadonlyArray<ReadonlyArray<ReadonlyArray<number>>>;
+// export enum HiddenLayerStructure {
+//   ONE_HALF_SIZE,
+//   FOUR_EIGHTH_SIZE,
+// }
 
 // Visible for testing
 export class EncodedState {
@@ -203,39 +237,7 @@ export class EncodedState {
     readonly linearState: Float32Array,
     readonly boards: ReadonlyArray<Float32Array>
   ) {}
-
-  // static boardMatrixToFloat32Array(boardMatrix: BoardMatrix) {
-  //   const result = new Float32Array(BoardModule.unitCount);
-  //   for (const [rowIndex, row] of boardMatrix.entries()) {
-  //     const rowOffset = rowIndex * 9 * 9;
-  //     for (const [columnIndex, column] of row.entries()) {
-  //       const columnOffset = rowOffset + columnIndex * 9;
-  //       result.set(column, columnOffset);
-  //     }
-  //   }
-  //   return result;
-  // }
 }
-
-// class EncodedState {
-//   // readonly linearFloat32Array: Float32Array;
-//   // readonly boardArrays: ReadonlyArray<Float32Array>;
-//   constructor(
-//     readonly linearStateArray: ReadonlyArray<number>,
-//     readonly boardStatesArray: ReadonlyArray<BoardMatrix>
-//   ) {
-//     // this.linearFloat32Array = new Float32Array(linearStateArray);
-//     // this.boardArrays = boardStatesArray.map((boardArray) => {
-//     //   const result = new Float32Array(BoardModule.unitCount);
-//     //   for (const [rowIndex, row] of boardArray.entries()) {
-//     //     for (const [columnIndex, column] of row.entries()) {
-
-//     //     }
-//     //   }
-//     //   return result;
-//     // });
-//   }
-// }
 
 export class EncodedSample {
   constructor(
@@ -394,7 +396,8 @@ export class KingdominoConvolutionalModel
   }
 
   encodeState(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
+    boardTransformation: BoardTransformation = NO_TRANSFORM
   ): EncodedState {
     const linearInput = this.encodeLinearState(snapshot);
 
@@ -403,13 +406,17 @@ export class KingdominoConvolutionalModel
         if (
           playerIndex >= snapshot.episodeConfiguration.players.players.count()
         ) {
+          // The zero board is fully symmetrical and doesn't need to be transformed
           return BoardModule.boardZeros;
         } else {
           const player = requireDefined(
             snapshot.episodeConfiguration.players.players.get(playerIndex)
           );
           return KingdominoConvolutionalModel.encodeBoard(
-            snapshot.state.requirePlayerState(player.id).board
+            snapshot.state
+              .requirePlayerState(player.id)
+              // TODO separate random transform for each player
+              .board.transform(boardTransformation)
           );
         }
       })
@@ -509,35 +516,43 @@ export class KingdominoConvolutionalModel
   static encodeBoard(board: PlayerBoard): Float32Array {
     const result = new Float32Array(BoardModule.inputSize);
 
-    // for (const [rowIndex, row] of boardMatrix.entries()) {
-    //   const rowOffset = rowIndex * 9 * 9;
-    //   for (const [columnIndex, column] of row.entries()) {
-    //     const columnOffset = rowOffset + columnIndex * 9;
-    //     result.set(column, columnOffset);
+    boardCodec.encode(board.locationStates, result, 0);
+
+    // for (const gameX of _.range(-playAreaRadius, playAreaRadius + 1)) {
+    //   const matrixX = gameX + playAreaRadius;
+    //   const xOffset = matrixX * playAreaSize * BoardModule.inputChannelCount;
+    //   for (const gameY of _.range(-playAreaRadius, playAreaRadius + 1)) {
+    //     const matrixY = gameY + playAreaRadius;
+    //     const yOffset = matrixY * BoardModule.inputChannelCount;
+    //     const properties = board.getLocationState(
+    //       KingdominoVectors.instance(gameX, gameY)
+    //     );
+    //     if (properties == defaultLocationProperties) {
+    //       // Leave default zeros alone
+    //       continue;
+    //     }
+    //     locationPropertiesCodec.encode(properties, result, xOffset + yOffset);
     //   }
     // }
-    // return result;
 
-    // const result = new Array<Array<ReadonlyArray<number>>>();
-    for (const gameX of _.range(-playAreaRadius, playAreaRadius + 1)) {
-      const matrixX = gameX + playAreaRadius;
-      const xOffset = matrixX * playAreaSize * BoardModule.inputChannelCount;
-      // result[matrixX] = new Array<ReadonlyArray<number>>(playAreaSize);
-      for (const gameY of _.range(-playAreaRadius, playAreaRadius + 1)) {
-        const matrixY = gameY + playAreaRadius;
-        const yOffset = matrixY * BoardModule.inputChannelCount;
-        const properties = board.getLocationState(
-          KingdominoVectors.instance(gameX, gameY)
-        );
-        if (properties == defaultLocationProperties) {
-          // Leave default zeros alone
-          continue;
-        }
-        locationPropertiesCodec.encode(properties, result, xOffset + yOffset);
-        // result[matrixX][matrixY] = locationArray;
-        // result.set(locationArray, xOffset + yOffset);
-      }
-    }
+    // for (const gameX of _.range(-playAreaRadius, playAreaRadius + 1)) {
+    //   const matrixX = gameX + playAreaRadius;
+    //   // const xOffset = matrixX * playAreaSize * BoardModule.inputChannelCount;
+    //   for (const gameY of _.range(-playAreaRadius, playAreaRadius + 1)) {
+    //     const matrixY = gameY + playAreaRadius;
+    //     // const yOffset = matrixY * BoardModule.inputChannelCount;
+    //     const properties = board.getLocationState(
+    //       KingdominoVectors.instance(gameX, gameY)
+    //     );
+    //     if (properties == defaultLocationProperties) {
+    //       // Leave default zeros alone
+    //       continue;
+    //     }
+    //     BoardModule.linearization.set();
+    //     locationPropertiesCodec.encode(properties, result, xOffset + yOffset);
+    //   }
+    // }
+
     return result;
   }
 
@@ -723,23 +738,34 @@ export class KingdominoInferenceModel
       }
 
       // Place actions
-      let placeProbabilityIndex = 0;
-      for (const x of boardIndices) {
-        for (const y of boardIndices) {
-          for (const direction of Direction.valuesArray) {
-            const action = KingdominoAction.placeTile(
-              new PlaceTile(KingdominoVectors.instance(x, y), direction)
-            );
-            if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
-              policy = policy.set(
-                action,
-                output.placeProbabilities[placeProbabilityIndex]
-              );
-            }
-            placeProbabilityIndex++;
+      // let placeProbabilityIndex = 0;
+      // for (const x of boardIndices) {
+      //   for (const y of boardIndices) {
+      //     for (const direction of Direction.valuesArray) {
+      // for (let i = 0; i < output.placeProbabilities.length; i++) {
+      // const visitCount =
+      policyLinearization.scan(
+        output.placeProbabilities,
+        (value, shiftedX, shiftedY, directionIndex) => {
+          const action = KingdominoAction.placeTile(
+            new PlaceTile(
+              KingdominoVectors.instance(
+                shiftedX - playAreaRadius,
+                shiftedY - playAreaRadius
+              ),
+              Direction.fromIndex(requireDefined(directionIndex))
+            )
+          );
+          if (Kingdomino.INSTANCE.isLegalAction(snapshot, action)) {
+            policy = policy.set(action, value);
           }
         }
-      }
+      );
+      // }
+      // placeProbabilityIndex++;
+      // }
+      // }
+      // }
     }
 
     // console.log(`Decoded ${policy.count()} legal actions`);
@@ -800,7 +826,7 @@ class BoardModule {
   /** Number of steps needed to traverse a kingdom from corner to corner */
   private static blockCount = 8;
 
-  static readonly inputChannelCount = locationPropertiesCodec.columnCount;
+  static readonly inputChannelCount = locationStateCodec.columnCount;
   static readonly outputChannelCount = BoardResidualBlock.filterCount;
 
   static readonly inputShape = [
@@ -818,6 +844,11 @@ class BoardModule {
     this.inputChannelCount
   ).fill(0);
   static readonly boardZeros = new Float32Array(this.inputSize);
+
+  static linearization = new Linearization(
+    [playAreaSize, playAreaSize, this.inputChannelCount],
+    /* strict= */ true
+  );
 
   private inputLayer = tf.layers.conv2d({
     // TODO this should probably be 1
@@ -871,12 +902,11 @@ export class KingdominoTrainingModel
     private readonly model: KingdominoConvolutionalModel,
     private readonly batchSize: number = 128
   ) {
-    // this.optimizer = tf.train.momentum(0.001, 0.9);
     this.optimizer = tf.train.adam();
 
     this.model.model.compile({
       optimizer: this.optimizer,
-      // MSE for value and crossentry for policy
+      // MSE for value and cross entropy for policy
       loss: [
         tf.losses.meanSquaredError,
         scaledLossOrMetric(tf.losses.softmaxCrossEntropy, 0.2),
@@ -889,14 +919,19 @@ export class KingdominoTrainingModel
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    >
+    >,
+    boardTransformation?: BoardTransformation
   ): EncodedSample {
-    const state = this.model.encodeState(sample.snapshot);
+    const transform = boardTransformation ?? {
+      mirror: randomBoolean(),
+      quarterTurns: randomBelow(4),
+    };
+    const state = this.model.encodeState(sample.snapshot, transform);
     const value = this.encodeValues(
       sample.snapshot.episodeConfiguration.players,
       sample.terminalValues
     );
-    const policy = this.encodePolicy(sample.actionToStatistics);
+    const policy = this.encodePolicy(sample.actionToStatistics, transform);
     return new EncodedSample(state, value, policy);
   }
 
@@ -991,6 +1026,7 @@ export class KingdominoTrainingModel
     // console.log(`Losses: ${JSON.stringify(fitResult.history)}`);
     return (fitResult as number[])[0];
   }
+
   encodeValues(
     players: Players,
     terminalValues: PlayerValues
@@ -1011,19 +1047,24 @@ export class KingdominoTrainingModel
     );
     // Using the codec here mainly just provides column count enforcement
     const result = new Float32Array(valueCodec.columnCount);
-    valueCodec.encode({ playerValues: valuesVector }, result, 0);
+    valueCodec.encode(
+      { playerValues: new Float32Array(valuesVector) },
+      result,
+      0
+    );
     return result;
   }
 
   // Visible for testing
   encodePolicy(
-    visitCounts: Map<KingdominoAction, ActionStatistics>
+    visitCounts: Map<KingdominoAction, ActionStatistics>,
+    boardTransformation: BoardTransformation = NO_TRANSFORM
   ): Float32Array {
-    const claimProbabilities = Array<number>(
+    const claimProbabilities = new Float32Array(
       claimProbabilitiesCodec.columnCount
     ).fill(0);
     let discardProbability = 0;
-    const placeProbabilities = Array<number>(
+    const placeProbabilities = new Float32Array(
       placeProbabilitiesCodec.columnCount
     ).fill(0);
 
@@ -1039,8 +1080,11 @@ export class KingdominoTrainingModel
           break;
         }
         case ActionCase.PLACE: {
-          placeProbabilities[placementToCodecIndex(action.data.place)] =
-            statistics.visitCount;
+          setPlacementVisitCount(
+            action.data.place.transform(boardTransformation),
+            statistics.visitCount,
+            placeProbabilities
+          );
           break;
         }
       }

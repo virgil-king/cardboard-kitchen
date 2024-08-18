@@ -12,7 +12,7 @@ import { EpisodeSnapshot } from "game";
 
 const modelName = "conv3";
 const home = process.env.HOME;
-const modelsDir = `${home}/models/kingdomino/${modelName}/${new Date().toISOString()}`;
+const modelsDir = `${home}/ckdata/kingdomino/models/${modelName}/`;
 const episodesDir = `${home}/ckdata/kingdomino/games`;
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,

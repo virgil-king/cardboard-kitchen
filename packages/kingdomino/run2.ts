@@ -1,4 +1,4 @@
-import { train_parallel, Model } from "training";
+import { train_parallel, Model, modelsDirectory } from "training";
 import { Kingdomino } from "./kingdomino.js";
 import _ from "lodash";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
@@ -8,7 +8,7 @@ import { KingdominoState } from "./state.js";
 import { newestModelPath } from "training";
 
 const batchSize = 128;
-const sampleBufferSize = 1024 * 4; // 2048;
+const sampleBufferSize = 1024 * 1024;
 
 const modelName = "conv3";
 const home = process.env.HOME;
@@ -16,7 +16,7 @@ const home = process.env.HOME;
 async function main() {
   const model = await createModel();
 
-  const modelsDir = `${home}/models/kingdomino/${modelName}/${new Date().toISOString()}`;
+  const modelsDir = modelsDirectory("kingdomino", modelName);
   const episodesDir = `${home}/ckdata/kingdomino/games`;
 
   train_parallel(

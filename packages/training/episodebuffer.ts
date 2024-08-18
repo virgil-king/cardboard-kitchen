@@ -14,9 +14,6 @@ export class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
 }
 
 export class EpisodeBuffer<
-  //   C extends GameConfiguration,
-  //   S extends GameState,
-  //   A extends Action
   ItemT,
   ArrayT extends ReadonlyArrayLike<ItemT>
 > {

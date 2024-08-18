@@ -1,5 +1,6 @@
-import { Seq } from "immutable";
-import { requireDefined } from "studio-util";
+import { Map, Seq } from "immutable";
+import { Vector2 } from "./util.js";
+import { Linearization } from "./linearization.js";
 
 export interface VectorCodec<ValueT> {
   columnCount: number;
@@ -146,19 +147,11 @@ export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
     this.columnCount = itemCodec.columnCount * length;
   }
   encode(value: ReadonlyArray<T>, into: Float32Array, offset: number): void {
-    // if (values.length != this.length) {
-    //   throw new Error(
-    //     `Received ${values.length} items but expected ${this.length}`
-    //   );
-    // }
-    // const result: number[] = [];
     let itemOffset = offset;
     for (const item of value) {
       this.itemCodec.encode(item, into, itemOffset);
       itemOffset += this.itemCodec.columnCount;
-      // result.push(...this.itemCodec.encode(item));
     }
-    // return result;
   }
   decode(from: Float32Array, offset: number): ReadonlyArray<T> {
     const result: T[] = [];
@@ -172,12 +165,52 @@ export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
 }
 
 /** Codec that passes through the array of numbers in both directions */
-export class RawCodec implements VectorCodec<ReadonlyArray<number>> {
+export class RawCodec implements VectorCodec<Float32Array> {
   constructor(readonly columnCount: number) {}
-  encode(value: readonly number[], into: Float32Array, offset: number): void {
+  encode(value: Float32Array, into: Float32Array, offset: number): void {
     into.set(value, offset);
   }
-  decode(from: Float32Array, offset: number): readonly number[] {
-    return [...from.slice(offset, offset + this.columnCount)];
+  decode(from: Float32Array, offset: number): Float32Array {
+    return from.slice(offset, offset + this.columnCount);
+  }
+}
+
+/**
+ * Codec for 2D maps of {@link T}.
+ * 
+ * Coordinates with no corresponding entry are left as zeros.
+ */
+export class Sparse2dCodec<T> implements VectorCodec<Map<Vector2, T>> {
+  readonly columnCount: number;
+  readonly linearization: Linearization;
+  constructor(
+    /** Inclusive start of the range of x */
+    readonly xStart: number,
+    /** Exclusive end of the range of x */
+    readonly xEnd: number,
+    /** Inclusive start of the range of y */
+    readonly yStart: number,
+    /** Exclusive end of the range of y */
+    readonly yEnd: number,
+    readonly itemCodec: VectorCodec<T>
+  ) {
+    const xLength = xEnd - xStart;
+    const yLength = yEnd - yStart;
+    this.linearization = new Linearization(
+      [xLength, yLength, itemCodec.columnCount],
+      /* strict= */ true
+    );
+    this.columnCount = this.linearization.arrayLength;
+  }
+  encode(value: Map<Vector2, T>, into: Float32Array, offset: number): void {
+    for (const [key, v] of value.entries()) {
+      const relativeX = key.x - this.xStart;
+      const relativeY = key.y - this.yStart;
+      const itemOffset = this.linearization.getOffset(relativeX, relativeY);
+      this.itemCodec.encode(v, into, offset + itemOffset);
+    }
+  }
+  decode(from: Float32Array, offset: number): Map<Vector2, T> {
+    throw new Error("Method not implemented.");
   }
 }

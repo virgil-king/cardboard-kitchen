@@ -274,13 +274,13 @@ test("isFilled filled: returns true", () => {
 test("rotate: parameter too low: throws", () => {
   const board = new PlayerBoard(Map());
 
-  assert.throws(() => board.rotate(0));
+  assert.throws(() => board.transform({ quarterTurns: -1 }));
 });
 
 test("rotate: parameter too high: throws", () => {
   const board = new PlayerBoard(Map());
 
-  assert.throws(() => board.rotate(4));
+  assert.throws(() => board.transform({ quarterTurns: 4 }));
 });
 
 test("rotate: 90 degrees", () => {
@@ -291,7 +291,7 @@ test("rotate: 90 degrees", () => {
     ])
   );
 
-  const rotated = board.rotate(1);
+  const rotated = board.transform({ quarterTurns: 1 });
 
   assert.equal(
     rotated.getLocationState(new Vector2(-1, 1)).terrain,
@@ -319,7 +319,7 @@ test("rotate: 180 degrees", () => {
     ])
   );
 
-  const rotated = board.rotate(2);
+  const rotated = board.transform({ quarterTurns: 2 });
 
   assert.equal(
     rotated.getLocationState(new Vector2(-1, 1)).terrain,
@@ -347,7 +347,7 @@ test("rotate: 270 degrees", () => {
     ])
   );
 
-  const rotated = board.rotate(3);
+  const rotated = board.transform({ quarterTurns: 3 });
 
   assert.equal(
     rotated.getLocationState(new Vector2(-1, 1)).terrain,
@@ -375,7 +375,7 @@ test("mirror: returns mirrored board", () => {
     ])
   );
 
-  const rotated = board.mirror();
+  const rotated = board.transform({ mirror: true });
 
   assert.equal(
     rotated.getLocationState(new Vector2(-1, 1)).terrain,
@@ -392,5 +392,32 @@ test("mirror: returns mirrored board", () => {
   assert.equal(
     rotated.getLocationState(new Vector2(1, 2)).terrain,
     Terrain.TERRAIN_FOREST
+  );
+});
+
+test("mirror and rotate: applies both transforms", () => {
+  const board = new PlayerBoard(
+    Map([
+      [new Vector2(-1, 1), LocationState.instance(13, 0)],
+    ])
+  );
+
+  const rotated = board.transform({ mirror: true, quarterTurns: 1 });
+
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, 1)).terrain,
+    Terrain.TERRAIN_EMPTY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(1, -1)).terrain,
+    Terrain.TERRAIN_HAY
+  );
+  assert.equal(
+    rotated.getLocationState(new Vector2(-1, -1)).terrain,
+    Terrain.TERRAIN_EMPTY
   );
 });

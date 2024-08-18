@@ -47,17 +47,21 @@ export class Vector2 implements ValueObject, JsonSerializable {
 }
 
 export class Direction {
-  private constructor(readonly offset: Vector2, readonly label: string) {}
-  static readonly LEFT = new Direction(new Vector2(-1, 0), "left");
-  static readonly UP = new Direction(new Vector2(0, 1), "up");
-  static readonly RIGHT = new Direction(new Vector2(1, 0), "right");
-  static readonly DOWN = new Direction(new Vector2(0, -1), "down");
+  private constructor(
+    readonly index: number,
+    readonly offset: Vector2,
+    readonly label: string
+  ) {}
+  static readonly LEFT = new Direction(0, new Vector2(-1, 0), "left");
+  static readonly UP = new Direction(1, new Vector2(0, 1), "up");
+  static readonly RIGHT = new Direction(2, new Vector2(1, 0), "right");
+  static readonly DOWN = new Direction(3, new Vector2(0, -1), "down");
   opposite(): Direction {
     return Direction.opposites[Direction.valuesArray.indexOf(this)];
   }
-  index(): number {
-    return Direction.valuesArray.indexOf(this);
-  }
+  // index(): number {
+  //   return Direction.valuesArray.indexOf(this);
+  // }
   static fromIndex(index: number): Direction {
     return Direction.valuesArray[index];
   }
@@ -79,6 +83,28 @@ export class Direction {
     Direction.LEFT,
     Direction.UP,
   ];
+  static readonly toOneQuarterRotation: ReadonlyArray<Direction> = [
+    Direction.UP,
+    Direction.RIGHT,
+    Direction.DOWN,
+    Direction.LEFT,
+  ];
+  static readonly toLeftRightMirror: ReadonlyArray<Direction> = [
+    Direction.RIGHT,
+    Direction.UP,
+    Direction.LEFT,
+    Direction.DOWN,
+  ];
+  transform(transformation: BoardTransformation): Direction {
+    var result: Direction = this;
+    if (transformation.mirror) {
+      result = Direction.toLeftRightMirror[result.index];
+    }
+    for (let i = 0; i < (transformation.quarterTurns || 0); i++) {
+      result = Direction.toOneQuarterRotation[result.index];
+    }
+    return result;
+  }
   static withOffset(offset: Vector2) {
     return Seq(Direction.values()).find((d) => d.offset.equals(offset));
   }
@@ -132,8 +158,14 @@ export class Rectangle implements ValueObject {
   }
 }
 
-// export function assertDefined<T>(val: T): asserts val is NonNullable<T> {
-//   if (val === undefined || val === null) {
-//     throw new Error(`Expected 'val' to be defined, but received ${val}`);
-//   }
-// }
+export type BoardTransformation = {
+  /**
+   * Whether to mirror around the Y axis (left/right).
+   * 
+   * Mirroring must be performed before rotation.
+   */
+  readonly mirror?: boolean;
+  readonly quarterTurns?: number;
+};
+
+export const NO_TRANSFORM: BoardTransformation = {};

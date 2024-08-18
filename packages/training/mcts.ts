@@ -92,7 +92,7 @@ class ActionNode<
   S extends GameState,
   A extends Action
 > {
-  chanceKeyToChild = ImmutableMap<ChanceKey, StateNode>();
+  chanceKeyToChild = ImmutableMap<ChanceKey, StateNode<C, S, A>>();
   /**
    * Weighted average values across the possible states resulting from this
    * node's action due to chance. Only populated after the first call to
@@ -155,7 +155,7 @@ class ActionNode<
       // debugLog(
       //   () => `Using existing state node for ${JSON.stringify(childState)}`
       // );
-      result = stateNode.visit();
+      result = yield* stateNode.visit();
     }
     this.playerExpectedValues.merge(result);
     debugLog(
@@ -167,7 +167,7 @@ class ActionNode<
     return result;
   }
 
-  addToCache(chanceKey: ChanceKey, node: StateNode) {
+  addToCache(chanceKey: ChanceKey, node: StateNode<C, S, A>) {
     if (
       this.chanceKeyToChild.count() >= this.context.config.maxChanceBranches
     ) {
