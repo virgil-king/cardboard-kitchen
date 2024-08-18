@@ -419,10 +419,9 @@ export function* generateEpisode<
   game: Game<C, S, A>,
   config: EpisodeConfiguration,
   playerIdToAgent: Map<string, Agent<C, S, A>>
-) {
+): Generator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, unknown> {
   let snapshot = game.newEpisode(config);
   let episode = new Episode(game, snapshot);
-  // let state = episode.currentSnapshot.state;
   yield episode.currentSnapshot;
   while (game.result(episode.currentSnapshot) == undefined) {
     const currentPlayer = game.currentPlayer(episode.currentSnapshot);
