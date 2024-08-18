@@ -1,6 +1,12 @@
 import { assert, test } from "vitest";
-import { combineHashes, requireDefined, weightedMerge } from "./util.js";
+import {
+  combineHashes,
+  driveGenerators,
+  requireDefined,
+  weightedMerge,
+} from "./util.js";
 import { Map } from "immutable";
+import _ from "lodash";
 
 test("combineHashes: two inputs: result does not equal either input", () => {
   const result = combineHashes(3, 9);
@@ -34,4 +40,34 @@ test("weightedMerge: key only in b: uses b value", () => {
   const result = weightedMerge(a, 1, b, 2);
 
   assert.equal(requireDefined(result.get("b")), 783);
+});
+
+test("driveGenerators: answers questions and returns final results", () => {
+  function* generate(numbers: number[]) {
+    const result = new Array<number>();
+    for (const n of numbers) {
+      result.push(yield n);
+    }
+    return result;
+  }
+  const generators = [
+    generate([3, 9, 2]),
+    generate([1, 0]),
+    generate([5, 23, 89, 2]),
+  ];
+
+  const result = driveGenerators(generators, (questions: readonly number[]) =>
+    questions.map((n) => n + 1)
+  );
+
+  // Results are returned in order of completion
+  const expected = [
+    [2, 1],
+    [4, 10, 3],
+    [6, 24, 90, 3],
+  ];
+  assert.isTrue(
+    _.isEqual(result, expected),
+    `${JSON.stringify(result)} did not equal ${JSON.stringify(expected)}`
+  );
 });

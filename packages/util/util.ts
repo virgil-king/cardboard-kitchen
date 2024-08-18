@@ -15,6 +15,10 @@ export function randomBelow(high: number): number {
   return randomBetween(0, high);
 }
 
+export function randomBoolean(): boolean {
+  return Math.random() > 0.5;
+}
+
 // export function shuffle<T>(items: ReadonlyArray<T>): Array<T> {
 //   const length = items.length;
 //   const result = Array.from(items);
@@ -111,7 +115,7 @@ export function decodeOrThrow<DecodedT>(
 
 export class SettablePromise<T> {
   private resolve: ((t: T) => void) | undefined = undefined;
-  promise = new Promise((r) => (this.resolve = r));
+  promise = new Promise<T>((r) => (this.resolve = r));
   fulfill(t: T) {
     requireDefined(this.resolve)(t);
   }
@@ -143,4 +147,61 @@ export function proportionalRandom<K>(options: Seq.Keyed<K, number>): K {
     skipped = threshold;
   }
   throw new Error("Unreachable");
+}
+
+/**
+ * Drives {@link generators} to completion, using {@link f} to provide the
+ * parameters to {@link Generator.next} for batches of generators that yield
+ * intermediate values
+ *
+ * @return the return values of {@link generators}
+ */
+export function driveGenerators<ItemT, ReturnT, NextT>(
+  generators: ReadonlyArray<Generator<ItemT, ReturnT, NextT>>,
+  f: (items: ReadonlyArray<ItemT>) => ReadonlyArray<NextT>
+): ReadonlyArray<ReturnT> {
+  // Pairs consisting of a generator and the latest question from that generator
+  let generatorToNext = generators.map<
+    [Generator<ItemT, ReturnT, NextT>, IteratorResult<ItemT, ReturnT>]
+  >((generator) => {
+    return [generator, generator.next()];
+  });
+
+  // Generator return values
+  const results = new Array<ReturnT>();
+
+  // While there are any remaining generators (as opposed to return values)...
+  while (generatorToNext.length != 0) {
+    // Collect the generators and questions. The list may be shorter than
+    // generatorToNext if some generators were completed on this step.
+    const generatorToQuestion = new Array<
+      [Generator<ItemT, ReturnT, NextT>, ItemT]
+    >();
+    for (const [generator, iteratorResult] of generatorToNext) {
+      if (iteratorResult.done) {
+        results.push(iteratorResult.value);
+      } else {
+        generatorToQuestion.push([generator, iteratorResult.value]);
+      }
+    }
+    // Fetch answers
+    // const startMs = performance.now();
+    const responses =
+      generatorToQuestion.length == 0
+        ? []
+        : f(generatorToQuestion.map(([, snapshot]) => snapshot));
+    // Supply answers to the waiting generators yielding the next list of
+    // iterator results to scan
+    const newGeneratorToNext = new Array<
+      [Generator<ItemT, ReturnT, NextT>, IteratorResult<ItemT, ReturnT>]
+    >();
+    for (let i = 0; i < generatorToQuestion.length; i++) {
+      const [generator] = generatorToQuestion[i];
+      const next = generator.next(responses[i]);
+      newGeneratorToNext.push([generatorToQuestion[i][0], next]);
+    }
+    generatorToNext = newGeneratorToNext;
+  }
+
+  return results;
 }
