@@ -1,6 +1,7 @@
 import {
   EpisodeConfiguration,
   EpisodeSnapshot,
+  Player,
   PlayerValues,
   Players,
 } from "game";
@@ -395,9 +396,18 @@ export class KingdominoConvolutionalModel
     return result;
   }
 
+  /**
+   * Returns the vector-encoded representation of {@link snapshot}.
+   *
+   * By default does not mirror and rotate boards.
+   *
+   * @param playerIdToTransform can be used to apply separate mirroring and
+   * rotation to each player board
+   */
   encodeState(
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
-    boardTransformation: BoardTransformation = NO_TRANSFORM
+    playerIdToTransform: (player: Player) => BoardTransformation = () =>
+      NO_TRANSFORM
   ): EncodedState {
     const linearInput = this.encodeLinearState(snapshot);
 
@@ -412,11 +422,12 @@ export class KingdominoConvolutionalModel
           const player = requireDefined(
             snapshot.episodeConfiguration.players.players.get(playerIndex)
           );
+          const transform = playerIdToTransform(player);
           return KingdominoConvolutionalModel.encodeBoard(
             snapshot.state
               .requirePlayerState(player.id)
               // TODO separate random transform for each player
-              .board.transform(boardTransformation)
+              .board.transform(transform)
           );
         }
       })
@@ -914,24 +925,61 @@ export class KingdominoTrainingModel
     });
   }
 
+  /**
+   * Returns the vector-encoded representation of {@link sample}.
+   *
+   * By default randomly mirrors and rotates player boards and the current
+   * player's policy.
+   *
+   * @param playerToBoardTransform can be used to apply separate board mirroring
+   * and rotation to each player's board
+   */
   encodeSample(
     sample: StateTrainingData<
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
     >,
-    boardTransformation?: BoardTransformation
+    playerToBoardTransform?: (player: Player) => BoardTransformation
   ): EncodedSample {
-    const transform = boardTransformation ?? {
-      mirror: randomBoolean(),
-      quarterTurns: randomBelow(4),
-    };
-    const state = this.model.encodeState(sample.snapshot, transform);
+    // If a transform map was provided, use it; otherwise generate a map of
+    // random transforms
+    const innerPlayerToBoardTransform = (() => {
+      if (playerToBoardTransform != undefined) {
+        return playerToBoardTransform;
+      }
+      const playerIdToRandomBoardTransform = Map(
+        sample.snapshot.episodeConfiguration.players.players.map((player) => {
+          return [
+            player.id,
+            {
+              mirror: randomBoolean(),
+              quarterTurns: randomBelow(4),
+            },
+          ];
+        })
+      );
+      return (player: Player) =>
+        requireDefined(playerIdToRandomBoardTransform.get(player.id));
+    })();
+
+    const state = this.model.encodeState(
+      sample.snapshot,
+      innerPlayerToBoardTransform
+    );
     const value = this.encodeValues(
       sample.snapshot.episodeConfiguration.players,
       sample.terminalValues
     );
-    const policy = this.encodePolicy(sample.actionToStatistics, transform);
+    const currentPlayer = requireDefined(
+      Kingdomino.INSTANCE.currentPlayer(sample.snapshot)
+    );
+    const currentPlayerBoardTransform =
+      innerPlayerToBoardTransform(currentPlayer);
+    const policy = this.encodePolicy(
+      sample.actionToStatistics,
+      currentPlayerBoardTransform
+    );
     return new EncodedSample(state, value, policy);
   }
 
@@ -1058,7 +1106,7 @@ export class KingdominoTrainingModel
   // Visible for testing
   encodePolicy(
     visitCounts: Map<KingdominoAction, ActionStatistics>,
-    boardTransformation: BoardTransformation = NO_TRANSFORM
+    boardTransform: BoardTransformation
   ): Float32Array {
     const claimProbabilities = new Float32Array(
       claimProbabilitiesCodec.columnCount
@@ -1081,7 +1129,7 @@ export class KingdominoTrainingModel
         }
         case ActionCase.PLACE: {
           setPlacementVisitCount(
-            action.data.place.transform(boardTransformation),
+            action.data.place.transform(boardTransform),
             statistics.visitCount,
             placeProbabilities
           );

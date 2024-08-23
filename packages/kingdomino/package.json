@@ -11,18 +11,18 @@
     },
     "dependencies": {
         "@tensorflow/tfjs-core": "^4.20.0",
-        "@tensorflow/tfjs-node-gpu": "^4.19.0",
-        "@types/node": "^20",
+        "@tensorflow/tfjs-node-gpu": "^4.20.0",
+        "@types/node": "^20.16.1",
         "chai": "^5.1.1",
         "effection": "^3.0.3",
         "esm-seedrandom": "^3.0.5",
-        "fp-ts": "^2.16.6",
+        "fp-ts": "^2.16.9",
         "game": "workspace:*",
         "immutable": "5.0.0-beta.5",
         "io-ts": "^2.2.21",
         "lodash": "^4.17.21",
         "long": "^5.2.3",
-        "pnpm": "^9.1.1",
+        "pnpm": "^9.7.1",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "seedrandom": "^3.0.5",
@@ -31,14 +31,14 @@
         "training-data": "workspace:^"
     },
     "devDependencies": {
-        "@types/lodash": "^4.17.1",
-        "@types/react": "^18.3.1",
+        "@types/lodash": "^4.17.7",
+        "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@vitest/coverage-v8": "^1.6.0",
-        "protobufjs": "^7.3.0",
-        "ts-proto": "^1.174.0",
+        "protobufjs": "^7.3.2",
+        "ts-proto": "^1.181.2",
         "tsconfig": "workspace:*",
-        "typescript": "^5.4.5",
+        "typescript": "^5.5.4",
         "vitest": "^1.6.0"
     }
 }

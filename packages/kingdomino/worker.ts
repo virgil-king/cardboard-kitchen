@@ -48,7 +48,7 @@ const home = process.env.HOME;
 const gamesDir = `${home}/ckdata/kingdomino/games`;
 fs.mkdirSync(gamesDir, { recursive: true });
 
-const concurrentEpisodeCount = 16;
+const concurrentEpisodeCount = 64;
 
 async function main() {
   await ready.promise;

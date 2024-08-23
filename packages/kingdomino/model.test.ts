@@ -90,7 +90,9 @@ test("encodePolicy: stores placement values at expected index", () => {
     ],
   ]);
 
-  const policyVector = model.trainingModel().encodePolicy(actionToVisitCount);
+  const policyVector = model
+    .trainingModel()
+    .encodePolicy(actionToVisitCount, NO_TRANSFORM);
   const placeProbabilitiesVector = policyCodec.decode(
     policyVector,
     0
@@ -188,7 +190,7 @@ test("encodeSample: returns expected board and policy vectors", () => {
 
   const encodedSample = model
     .trainingModel()
-    .encodeSample(sample, NO_TRANSFORM);
+    .encodeSample(sample, () => NO_TRANSFORM);
 
   const aliceBoard = encodedSample.state.boards[0];
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
@@ -288,7 +290,9 @@ test("encodeSample: with transformation: returns expected board and policy vecto
 
   const encodedSample = model
     .trainingModel()
-    .encodeSample(sample, { mirror: true, quarterTurns: 1 });
+    .encodeSample(sample, (player: Player) => {
+      return { mirror: true, quarterTurns: 1 };
+    });
 
   const aliceBoard = encodedSample.state.boards[0];
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
