@@ -60,10 +60,11 @@ test("driveGenerators: answers questions and returns final results", () => {
     questions.map((n) => n + 1)
   );
 
-  // Results are returned in order of completion
+  // Results are returned in the same order as the corresponding generators
+  // even if the generators completed in a different order
   const expected = [
-    [2, 1],
     [4, 10, 3],
+    [2, 1],
     [6, 24, 90, 3],
   ];
   assert.isTrue(

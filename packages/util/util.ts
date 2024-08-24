@@ -149,6 +149,8 @@ export function proportionalRandom<K>(options: Seq.Keyed<K, number>): K {
   throw new Error("Unreachable");
 }
 
+type Indexed<T> = { index: number; value: T };
+
 /**
  * Drives {@link generators} to completion, using {@link f} to provide the
  * parameters to {@link Generator.next} for batches of generators that yield
@@ -162,26 +164,29 @@ export function driveGenerators<ItemT, ReturnT, NextT>(
 ): ReadonlyArray<ReturnT> {
   // Pairs consisting of a generator and the latest question from that generator
   let generatorToNext = generators.map<
-    [Generator<ItemT, ReturnT, NextT>, IteratorResult<ItemT, ReturnT>]
-  >((generator) => {
-    return [generator, generator.next()];
+    [Generator<ItemT, ReturnT, NextT>, Indexed<IteratorResult<ItemT, ReturnT>>]
+  >((generator, index) => {
+    return [generator, { index: index, value: generator.next() }];
   });
 
   // Generator return values
-  const results = new Array<ReturnT>();
+  const results = new Array<ReturnT>(generators.length);
 
   // While there are any remaining generators (as opposed to return values)...
   while (generatorToNext.length != 0) {
     // Collect the generators and questions. The list may be shorter than
     // generatorToNext if some generators were completed on this step.
     const generatorToQuestion = new Array<
-      [Generator<ItemT, ReturnT, NextT>, ItemT]
+      [Generator<ItemT, ReturnT, NextT>, Indexed<ItemT>]
     >();
     for (const [generator, iteratorResult] of generatorToNext) {
-      if (iteratorResult.done) {
-        results.push(iteratorResult.value);
+      if (iteratorResult.value.done) {
+        results[iteratorResult.index] = iteratorResult.value.value;
       } else {
-        generatorToQuestion.push([generator, iteratorResult.value]);
+        generatorToQuestion.push([
+          generator,
+          { index: iteratorResult.index, value: iteratorResult.value.value },
+        ]);
       }
     }
     // Fetch answers
@@ -189,16 +194,22 @@ export function driveGenerators<ItemT, ReturnT, NextT>(
     const responses =
       generatorToQuestion.length == 0
         ? []
-        : f(generatorToQuestion.map(([, snapshot]) => snapshot));
+        : f(generatorToQuestion.map(([, snapshot]) => snapshot.value));
     // Supply answers to the waiting generators yielding the next list of
     // iterator results to scan
     const newGeneratorToNext = new Array<
-      [Generator<ItemT, ReturnT, NextT>, IteratorResult<ItemT, ReturnT>]
+      [
+        Generator<ItemT, ReturnT, NextT>,
+        Indexed<IteratorResult<ItemT, ReturnT>>
+      ]
     >();
     for (let i = 0; i < generatorToQuestion.length; i++) {
-      const [generator] = generatorToQuestion[i];
+      const [generator, question] = generatorToQuestion[i];
       const next = generator.next(responses[i]);
-      newGeneratorToNext.push([generatorToQuestion[i][0], next]);
+      newGeneratorToNext.push([
+        generatorToQuestion[i][0],
+        { index: question.index, value: next },
+      ]);
     }
     generatorToNext = newGeneratorToNext;
   }
