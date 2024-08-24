@@ -143,10 +143,21 @@ export async function train_parallel<
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
   while (true) {
+    const beforeBatch = performance.now();
     const batch = buffer.sample(batchSize).map((sample) => {
       return trainingModel.encodeSample(sample);
     });
+    const beforeTrain = performance.now();
     const loss = await trainingModel.train(batch);
+    const afterTrain = performance.now();
+    const totalBatchTime = afterTrain - beforeBatch;
+    console.log(
+      `Batch time ${decimalFormat.format(
+        (100 * (beforeTrain - beforeBatch)) / totalBatchTime
+      )} data prep, ${decimalFormat.format(
+        (100 * (afterTrain - beforeTrain)) / totalBatchTime
+      )} training`
+    );
     trailingLosses = trailingLosses.push(loss);
     if (trailingLosses.count() > 100) {
       trailingLosses = trailingLosses.shift();
@@ -155,10 +166,14 @@ export async function train_parallel<
       trailingLosses.reduce((reduction, next) => reduction + next, 0) /
       trailingLosses.count();
     console.log(`Sliding window loss: ${trailingLoss}`);
+    console.log(
+      `Training step took ${decimalFormat.format(
+        performance.now() - beforeBatch
+      )} ms`
+    );
     await sleep(0);
     const episodeBatchesReceivedSinceLastModelUpdate =
       episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
-    // console.log(`${newEpisodesReceived} new episodes received; `)
     if (
       episodeBatchesReceivedSinceLastModelUpdate >=
       episodeBatchesBetweenModelUpdates
@@ -175,9 +190,6 @@ export async function train_parallel<
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
     if (modelsDir != undefined && timeSinceLastSave > 15 * 60 * 1_000) {
-      // const path = `${modelsDirPath}/${new Date().toISOString()}`;
-      // fs.mkdirSync(path, { recursive: true });
-      // model.save(path);
       modelsDir.write((path) => {
         fs.mkdirSync(path);
         model.save(path);
@@ -212,114 +224,16 @@ function* loadEpisodesJson(episodesDir: string): Generator<any> {
   }
 }
 
-// class EpisodeStep<
-//   C extends GameConfiguration,
-//   S extends GameState,
-//   A extends Action
-// > {
-//   constructor(
-//     readonly game: Game<C, S, A>,
-//     readonly playerIdToMctsContext: Map<string, MctsContext<C, S, A>>,
-//     readonly snapshot: EpisodeSnapshot<C, S>,
-//     readonly currentPlayerContext: MctsContext<C, S, A>,
-//     readonly root: NonTerminalStateNode<C, S, A>
-//   ) {}
-
-//   next(): EpisodeStep<C, S, A> | undefined {
-//     const currentPlayer = requireDefined(
-//       this.game.currentPlayer(this.snapshot)
-//     );
-//     // Run simulationCount steps or enough to try every possible action once
-//     let selectedAction: A | undefined = undefined;
-//     if (this.root.actionToChild.size == 1) {
-//       // When root has exactly one child, visit it once to populate the
-//       // action statistics, but no further visits are necessary
-//       this.root.visit();
-//       selectedAction = this.root.actionToChild.keys().next().value;
-//     } else {
-//       for (let i of Range(
-//         0,
-//         Math.max(
-//           this.currentPlayerContext.config.simulationCount,
-//           this.root.actionToChild.size
-//         )
-//       )) {
-//         this.root.visit();
-//       }
-//       // TODO incorporate noise
-//       // [selectedAction] = requireDefined(
-//       //   Seq(root.actionToChild.entries()).max(
-//       //     ([, actionNode1], [, actionNode2]) =>
-//       //       actionNode1.requirePlayerValue(currentPlayer) -
-//       //       actionNode2.requirePlayerValue(currentPlayer)
-//       //   )
-//       // );
-//       const actionToVisitCount = Seq.Keyed(this.root.actionToChild).map(
-//         (node) => node.visitCount
-//       );
-//       selectedAction = proportionalRandom(actionToVisitCount);
-//     }
-//     const stateSearchData = new StateSearchData(
-//       this.snapshot.state,
-//       this.root.inferenceResult.value,
-//       Map(
-//         Seq(root.actionToChild.entries()).map(([action, child]) => [
-//           action,
-//           new ActionStatistics(
-//             child.prior,
-//             child.visitCount,
-//             new PlayerValues(child.playerExpectedValues.playerIdToValue)
-//           ),
-//         ])
-//       )
-//     );
-//     nonTerminalStates.push(stateSearchData);
-//     const [newState] = this.game.apply(this.snapshot, requireDefined(selectedAction));
-//     const newSnapshot = this.snapshot.derive(newState);
-//     if (this.game.result(newSnapshot) != undefined) {
-//       return;
-//     }
-//     const newMctsContext = mctsContext();
-
-//     // Reuse the node for newState from the previous search tree if it exists.
-//     // It might not exist if there was non-determinism in the application of the
-//     // latest action.
-//     // const existingStateNode = root.actionToChild
-//     //   .get(actionWithGreatestExpectedValue)
-//     //   ?.chanceKeyToChild.get(chanceKey);
-//     // if (existingStateNode != undefined) {
-//     //   if (!(existingStateNode instanceof NonTerminalStateNode)) {
-//     //     throw new Error(
-//     //       `Node for non-terminal state was not NonTerminalStateNode`
-//     //     );
-//     //   }
-//     //   if (existingStateNode.context == currentMctsContext) {
-//     //     root = existingStateNode;
-//     //   } else {
-//     //     console.log(
-//     //       "Ignoring current child node because it has a different current player"
-//     //     );
-//     //     root = new NonTerminalStateNode(currentMctsContext, snapshot);
-//     //   }
-//     // } else {
-//     //   root = new NonTerminalStateNode(currentMctsContext, snapshot);
-//     // }
-
-//     // root = new NonTerminalStateNode(currentMctsContext, snapshot);
-//   }
-// }
-
 /**
  * Runs a new episode to completion and returns training data for each state in
  * the episode
  */
-export function* episode<
+export function* trainingEpisode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
 >(
   game: Game<C, S, A>,
-  // playerIdToMctsContext: Map<string, MctsContext<C, S, A>>,
   mctsContext: MctsContext<C, S, A>,
   episodeConfig: EpisodeConfiguration
 ): Generator<
@@ -332,11 +246,6 @@ export function* episode<
   if (game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
   }
-  // function mctsContext(): MctsContext<C, S, A> {
-  //   const player = requireDefined(game.currentPlayer(snapshot));
-  //   return requireDefined(playerIdToMctsContext.get(player.id));
-  // }
-  // let currentMctsContext = mctsContext();
   const inferenceResult = yield snapshot;
   let root = new NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
   const nonTerminalStates = new Array<StateSearchData<S, A>>();
@@ -357,13 +266,6 @@ export function* episode<
         yield* root.visit();
       }
       // TODO incorporate noise
-      // [selectedAction] = requireDefined(
-      //   Seq(root.actionToChild.entries()).max(
-      //     ([, actionNode1], [, actionNode2]) =>
-      //       actionNode1.requirePlayerValue(currentPlayer) -
-      //       actionNode2.requirePlayerValue(currentPlayer)
-      //   )
-      // );
       const actionToVisitCount = Seq.Keyed(root.actionToChild).map(
         (node) => node.visitCount
       );
@@ -392,7 +294,6 @@ export function* episode<
     if (game.result(snapshot) != undefined) {
       break;
     }
-    // currentMctsContext = mctsContext();
 
     // Reuse the node for newState from the previous search tree if it exists.
     // It might not exist if there was non-determinism in the application of the
@@ -410,10 +311,6 @@ export function* episode<
     } else {
       root = new NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
     }
-
-    // root = new NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
-
-    // console.log(`New root node has ${root.visitCount} visits`);
   }
   const elapsedMs = performance.now() - startMs;
   console.log(

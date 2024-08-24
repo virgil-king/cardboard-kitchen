@@ -8,7 +8,7 @@ import { EpisodeConfiguration, Player, Players } from "game";
 import {
   MctsConfig,
   MctsStats,
-  episode as gameEpisode,
+  trainingEpisode,
 } from "training";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
@@ -67,7 +67,7 @@ async function main() {
 
     const generators = Range(0, concurrentEpisodeCount)
       .map((i) => {
-        return gameEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
+        return trainingEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
       })
       .toArray();
 

@@ -1,6 +1,12 @@
 import { Range } from "immutable";
 import { SettablePromise } from "studio-util";
 
+// This file contains a prototype of a pattern that coud be used to perform
+// batched, single-threaded MCTS. Multiple branches may be taken concurrently
+// at each node with each leaf submitting a query to a buffer and returning a
+// promise. After all leaves have returned, all queries are satisfied as a
+// batch and all leaf promises are fulfilled.
+
 interface ValueLookup {
   lookup(): Promise<number>;
 }
