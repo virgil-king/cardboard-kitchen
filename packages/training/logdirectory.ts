@@ -103,7 +103,7 @@ export class LogDirectory {
    * Invokes {@link writer} with a path to which to write a new
    * file or directory hierarchy
    */
-  write(writer: (path: string) => void): void {
+  async write(writer: (path: string) => Promise<void>): Promise<void> {
     var filenameDate = new Date();
     if (
       this.newestFilenameDate != undefined &&
@@ -117,7 +117,7 @@ export class LogDirectory {
     const path = `${this.path}/${filenameString}`;
     console.log(`Writing ${path}`);
 
-    writer(path);
+    await writer(path);
 
     const size = this.size(path);
     this.filenameToSizeBytes.set(filenameString, size);

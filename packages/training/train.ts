@@ -1,7 +1,6 @@
 import {
   SettablePromise,
   proportionalRandom,
-  randomBetween,
   requireDefined,
   sleep,
 } from "studio-util";
@@ -18,7 +17,6 @@ import { MctsContext, NonTerminalStateNode } from "./mcts.js";
 import { List, Map, Range, Seq } from "immutable";
 import { InferenceResult, Model } from "./model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
-import * as os from "os";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import {
@@ -192,7 +190,7 @@ export async function train_parallel<
     if (modelsDir != undefined && timeSinceLastSave > 15 * 60 * 1_000) {
       modelsDir.write((path) => {
         fs.mkdirSync(path);
-        model.save(path);
+        return model.save(path);
       });
       lastSaveTime = now;
       console.log(

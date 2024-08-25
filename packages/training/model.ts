@@ -29,7 +29,7 @@ export interface Model<
 
   toJson(): Promise<tfcore.io.ModelArtifacts>;
 
-  save(path: string): void;
+  save(path: string): Promise<void>;
 }
 
 export interface InferenceModel<

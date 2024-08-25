@@ -25,10 +25,7 @@ import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
-import {
-  driveGenerators,
-  requireDefined,
-} from "studio-util";
+import { driveGenerators, requireDefined } from "studio-util";
 
 // const model1 = KingdominoModel.load(process.argv[2]);
 // const model2 = KingdominoModel.load(process.argv[3]);
@@ -163,7 +160,13 @@ class MctsBatchAgent implements BatchAgent {
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    >({ simulationCount: 256 });
+    >({
+      simulationCount: 256,
+      randomPlayoutConfig: {
+        weight: 1,
+        agent: new RandomKingdominoAgent(),
+      },
+    });
     const generators = snapshots.map((snapshot) => {
       return mcts(
         Kingdomino.INSTANCE,
