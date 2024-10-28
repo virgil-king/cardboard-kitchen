@@ -9,12 +9,12 @@ importers:
   .:
     dependencies:
       pnpm:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^9.12.3
+        version: 9.12.3
     devDependencies:
       turbo:
         specifier: latest
-        version: 2.0.7
+        version: 2.2.3
 
   packages/game:
     dependencies:
@@ -23,26 +23,26 @@ importers:
         version: 5.0.0-beta.5
       io-ts:
         specifier: ^2.2.21
-        version: 2.2.21(fp-ts@2.16.8)
+        version: 2.2.21(fp-ts@2.16.9)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
       lru-cache:
-        specifier: ^10.2.2
+        specifier: ^10.4.3
         version: 10.4.3
       pnpm:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^9.10.0
+        version: 9.10.0
       studio-util:
         specifier: workspace:*
         version: link:../util
     devDependencies:
       '@types/lodash':
-        specifier: ^4.17.1
-        version: 4.17.4
+        specifier: ^4.17.7
+        version: 4.17.7
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+        version: 1.6.0(vitest@1.6.0(@types/node@22.5.5))
       chai:
         specifier: ^5.1.1
         version: 5.1.1
@@ -53,23 +53,23 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
+        specifier: ^5.6.2
+        version: 5.6.2
       vitest:
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.12)
+        version: 1.6.0(@types/node@22.5.5)
 
   packages/kingdomino:
     dependencies:
       '@tensorflow/tfjs-core':
-        specifier: ^4.20.0
-        version: 4.20.0
+        specifier: ^4.21.0
+        version: 4.21.0
       '@tensorflow/tfjs-node-gpu':
-        specifier: ^4.19.0
-        version: 4.19.0(seedrandom@3.0.5)
+        specifier: ^4.21.0
+        version: 4.21.0(seedrandom@3.0.5)
       '@types/node':
-        specifier: ^20
-        version: 20.12.12
+        specifier: ^20.16.5
+        version: 20.16.5
       chai:
         specifier: ^5.1.1
         version: 5.1.1
@@ -80,8 +80,8 @@ importers:
         specifier: ^3.0.5
         version: 3.0.5
       fp-ts:
-        specifier: ^2.16.6
-        version: 2.16.8
+        specifier: ^2.16.9
+        version: 2.16.9
       game:
         specifier: workspace:*
         version: link:../game
@@ -90,7 +90,7 @@ importers:
         version: 5.0.0-beta.5
       io-ts:
         specifier: ^2.2.21
-        version: 2.2.21(fp-ts@2.16.8)
+        version: 2.2.21(fp-ts@2.16.9)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -98,8 +98,8 @@ importers:
         specifier: ^5.2.3
         version: 5.2.3
       pnpm:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^9.10.0
+        version: 9.10.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -120,32 +120,32 @@ importers:
         version: link:../training-data
     devDependencies:
       '@types/lodash':
-        specifier: ^4.17.1
-        version: 4.17.4
+        specifier: ^4.17.7
+        version: 4.17.7
       '@types/react':
-        specifier: ^18.3.1
-        version: 18.3.2
+        specifier: ^18.3.8
+        version: 18.3.8
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.0
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+        version: 1.6.0(vitest@1.6.0(@types/node@20.16.5))
       protobufjs:
-        specifier: ^7.3.0
-        version: 7.3.0
+        specifier: ^7.4.0
+        version: 7.4.0
       ts-proto:
-        specifier: ^1.174.0
-        version: 1.176.0
+        specifier: ^1.181.2
+        version: 1.181.2
       tsconfig:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
+        specifier: ^5.6.2
+        version: 5.6.2
       vitest:
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.12)
+        version: 1.6.0(@types/node@20.16.5)
 
   packages/kingdomino-ui:
     dependencies:
@@ -209,7 +209,7 @@ importers:
         version: 4.20.0
       '@tensorflow/tfjs-node-gpu':
         specifier: ^4.19.0
-        version: 4.19.0(seedrandom@3.0.5)
+        version: 4.20.0(seedrandom@3.0.5)
       game:
         specifier: workspace:*
         version: link:../game
@@ -218,7 +218,7 @@ importers:
         version: 5.0.0-beta.5
       io-ts:
         specifier: ^2.2.21
-        version: 2.2.21(fp-ts@2.16.8)
+        version: 2.2.21(fp-ts@2.16.9)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -227,7 +227,7 @@ importers:
         version: 10.4.3
       pnpm:
         specifier: ^9.1.1
-        version: 9.1.1
+        version: 9.7.1
       studio-util:
         specifier: workspace:*
         version: link:../util
@@ -237,10 +237,10 @@ importers:
     devDependencies:
       '@types/lodash':
         specifier: ^4.17.1
-        version: 4.17.4
+        version: 4.17.7
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+        version: 1.6.0(vitest@1.6.0(@types/node@22.5.5))
       chai:
         specifier: ^5.1.1
         version: 5.1.1
@@ -252,10 +252,10 @@ importers:
         version: link:../tsconfig
       typescript:
         specifier: ^5.4.5
-        version: 5.4.5
+        version: 5.5.4
       vitest:
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.12)
+        version: 1.6.0(@types/node@22.5.5)
 
   packages/training-data:
     dependencies:
@@ -273,7 +273,7 @@ importers:
         version: 5.0.0-beta.5
       io-ts:
         specifier: ^2.2.21
-        version: 2.2.21(fp-ts@2.16.8)
+        version: 2.2.21(fp-ts@2.16.9)
       lodash:
         specifier: ^4.17.21
         version: 4.17.21
@@ -292,7 +292,7 @@ importers:
         version: 4.17.4
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+        version: 1.6.0(vitest@1.6.0(@types/node@22.5.5))
       chai:
         specifier: ^5.1.1
         version: 5.1.1
@@ -307,43 +307,49 @@ importers:
         version: 5.4.5
       vitest:
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.12)
+        version: 1.6.0(@types/node@22.5.5)
 
   packages/tsconfig: {}
 
   packages/util:
     dependencies:
+      '@types/lodash':
+        specifier: ^4.17.7
+        version: 4.17.7
       '@types/random-seed':
         specifier: ^0.3.5
         version: 0.3.5
       fp-ts:
-        specifier: ^2.16.6
-        version: 2.16.8
+        specifier: ^2.16.9
+        version: 2.16.9
       immutable:
         specifier: 5.0.0-beta.5
         version: 5.0.0-beta.5
       io-ts:
         specifier: ^2.2.21
-        version: 2.2.21(fp-ts@2.16.8)
+        version: 2.2.21(fp-ts@2.16.9)
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       pnpm:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^9.9.0
+        version: 9.9.0
       random-seed:
         specifier: ^0.3.0
         version: 0.3.0
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^1.6.0
-        version: 1.6.0(vitest@1.6.0(@types/node@20.12.12))
+        version: 1.6.0(vitest@1.6.0(@types/node@22.5.5))
       tsconfig:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
+        specifier: ^5.5.4
+        version: 5.5.4
       vitest:
         specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.12)
+        version: 1.6.0(@types/node@22.5.5)
 
 packages:
 
@@ -721,16 +727,50 @@ packages:
     peerDependencies:
       '@tensorflow/tfjs-core': 4.19.0
 
+  '@tensorflow/tfjs-backend-cpu@4.20.0':
+    resolution: {integrity: sha512-1QRQ6AqAa/VB8JOArf5nY3Dc/QQHXbfuxgdIdQhKrABEHgvlaWt2Vv696UhIlVl75YoNY+vWlCwBdGQIKYfFGw==}
+    engines: {yarn: '>= 1.3.2'}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-backend-cpu@4.21.0':
+    resolution: {integrity: sha512-yS9Oisg4L48N7ML6677ilv1eP5Jt59S74skSU1cCsM4yBAtH4DAn9b89/JtqBISh6JadanfX26b4HCWQvMvqFg==}
+    engines: {yarn: '>= 1.3.2'}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.21.0
+
   '@tensorflow/tfjs-backend-webgl@4.19.0':
     resolution: {integrity: sha512-R0DC1W65lqTOccCwxMhH+VOKCgSrhd9GEejIIGhjeXt6oZlACFnOx4SuUr/qKLCDsL5I4E9iFLxAJMmsfYvARw==}
     engines: {yarn: '>= 1.3.2'}
     peerDependencies:
       '@tensorflow/tfjs-core': 4.19.0
 
+  '@tensorflow/tfjs-backend-webgl@4.20.0':
+    resolution: {integrity: sha512-M03fJonJGxm2u3SCzRNA2JLh0gxaAye64SEmGAXOehizowxy42l+lMsPWU8xU7r7mN6PEilBNkuKAf5YJ7Xumg==}
+    engines: {yarn: '>= 1.3.2'}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-backend-webgl@4.21.0':
+    resolution: {integrity: sha512-7k6mb7dd0uF9jI51iunF3rhEXjvR/a613kjWZ0Rj3o1COFrneyku2C7cRMZERWPhbgXZ+dF+j9MdpGIpgtShIQ==}
+    engines: {yarn: '>= 1.3.2'}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.21.0
+
   '@tensorflow/tfjs-converter@4.19.0':
     resolution: {integrity: sha512-xIOE6enaVHPYCXKpHxJnUlN8hzlcQkgFSymHjBmdDnNCresuRwBGz4dqYAQMeQG21Ei3lxCQFdDDH7aSvUEAPw==}
     peerDependencies:
       '@tensorflow/tfjs-core': 4.19.0
+
+  '@tensorflow/tfjs-converter@4.20.0':
+    resolution: {integrity: sha512-UJ2ntQ1TNtVHB5qGMwB0j306bs3KH1E1HKJ9Dxvrc6PUaivOV+CPKqmbidOFG5LylXeRC36JBdhe+gVT2nFHNw==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-converter@4.21.0':
+    resolution: {integrity: sha512-cUhU+F1lGx2qnKk/gRy8odBh0PZlFz0Dl71TG8LVnj0/g352DqiNrKXlKO/po9aWzP8x0KUGC3gNMSMJW+T0DA==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.21.0
 
   '@tensorflow/tfjs-core@4.19.0':
     resolution: {integrity: sha512-GZ0d53PG0HGQCC7hbWv1qDnZctHYe/cafHZrBY5eNeQjQE6fBr3NsR5GfLadT0TELwmX9/nyritGDzvy6xmzHQ==}
@@ -740,10 +780,26 @@ packages:
     resolution: {integrity: sha512-m/cc9qDc63al9UhdbXRUYTLGfJJlhuN5tylAX/2pJMLj32c8a6ThGDJYoKzpf32n5g3MQGYLchjClDxeGdXMPQ==}
     engines: {yarn: '>= 1.3.2'}
 
+  '@tensorflow/tfjs-core@4.21.0':
+    resolution: {integrity: sha512-ZbECwXps5wb9XXcGq4ZXvZDVjr5okc3I0+i/vU6bpQ+nVApyIrMiyEudP8f6vracVTvNmnlN62vUXoEsQb2F8g==}
+    engines: {yarn: '>= 1.3.2'}
+
   '@tensorflow/tfjs-data@4.19.0':
     resolution: {integrity: sha512-n0ZgJp5UhhBatohUt9pXSCCApusK+1Flyk6yDrQYuxOTjhRppd6jYrF7LCDG3hMFi3QLGl0jab1zYrn9BwtC/w==}
     peerDependencies:
       '@tensorflow/tfjs-core': 4.19.0
+      seedrandom: ^3.0.5
+
+  '@tensorflow/tfjs-data@4.20.0':
+    resolution: {integrity: sha512-k6S8joXhoXkatcoT6mYCxBzRCsnrLfnl6xjLe46SnXO0oEEy4Vuzbmp5Ydl1uU2hHr73zL91EdAC1k8Hng/+oA==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+      seedrandom: ^3.0.5
+
+  '@tensorflow/tfjs-data@4.21.0':
+    resolution: {integrity: sha512-LpJ/vyQMwYHkcVCqIRg7IVVw13VBY7rNAiuhmKP9S5NP/2ye4KA8BJ4XwDIDgjCVQM7glK9L8bMav++xCDf7xA==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.21.0
       seedrandom: ^3.0.5
 
   '@tensorflow/tfjs-layers@4.19.0':
@@ -751,12 +807,38 @@ packages:
     peerDependencies:
       '@tensorflow/tfjs-core': 4.19.0
 
+  '@tensorflow/tfjs-layers@4.20.0':
+    resolution: {integrity: sha512-SCHZH29Vyw+Y9eoaJHiaNo6yqM9vD3XCKncoczonRRywejm3FFqddg1AuWAfSE9XoNPE21o9PsknvKLl/Uh+Cg==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-layers@4.21.0':
+    resolution: {integrity: sha512-a8KaMYlY3+llvE9079nvASKpaaf8xpCMdOjbgn+eGhdOGOcY7QuFUkd/2odvnXDG8fK/jffE1LoNOlfYoBHC4w==}
+    peerDependencies:
+      '@tensorflow/tfjs-core': 4.21.0
+
   '@tensorflow/tfjs-node-gpu@4.19.0':
     resolution: {integrity: sha512-LKpCZ44xZ1OTln5c02xtN0c02w/wy8fQ4tiZvOzIIjHp5yu8+kY55jpD6pMAsii/tIo4Glda+8j/9SDZjl1p8Q==}
     engines: {node: '>=8.11.0'}
 
+  '@tensorflow/tfjs-node-gpu@4.20.0':
+    resolution: {integrity: sha512-CsJU4yR7KCjUUM5Hguur6Z6QpNNFlr02MVK76Lu3lWLpz4ToW5YEYvjrMyRaUF7Y6ipJLQ4G1BbNfA2i8F4Cow==}
+    engines: {node: '>=8.11.0'}
+
+  '@tensorflow/tfjs-node-gpu@4.21.0':
+    resolution: {integrity: sha512-ayDc4XaWC7hxVZB1t39PC7J3pvKTYyWDlNsaXyYlK6LvFynkwwoAgHqh4qFBiu3y1gK9QO2kl+ERZQBW7osntg==}
+    engines: {node: '>=8.11.0'}
+
   '@tensorflow/tfjs@4.19.0':
     resolution: {integrity: sha512-d2A1lTc6my7GJ5LwqzXa+igJ5+18exwsnaphZ3roi5nJ197uwxVSMIc2vSJnqZz1KajC5/mZgQr67EZrpTFlBg==}
+    hasBin: true
+
+  '@tensorflow/tfjs@4.20.0':
+    resolution: {integrity: sha512-+ZLfJq2jyIOE2/+yKPoyD/gfy3RZypbfMrlzvBDgodTK5jnexprihhX38hxilh9HPWvWQXJqiUjKJP5ECCikrw==}
+    hasBin: true
+
+  '@tensorflow/tfjs@4.21.0':
+    resolution: {integrity: sha512-7D/+H150ptvt+POMbsME3WlIvLiuBR2rCC2Z0hOKKb/5Ygkj7xsp/K2HzOvUj0g0yjk+utkU45QEYhnhjnbHRA==}
     hasBin: true
 
   '@types/estree@1.0.5':
@@ -764,6 +846,9 @@ packages:
 
   '@types/lodash@4.17.4':
     resolution: {integrity: sha512-wYCP26ZLxaT3R39kiN2+HcJ4kTd3U1waI/cY7ivWYqFP6pW3ZNpvi6Wd6PHZx7T/t8z0vlkXMg3QYLa7DZ/IJQ==}
+
+  '@types/lodash@4.17.7':
+    resolution: {integrity: sha512-8wTvZawATi/lsmNu10/j2hk1KEP0IvjubqPE3cu1Xz7xfXXt5oCq3SNUz4fMIP4XGF9Ky+Ue2tBA3hcS7LSBlA==}
 
   '@types/long@4.0.2':
     resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
@@ -774,6 +859,12 @@ packages:
   '@types/node@20.12.12':
     resolution: {integrity: sha512-eWLDGF/FOSPtAvEqeRAQ4C8LSA7M1I7i0ky1I8U7kD1J5ITyW3AsRhQrKVoWf5pFKZ2kILsEGJhsI9r93PYnOw==}
 
+  '@types/node@20.16.5':
+    resolution: {integrity: sha512-VwYCweNo3ERajwy0IUlqqcyZ8/A7Zwa9ZP3MnENWcB11AejO+tLy3pu850goUW2FC/IJMdZUfKpX/yxL1gymCA==}
+
+  '@types/node@22.5.5':
+    resolution: {integrity: sha512-Xjs4y5UPO/CLdzpgR6GirZJx36yScjh73+2NlLlkFRSoQN8B0DpfXPdZGnvVmLRLOsqDpOfTNv7D9trgGhmOIA==}
+
   '@types/offscreencanvas@2019.3.0':
     resolution: {integrity: sha512-esIJx9bQg+QYF0ra8GnvfianIY8qWB0GBx54PK5Eps6m+xTj86KLavHv6qDhzKcu5UUOgNfJ2pWaIIV7TRUd9Q==}
 
@@ -783,6 +874,9 @@ packages:
   '@types/prop-types@15.7.12':
     resolution: {integrity: sha512-5zvhXYtRNRluoE/jAp4GVsSduVUzNWKkOZrCDBWYtE7biZywwdC2AcEzg+cSMLFRfVgeAFqpfNabiPjxFddV1Q==}
 
+  '@types/prop-types@15.7.13':
+    resolution: {integrity: sha512-hCZTSvwbzWGvhqxp/RqVqwU999pBf2vp7hzIjiYOsl8wqOmUxkQ6ddw1cV3l8811+kdUFus/q4d1Y3E3SyEifA==}
+
   '@types/random-seed@0.3.5':
     resolution: {integrity: sha512-CftxcDPAHgs0SLHU2dt+ZlDPJfGqLW3sZlC/ATr5vJDSe5tRLeOne7HMvCOJnFyF8e1U41wqzs3h6AMC613xtA==}
 
@@ -791,6 +885,9 @@ packages:
 
   '@types/react@18.3.2':
     resolution: {integrity: sha512-Btgg89dAnqD4vV7R3hlwOxgqobUQKgx3MmrQRi0yYbs/P0ym8XozIAlkqVilPqHQwXs4e9Tf63rrCgl58BcO4w==}
+
+  '@types/react@18.3.8':
+    resolution: {integrity: sha512-syBUrW3/XpnW4WJ41Pft+I+aPoDVbrBVQGEnbD7NijDGlVC+8gV/XKRY+7vMDlfPpbwYt0l1vd/Sj8bJGMbs9Q==}
 
   '@types/seedrandom@2.4.34':
     resolution: {integrity: sha512-ytDiArvrn/3Xk6/vtylys5tlY6eo7Ane0hvcx++TKo6RxQXuVfW0AF/oeWqAj9dN29SyhtawuXstgmPlwNcv/A==}
@@ -833,6 +930,14 @@ packages:
   adm-zip@0.5.12:
     resolution: {integrity: sha512-6TVU49mK6KZb4qG6xWaaM4C7sA/sgUMLy/JYMOzkcp3BvVLpW0fXDFQiIzAuxFCt/2+xD7fNIiPFAoLZPhVNLQ==}
     engines: {node: '>=6.0'}
+
+  adm-zip@0.5.15:
+    resolution: {integrity: sha512-jYPWSeOA8EFoZnucrKCNihqBjoEGQSU4HKgHYQgKNEQ0pQF9a/DYuo/+fAxY76k4qe75LUlLWpAM1QWcBMTOKw==}
+    engines: {node: '>=12.0'}
+
+  adm-zip@0.5.16:
+    resolution: {integrity: sha512-TGw5yVi4saajsSEgz25grObGHEUaDrniwvA2qwSC060KfqGPdglhvPMA2lPIoxs3PQIItj2iag35fONcQqgUaQ==}
+    engines: {node: '>=12.0'}
 
   agent-base@4.3.0:
     resolution: {integrity: sha512-salcGninV0nPrwpGNn4VTXBb1SOuXQBiqbrNXoeizJsHrsL6ERFM2Ne3JUSBWRE6aeNJI2ROP/WEEIDUiDe3cg==}
@@ -979,6 +1084,15 @@ packages:
       supports-color:
         optional: true
 
+  debug@4.3.7:
+    resolution: {integrity: sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
   deep-eql@4.1.3:
     resolution: {integrity: sha512-WaEtAOpRA1MQ0eohqZjpGD8zdI0Ovsm8mmFhaDN8dvDZzyoUMcYDnf5Y6iu7HTXxf8JDS23qWa4a+hKCDyOPzw==}
     engines: {node: '>=6'}
@@ -1046,8 +1160,8 @@ packages:
     resolution: {integrity: sha512-ETEklSGi5t0QMZuiXoA/Q6vcnxcLQP5vdugSpuAyi6SVGi2clPPp+xgEhuMaHC+zGgn31Kd235W35f7Hykkaww==}
     engines: {node: '>= 6'}
 
-  fp-ts@2.16.8:
-    resolution: {integrity: sha512-nmDtNqmMZkOxu0M5hkrS9YA15/KPkYkILb6Axg9XBAoUoYEtzg+LFmVWqZrl9FNttsW0qIUpx9RCA9INbv+Bxw==}
+  fp-ts@2.16.9:
+    resolution: {integrity: sha512-+I2+FnVB+tVaxcYyQkHUq7ZdKScaBlX53A41mxQtpIccsfyv8PzdzP7fzp2AY832T4aoK6UZ5WRX/ebGd8uZuQ==}
 
   fs-minipass@1.2.7:
     resolution: {integrity: sha512-GWSSJGFy4e9GUeCcbIkED+bgAoFyj7XF1mV8rma3QW4NIqX9Kyx79N/PF61H5udOV3aY1IaMLs6pGbH71nlCTA==}
@@ -1086,6 +1200,9 @@ packages:
 
   google-protobuf@3.21.2:
     resolution: {integrity: sha512-3MSOYFO5U9mPGikIYCzK0SaThypfGgS6bHqrUGXG3DPHCrb+txNqeEcns1W0lkGfk0rCyNXm7xB9rMxnCiZOoA==}
+
+  google-protobuf@3.21.4:
+    resolution: {integrity: sha512-MnG7N936zcKTco4Jd2PX2U96Kf9PxygAPKBug+74LHzmHXmceN16MmRcdgZv+DGef/S9YvQAfRsNCn4cjf9yyQ==}
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -1362,6 +1479,26 @@ packages:
     engines: {node: '>=18.12'}
     hasBin: true
 
+  pnpm@9.10.0:
+    resolution: {integrity: sha512-c6Ka+jag0JLs5Scd5Rd+y/gxjUVOzXATQxMbjrwMGpHEh9pGq3fI5ZbWrPFGHjWUztS+zt+JIbB0+9hlPtcFHA==}
+    engines: {node: '>=18.12'}
+    hasBin: true
+
+  pnpm@9.12.3:
+    resolution: {integrity: sha512-zOD53pxafJW++UQWnMXf6HQav7FFB4wNUIuGgFaEiofIHmJiRstglny9f9KabAYu9z/4QNlrPIbECsks9KgT7g==}
+    engines: {node: '>=18.12'}
+    hasBin: true
+
+  pnpm@9.7.1:
+    resolution: {integrity: sha512-+vNEry1splxMXIwiJOp3qBpeiFnLxOBrFRHdzi8BUVEkMd0Z5q/zHyxqj18qztm9InPh/tfdTeGGiYQFnSxCRw==}
+    engines: {node: '>=18.12'}
+    hasBin: true
+
+  pnpm@9.9.0:
+    resolution: {integrity: sha512-YMGKzROL/2ldM5vmrRP36TbupnRWYNTMSndtUkfFQNDt7hpWNpXBg6ZuuRfviPK0/rH8JfMqetytx6rzQ46ZwQ==}
+    engines: {node: '>=18.12'}
+    hasBin: true
+
   postcss@8.4.31:
     resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1378,8 +1515,8 @@ packages:
     resolution: {integrity: sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==}
     engines: {node: '>=0.4.0'}
 
-  protobufjs@7.3.0:
-    resolution: {integrity: sha512-YWD03n3shzV9ImZRX3ccbjqLxj7NokGN0V/ESiBV5xWqrommYHYiihuIyavq03pWSGqlyvYUFmfoMKd+1rPA/g==}
+  protobufjs@7.4.0:
+    resolution: {integrity: sha512-mRUWCc3KUU4w1jU8sGxICXH/gNS94DvI1gxqDvBzhj1JpcsimQkYiOJfwsPUykUI5ZaspFbSgmBLER8IrQ3tqw==}
     engines: {node: '>=12.0.0'}
 
   random-seed@0.3.0:
@@ -1439,6 +1576,11 @@ packages:
 
   semver@7.6.2:
     resolution: {integrity: sha512-FNAIBWCx9qcRhoHcgcJ0gvU7SN1lYU2ZXuSfl04bSC5OpvDHFyJCjdNHomPXxjQlCBU67YW64PzY7/VIEH7F2w==}
+    engines: {node: '>=10'}
+    hasBin: true
+
+  semver@7.6.3:
+    resolution: {integrity: sha512-oVekP1cKtI+CTDvHWYFUcMtsK/00wmAEfyqKfNdARm8u1wNVhSgaX7A8d4UuIlUI5e84iEwOhs7ZPYRmzU9U6A==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -1551,45 +1693,45 @@ packages:
   ts-proto-descriptors@1.16.0:
     resolution: {integrity: sha512-3yKuzMLpltdpcyQji1PJZRfoo4OJjNieKTYkQY8pF7xGKsYz/RHe3aEe4KiRxcinoBmnEhmuI+yJTxLb922ULA==}
 
-  ts-proto@1.176.0:
-    resolution: {integrity: sha512-OWVrVUpNfZVfvKJZlSjRmCPkcNcox6IPRw3RIeyK2Z4d0Uoy1/gkumMwCVOAMznZcv80D1r9GyYHgYVdp6Cj+g==}
+  ts-proto@1.181.2:
+    resolution: {integrity: sha512-knJ8dtjn2Pd0c5ZGZG8z9DMiD4PUY8iGI9T9tb8DvGdWRMkLpf0WcPO7G+7cmbZyxvNTAG6ci3fybEaFgMZIvg==}
     hasBin: true
 
   tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
 
-  turbo-darwin-64@2.0.7:
-    resolution: {integrity: sha512-J1RBvQGqKeUwLJrZbfrm4tHshagdMeGAwd7rpLpfUrw0PNmGfcBazJf6dIGXG59/GHzJmS0/eAZ8qDchfVbIFA==}
+  turbo-darwin-64@2.2.3:
+    resolution: {integrity: sha512-Rcm10CuMKQGcdIBS3R/9PMeuYnv6beYIHqfZFeKWVYEWH69sauj4INs83zKMTUiZJ3/hWGZ4jet9AOwhsssLyg==}
     cpu: [x64]
     os: [darwin]
 
-  turbo-darwin-arm64@2.0.7:
-    resolution: {integrity: sha512-h1JK8uuEjoHx1SvvTZiottj+4kDmiv+hivnLUzNwO75qKblMsd38IsFB0J2sMRz7JacFlf+3ry8SItznBW67Xw==}
+  turbo-darwin-arm64@2.2.3:
+    resolution: {integrity: sha512-+EIMHkuLFqUdJYsA3roj66t9+9IciCajgj+DVek+QezEdOJKcRxlvDOS2BUaeN8kEzVSsNiAGnoysFWYw4K0HA==}
     cpu: [arm64]
     os: [darwin]
 
-  turbo-linux-64@2.0.7:
-    resolution: {integrity: sha512-dsr7GFeHAYVMnXWDDjhpsAQetejU4OlkNBRA5hfmnIcl2sSyOYa3EvoeJ6j5z5vTNIJ9VO4I1h0jK3lTjEoonA==}
+  turbo-linux-64@2.2.3:
+    resolution: {integrity: sha512-UBhJCYnqtaeOBQLmLo8BAisWbc9v9daL9G8upLR+XGj6vuN/Nz6qUAhverN4Pyej1g4Nt1BhROnj6GLOPYyqxQ==}
     cpu: [x64]
     os: [linux]
 
-  turbo-linux-arm64@2.0.7:
-    resolution: {integrity: sha512-bJbwXvyX1XPzY1jHgkqggls/L4yFyHVK8GGACF3kcg6x7lYV2SXkUYRyOC3WqzW7euqa9Zw/32jrIPP4Qy31Vw==}
+  turbo-linux-arm64@2.2.3:
+    resolution: {integrity: sha512-hJYT9dN06XCQ3jBka/EWvvAETnHRs3xuO/rb5bESmDfG+d9yQjeTMlhRXKrr4eyIMt6cLDt1LBfyi+6CQ+VAwQ==}
     cpu: [arm64]
     os: [linux]
 
-  turbo-windows-64@2.0.7:
-    resolution: {integrity: sha512-aBH+5A7IN957MqXMrw8xN0CWtH/fPFL+xTlloO6074Eaa8WfnctSAnaSujm6f4xF2T8lFx+ZprBvnO9oKvLQQQ==}
+  turbo-windows-64@2.2.3:
+    resolution: {integrity: sha512-NPrjacrZypMBF31b4HE4ROg4P3nhMBPHKS5WTpMwf7wydZ8uvdEHpESVNMOtqhlp857zbnKYgP+yJF30H3N2dQ==}
     cpu: [x64]
     os: [win32]
 
-  turbo-windows-arm64@2.0.7:
-    resolution: {integrity: sha512-ButUCpO5nTi+jyTSIY2mQ9dVz+mCGxJ6sHyn0xGlNoJWdisKXb0BtWCLAjM26gg/yp9Kt1MBowMQyYVruPV0Qw==}
+  turbo-windows-arm64@2.2.3:
+    resolution: {integrity: sha512-fnNrYBCqn6zgKPKLHu4sOkihBI/+0oYFr075duRxqUZ+1aLWTAGfHZLgjVeLh3zR37CVzuerGIPWAEkNhkWEIw==}
     cpu: [arm64]
     os: [win32]
 
-  turbo@2.0.7:
-    resolution: {integrity: sha512-76iNWZpmKAKjj+yL0Wtcu2LpDIM5Nz7JS3fHOZPYS0AKuC2boJ24276VAiK4PKwbpBB//TYKDpSLuQ6cfR49pg==}
+  turbo@2.2.3:
+    resolution: {integrity: sha512-5lDvSqIxCYJ/BAd6rQGK/AzFRhBkbu4JHVMLmGh/hCb7U3CqSnr5Tjwfy9vc+/5wG2DJ6wttgAaA7MoCgvBKZQ==}
     hasBin: true
 
   type-detect@4.0.8:
@@ -1601,11 +1743,24 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@5.5.4:
+    resolution: {integrity: sha512-Mtq29sKDAEYP7aljRgtPOpTvOfbwRWlS6dPRzwjdE+C0R4brX/GUyhHSecbHMFLNBLcJIPt9nl9yG5TZ1weH+Q==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  typescript@5.6.2:
+    resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   ufo@1.5.3:
     resolution: {integrity: sha512-Y7HYmWaFwPUmkoQCUIAYpKqkOf+SbVj/2fJJZ4RJMCfZp0rTGwRbzQD+HghfnhKOjL9E01okqz+ncJskGYfBNw==}
 
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+
+  undici-types@6.19.8:
+    resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -1840,7 +1995,7 @@ snapshots:
       nopt: 5.0.0
       npmlog: 5.0.1
       rimraf: 3.0.2
-      semver: 7.6.2
+      semver: 7.6.3
       tar: 6.2.1
     transitivePeerDependencies:
       - encoding
@@ -1961,6 +2116,18 @@ snapshots:
       '@types/seedrandom': 2.4.34
       seedrandom: 3.0.5
 
+  '@tensorflow/tfjs-backend-cpu@4.20.0(@tensorflow/tfjs-core@4.20.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+      '@types/seedrandom': 2.4.34
+      seedrandom: 3.0.5
+
+  '@tensorflow/tfjs-backend-cpu@4.21.0(@tensorflow/tfjs-core@4.21.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.21.0
+      '@types/seedrandom': 2.4.34
+      seedrandom: 3.0.5
+
   '@tensorflow/tfjs-backend-webgl@4.19.0(@tensorflow/tfjs-core@4.19.0)':
     dependencies:
       '@tensorflow/tfjs-backend-cpu': 4.19.0(@tensorflow/tfjs-core@4.19.0)
@@ -1969,9 +2136,33 @@ snapshots:
       '@types/seedrandom': 2.4.34
       seedrandom: 3.0.5
 
+  '@tensorflow/tfjs-backend-webgl@4.20.0(@tensorflow/tfjs-core@4.20.0)':
+    dependencies:
+      '@tensorflow/tfjs-backend-cpu': 4.20.0(@tensorflow/tfjs-core@4.20.0)
+      '@tensorflow/tfjs-core': 4.20.0
+      '@types/offscreencanvas': 2019.3.0
+      '@types/seedrandom': 2.4.34
+      seedrandom: 3.0.5
+
+  '@tensorflow/tfjs-backend-webgl@4.21.0(@tensorflow/tfjs-core@4.21.0)':
+    dependencies:
+      '@tensorflow/tfjs-backend-cpu': 4.21.0(@tensorflow/tfjs-core@4.21.0)
+      '@tensorflow/tfjs-core': 4.21.0
+      '@types/offscreencanvas': 2019.3.0
+      '@types/seedrandom': 2.4.34
+      seedrandom: 3.0.5
+
   '@tensorflow/tfjs-converter@4.19.0(@tensorflow/tfjs-core@4.19.0)':
     dependencies:
       '@tensorflow/tfjs-core': 4.19.0
+
+  '@tensorflow/tfjs-converter@4.20.0(@tensorflow/tfjs-core@4.20.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-converter@4.21.0(@tensorflow/tfjs-core@4.21.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.21.0
 
   '@tensorflow/tfjs-core@4.19.0':
     dependencies:
@@ -1997,9 +2188,41 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
+  '@tensorflow/tfjs-core@4.21.0':
+    dependencies:
+      '@types/long': 4.0.2
+      '@types/offscreencanvas': 2019.7.3
+      '@types/seedrandom': 2.4.34
+      '@webgpu/types': 0.1.38
+      long: 4.0.0
+      node-fetch: 2.6.13
+      seedrandom: 3.0.5
+    transitivePeerDependencies:
+      - encoding
+
   '@tensorflow/tfjs-data@4.19.0(@tensorflow/tfjs-core@4.19.0)(seedrandom@3.0.5)':
     dependencies:
       '@tensorflow/tfjs-core': 4.19.0
+      '@types/node-fetch': 2.6.11
+      node-fetch: 2.6.13
+      seedrandom: 3.0.5
+      string_decoder: 1.3.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@tensorflow/tfjs-data@4.20.0(@tensorflow/tfjs-core@4.20.0)(seedrandom@3.0.5)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+      '@types/node-fetch': 2.6.11
+      node-fetch: 2.6.13
+      seedrandom: 3.0.5
+      string_decoder: 1.3.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@tensorflow/tfjs-data@4.21.0(@tensorflow/tfjs-core@4.21.0)(seedrandom@3.0.5)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.21.0
       '@types/node-fetch': 2.6.11
       node-fetch: 2.6.13
       seedrandom: 3.0.5
@@ -2011,6 +2234,14 @@ snapshots:
     dependencies:
       '@tensorflow/tfjs-core': 4.19.0
 
+  '@tensorflow/tfjs-layers@4.20.0(@tensorflow/tfjs-core@4.20.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.20.0
+
+  '@tensorflow/tfjs-layers@4.21.0(@tensorflow/tfjs-core@4.21.0)':
+    dependencies:
+      '@tensorflow/tfjs-core': 4.21.0
+
   '@tensorflow/tfjs-node-gpu@4.19.0(seedrandom@3.0.5)':
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.9
@@ -2021,6 +2252,36 @@ snapshots:
       progress: 2.0.3
       rimraf: 2.7.1
       tar: 4.4.19
+    transitivePeerDependencies:
+      - encoding
+      - seedrandom
+      - supports-color
+
+  '@tensorflow/tfjs-node-gpu@4.20.0(seedrandom@3.0.5)':
+    dependencies:
+      '@mapbox/node-pre-gyp': 1.0.9
+      '@tensorflow/tfjs': 4.20.0(seedrandom@3.0.5)
+      adm-zip: 0.5.15
+      google-protobuf: 3.21.4
+      https-proxy-agent: 2.2.4
+      progress: 2.0.3
+      rimraf: 2.7.1
+      tar: 6.2.1
+    transitivePeerDependencies:
+      - encoding
+      - seedrandom
+      - supports-color
+
+  '@tensorflow/tfjs-node-gpu@4.21.0(seedrandom@3.0.5)':
+    dependencies:
+      '@mapbox/node-pre-gyp': 1.0.9
+      '@tensorflow/tfjs': 4.21.0(seedrandom@3.0.5)
+      adm-zip: 0.5.16
+      google-protobuf: 3.21.4
+      https-proxy-agent: 2.2.4
+      progress: 2.0.3
+      rimraf: 2.7.1
+      tar: 6.2.1
     transitivePeerDependencies:
       - encoding
       - seedrandom
@@ -2043,26 +2304,72 @@ snapshots:
       - encoding
       - seedrandom
 
+  '@tensorflow/tfjs@4.20.0(seedrandom@3.0.5)':
+    dependencies:
+      '@tensorflow/tfjs-backend-cpu': 4.20.0(@tensorflow/tfjs-core@4.20.0)
+      '@tensorflow/tfjs-backend-webgl': 4.20.0(@tensorflow/tfjs-core@4.20.0)
+      '@tensorflow/tfjs-converter': 4.20.0(@tensorflow/tfjs-core@4.20.0)
+      '@tensorflow/tfjs-core': 4.20.0
+      '@tensorflow/tfjs-data': 4.20.0(@tensorflow/tfjs-core@4.20.0)(seedrandom@3.0.5)
+      '@tensorflow/tfjs-layers': 4.20.0(@tensorflow/tfjs-core@4.20.0)
+      argparse: 1.0.10
+      chalk: 4.1.2
+      core-js: 3.29.1
+      regenerator-runtime: 0.13.11
+      yargs: 16.2.0
+    transitivePeerDependencies:
+      - encoding
+      - seedrandom
+
+  '@tensorflow/tfjs@4.21.0(seedrandom@3.0.5)':
+    dependencies:
+      '@tensorflow/tfjs-backend-cpu': 4.21.0(@tensorflow/tfjs-core@4.21.0)
+      '@tensorflow/tfjs-backend-webgl': 4.21.0(@tensorflow/tfjs-core@4.21.0)
+      '@tensorflow/tfjs-converter': 4.21.0(@tensorflow/tfjs-core@4.21.0)
+      '@tensorflow/tfjs-core': 4.21.0
+      '@tensorflow/tfjs-data': 4.21.0(@tensorflow/tfjs-core@4.21.0)(seedrandom@3.0.5)
+      '@tensorflow/tfjs-layers': 4.21.0(@tensorflow/tfjs-core@4.21.0)
+      argparse: 1.0.10
+      chalk: 4.1.2
+      core-js: 3.29.1
+      regenerator-runtime: 0.13.11
+      yargs: 16.2.0
+    transitivePeerDependencies:
+      - encoding
+      - seedrandom
+
   '@types/estree@1.0.5': {}
 
   '@types/lodash@4.17.4': {}
+
+  '@types/lodash@4.17.7': {}
 
   '@types/long@4.0.2': {}
 
   '@types/node-fetch@2.6.11':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 22.5.5
       form-data: 4.0.0
 
   '@types/node@20.12.12':
     dependencies:
       undici-types: 5.26.5
 
+  '@types/node@20.16.5':
+    dependencies:
+      undici-types: 6.19.8
+
+  '@types/node@22.5.5':
+    dependencies:
+      undici-types: 6.19.8
+
   '@types/offscreencanvas@2019.3.0': {}
 
   '@types/offscreencanvas@2019.7.3': {}
 
   '@types/prop-types@15.7.12': {}
+
+  '@types/prop-types@15.7.13': {}
 
   '@types/random-seed@0.3.5': {}
 
@@ -2075,9 +2382,14 @@ snapshots:
       '@types/prop-types': 15.7.12
       csstype: 3.1.3
 
+  '@types/react@18.3.8':
+    dependencies:
+      '@types/prop-types': 15.7.13
+      csstype: 3.1.3
+
   '@types/seedrandom@2.4.34': {}
 
-  '@vitest/coverage-v8@1.6.0(vitest@1.6.0(@types/node@20.12.12))':
+  '@vitest/coverage-v8@1.6.0(vitest@1.6.0(@types/node@20.16.5))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
@@ -2092,7 +2404,26 @@ snapshots:
       std-env: 3.7.0
       strip-literal: 2.1.0
       test-exclude: 6.0.0
-      vitest: 1.6.0(@types/node@20.12.12)
+      vitest: 1.6.0(@types/node@20.16.5)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitest/coverage-v8@1.6.0(vitest@1.6.0(@types/node@22.5.5))':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@bcoe/v8-coverage': 0.2.3
+      debug: 4.3.4
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-lib-source-maps: 5.0.4
+      istanbul-reports: 3.1.7
+      magic-string: 0.30.10
+      magicast: 0.3.4
+      picocolors: 1.0.1
+      std-env: 3.7.0
+      strip-literal: 2.1.0
+      test-exclude: 6.0.0
+      vitest: 1.6.0(@types/node@22.5.5)
     transitivePeerDependencies:
       - supports-color
 
@@ -2135,13 +2466,17 @@ snapshots:
 
   adm-zip@0.5.12: {}
 
+  adm-zip@0.5.15: {}
+
+  adm-zip@0.5.16: {}
+
   agent-base@4.3.0:
     dependencies:
       es6-promisify: 5.0.0
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.3.4
+      debug: 4.3.7
     transitivePeerDependencies:
       - supports-color
 
@@ -2264,6 +2599,10 @@ snapshots:
     dependencies:
       ms: 2.1.2
 
+  debug@4.3.7:
+    dependencies:
+      ms: 2.1.3
+
   deep-eql@4.1.3:
     dependencies:
       type-detect: 4.0.8
@@ -2346,7 +2685,7 @@ snapshots:
       combined-stream: 1.0.8
       mime-types: 2.1.35
 
-  fp-ts@2.16.8: {}
+  fp-ts@2.16.9: {}
 
   fs-minipass@1.2.7:
     dependencies:
@@ -2390,6 +2729,8 @@ snapshots:
 
   google-protobuf@3.21.2: {}
 
+  google-protobuf@3.21.4: {}
+
   graceful-fs@4.2.11: {}
 
   has-flag@4.0.0: {}
@@ -2408,7 +2749,7 @@ snapshots:
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.3.4
+      debug: 4.3.7
     transitivePeerDependencies:
       - supports-color
 
@@ -2423,9 +2764,9 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  io-ts@2.2.21(fp-ts@2.16.8):
+  io-ts@2.2.21(fp-ts@2.16.9):
     dependencies:
-      fp-ts: 2.16.8
+      fp-ts: 2.16.9
 
   is-fullwidth-code-point@3.0.0: {}
 
@@ -2642,6 +2983,14 @@ snapshots:
 
   pnpm@9.1.1: {}
 
+  pnpm@9.10.0: {}
+
+  pnpm@9.12.3: {}
+
+  pnpm@9.7.1: {}
+
+  pnpm@9.9.0: {}
+
   postcss@8.4.31:
     dependencies:
       nanoid: 3.3.7
@@ -2662,7 +3011,7 @@ snapshots:
 
   progress@2.0.3: {}
 
-  protobufjs@7.3.0:
+  protobufjs@7.4.0:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
       '@protobufjs/base64': 1.1.2
@@ -2674,7 +3023,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
-      '@types/node': 20.12.12
+      '@types/node': 20.16.5
       long: 5.2.3
 
   random-seed@0.3.0:
@@ -2744,6 +3093,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.6.2: {}
+
+  semver@7.6.3: {}
 
   set-blocking@2.0.0: {}
 
@@ -2840,61 +3191,67 @@ snapshots:
   ts-proto-descriptors@1.16.0:
     dependencies:
       long: 5.2.3
-      protobufjs: 7.3.0
+      protobufjs: 7.4.0
 
-  ts-proto@1.176.0:
+  ts-proto@1.181.2:
     dependencies:
       case-anything: 2.1.13
-      protobufjs: 7.3.0
+      protobufjs: 7.4.0
       ts-poet: 6.9.0
       ts-proto-descriptors: 1.16.0
 
   tslib@2.6.2: {}
 
-  turbo-darwin-64@2.0.7:
+  turbo-darwin-64@2.2.3:
     optional: true
 
-  turbo-darwin-arm64@2.0.7:
+  turbo-darwin-arm64@2.2.3:
     optional: true
 
-  turbo-linux-64@2.0.7:
+  turbo-linux-64@2.2.3:
     optional: true
 
-  turbo-linux-arm64@2.0.7:
+  turbo-linux-arm64@2.2.3:
     optional: true
 
-  turbo-windows-64@2.0.7:
+  turbo-windows-64@2.2.3:
     optional: true
 
-  turbo-windows-arm64@2.0.7:
+  turbo-windows-arm64@2.2.3:
     optional: true
 
-  turbo@2.0.7:
+  turbo@2.2.3:
     optionalDependencies:
-      turbo-darwin-64: 2.0.7
-      turbo-darwin-arm64: 2.0.7
-      turbo-linux-64: 2.0.7
-      turbo-linux-arm64: 2.0.7
-      turbo-windows-64: 2.0.7
-      turbo-windows-arm64: 2.0.7
+      turbo-darwin-64: 2.2.3
+      turbo-darwin-arm64: 2.2.3
+      turbo-linux-64: 2.2.3
+      turbo-linux-arm64: 2.2.3
+      turbo-windows-64: 2.2.3
+      turbo-windows-arm64: 2.2.3
 
   type-detect@4.0.8: {}
 
   typescript@5.4.5: {}
 
+  typescript@5.5.4: {}
+
+  typescript@5.6.2: {}
+
   ufo@1.5.3: {}
 
   undici-types@5.26.5: {}
 
+  undici-types@6.19.8: {}
+
   util-deprecate@1.0.2: {}
 
-  vite-node@1.6.0(@types/node@20.12.12):
+  vite-node@1.6.0(@types/node@20.16.5):
     dependencies:
       cac: 6.7.14
       debug: 4.3.4
       pathe: 1.1.2
       picocolors: 1.0.1
-      vite: 5.2.11(@types/node@20.12.12)
+      vite: 5.2.11(@types/node@20.16.5)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -2905,16 +3262,42 @@ snapshots:
       - supports-color
       - terser
 
-  vite@5.2.11(@types/node@20.12.12):
+  vite-node@1.6.0(@types/node@22.5.5):
+    dependencies:
+      cac: 6.7.14
+      debug: 4.3.4
+      pathe: 1.1.2
+      picocolors: 1.0.1
+      vite: 5.2.11(@types/node@22.5.5)
+    transitivePeerDependencies:
+      - '@types/node'
+      - less
+      - lightningcss
+      - sass
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vite@5.2.11(@types/node@20.16.5):
     dependencies:
       esbuild: 0.20.2
       postcss: 8.4.38
       rollup: 4.17.2
     optionalDependencies:
-      '@types/node': 20.12.12
+      '@types/node': 20.16.5
       fsevents: 2.3.3
 
-  vitest@1.6.0(@types/node@20.12.12):
+  vite@5.2.11(@types/node@22.5.5):
+    dependencies:
+      esbuild: 0.20.2
+      postcss: 8.4.38
+      rollup: 4.17.2
+    optionalDependencies:
+      '@types/node': 22.5.5
+      fsevents: 2.3.3
+
+  vitest@1.6.0(@types/node@20.16.5):
     dependencies:
       '@vitest/expect': 1.6.0
       '@vitest/runner': 1.6.0
@@ -2933,11 +3316,44 @@ snapshots:
       strip-literal: 2.1.0
       tinybench: 2.8.0
       tinypool: 0.8.4
-      vite: 5.2.11(@types/node@20.12.12)
-      vite-node: 1.6.0(@types/node@20.12.12)
+      vite: 5.2.11(@types/node@20.16.5)
+      vite-node: 1.6.0(@types/node@20.16.5)
       why-is-node-running: 2.2.2
     optionalDependencies:
-      '@types/node': 20.12.12
+      '@types/node': 20.16.5
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - sass
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vitest@1.6.0(@types/node@22.5.5):
+    dependencies:
+      '@vitest/expect': 1.6.0
+      '@vitest/runner': 1.6.0
+      '@vitest/snapshot': 1.6.0
+      '@vitest/spy': 1.6.0
+      '@vitest/utils': 1.6.0
+      acorn-walk: 8.3.2
+      chai: 4.4.1
+      debug: 4.3.4
+      execa: 8.0.1
+      local-pkg: 0.5.0
+      magic-string: 0.30.10
+      pathe: 1.1.2
+      picocolors: 1.0.1
+      std-env: 3.7.0
+      strip-literal: 2.1.0
+      tinybench: 2.8.0
+      tinypool: 0.8.4
+      vite: 5.2.11(@types/node@22.5.5)
+      vite-node: 1.6.0(@types/node@22.5.5)
+      why-is-node-running: 2.2.2
+    optionalDependencies:
+      '@types/node': 22.5.5
     transitivePeerDependencies:
       - less
       - lightningcss
