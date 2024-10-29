@@ -27,9 +27,6 @@ import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
 import { driveGenerators, requireDefined } from "studio-util";
 
-// const model1 = KingdominoModel.load(process.argv[2]);
-// const model2 = KingdominoModel.load(process.argv[3]);
-
 const modelPath = newestModelPath("kingdomino", "conv3");
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");
@@ -41,20 +38,6 @@ console.log(`Loaded model from ${modelPath}`);
 const episodeCount = parseInt(process.argv[2]);
 console.log(`episodeCount is ${episodeCount}`);
 
-const mctsConfig = new MctsConfig<
-  KingdominoConfiguration,
-  KingdominoState,
-  KingdominoAction
->({
-  simulationCount: 256,
-  randomPlayoutConfig: {
-    weight: 1,
-    agent: new RandomKingdominoAgent(),
-  },
-  // explorationBias: Math.sqrt(2),
-  // maxChanceBranches: 4,
-});
-
 const modelPlayer1 = new Player("model-1", "Model 1");
 const modelPlayer2 = new Player("model-2", "Model 2");
 const randomPlayer1 = new Player("random-1", "Random 1");
@@ -65,14 +48,8 @@ const decimalFormat = Intl.NumberFormat(undefined, {
 });
 
 async function main() {
-  const mctsContext = {
-    config: mctsConfig,
-    game: Kingdomino.INSTANCE,
-    model: (await model).inferenceModel,
-    stats: new MctsStats(),
-  };
   const randomAgent = new RandomBatchAgent();
-  const model1Agent = new MctsBatchAgent(await model);
+  const model1Agent = new MctsBatchAgent((await model).inferenceModel);
   const agentIdToAgent = Map<string, BatchAgent>([
     ["random", randomAgent],
     ["model", model1Agent],
@@ -150,33 +127,39 @@ interface BatchAgent {
 }
 
 class MctsBatchAgent implements BatchAgent {
-  constructor(readonly model: KingdominoConvolutionalModel) {}
+  readonly mctsConfig = new MctsConfig<
+    KingdominoConfiguration,
+    KingdominoState,
+    KingdominoAction
+  >({
+    simulationCount: 256,
+    randomPlayoutConfig: {
+      weight: 1,
+      agent: new RandomKingdominoAgent(),
+    },
+  });
+  constructor(
+    readonly model: InferenceModel<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction
+    >
+  ) {}
   act(
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
   ): ReadonlyArray<KingdominoAction> {
-    const mctsConfig = new MctsConfig<
-      KingdominoConfiguration,
-      KingdominoState,
-      KingdominoAction
-    >({
-      simulationCount: 256,
-      randomPlayoutConfig: {
-        weight: 1,
-        agent: new RandomKingdominoAgent(),
-      },
-    });
     const generators = snapshots.map((snapshot) => {
       return mcts(
         Kingdomino.INSTANCE,
-        this.model.inferenceModel,
+        this.model,
         snapshot,
-        mctsConfig
+        this.mctsConfig
       );
     });
     return driveGenerators(generators, (snapshots) => {
-      return this.model.inferenceModel.infer(snapshots);
+      return this.model.infer(snapshots);
     });
   }
 }
@@ -263,6 +246,8 @@ function* episode<
   }
   while (game.result(snapshot) == undefined) {
     const action = yield snapshot;
+    // Ignore chance keys since we're not building a state search tree in
+    // this case
     const [newState] = game.apply(snapshot, action);
     snapshot = snapshot.derive(newState);
   }

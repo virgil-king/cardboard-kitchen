@@ -2,7 +2,7 @@ import { Direction, Rectangle, Vector2 } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
-import { Map, Range } from "immutable";
+import { Map, Range, Set } from "immutable";
 import {
   KingdominoVectors,
   LocationState,
@@ -397,9 +397,7 @@ test("mirror: returns mirrored board", () => {
 
 test("mirror and rotate: applies both transforms", () => {
   const board = new PlayerBoard(
-    Map([
-      [new Vector2(-1, 1), LocationState.instance(13, 0)],
-    ])
+    Map([[new Vector2(-1, 1), LocationState.instance(13, 0)]])
   );
 
   const rotated = board.transform({ mirror: true, quarterTurns: 1 });
@@ -419,5 +417,46 @@ test("mirror and rotate: applies both transforms", () => {
   assert.equal(
     rotated.getLocationState(new Vector2(-1, -1)).terrain,
     Terrain.TERRAIN_EMPTY
+  );
+});
+
+test("adjacentEmptyLocations: empty board: yields four adjacent locations", () => {
+  const result = Set(new PlayerBoard(Map()).adjacentEmptyLocations());
+
+  assert.isTrue(
+    result.equals(
+      Set([
+        new Vector2(centerX - 1, centerY),
+        new Vector2(centerX, centerY + 1),
+        new Vector2(centerX + 1, centerY),
+        new Vector2(centerX, centerY - 1),
+      ])
+    )
+  );
+});
+
+test("adjacentEmptyLocations: one tile placed: yields eight adjacent locations", () => {
+  const result = Set(
+    new PlayerBoard(
+      Map([
+        [new Vector2(centerX + 1, centerY), LocationState.instance(1, 0)],
+        [new Vector2(centerX + 2, centerY), LocationState.instance(1, 1)],
+      ])
+    ).adjacentEmptyLocations()
+  );
+
+  assert.isTrue(
+    result.equals(
+      Set([
+        new Vector2(centerX - 1, centerY),
+        new Vector2(centerX, centerY + 1),
+        new Vector2(centerX + 1, centerY + 1),
+        new Vector2(centerX + 2, centerY + 1),
+        new Vector2(centerX + 3, centerY),
+        new Vector2(centerX + 2, centerY - 1),
+        new Vector2(centerX + 1, centerY - 1),
+        new Vector2(centerX, centerY - 1),
+      ])
+    )
   );
 });

@@ -17,12 +17,11 @@ import {
   TileOffers,
   tileOffersJson,
 } from "./base.js";
-import { Vector2 } from "./util.js";
+import { Direction, Vector2 } from "./util.js";
 
-import { List, Map, Set, ValueObject, hash } from "immutable";
+import { List, Map, Seq, Set, ValueObject, hash } from "immutable";
 import _ from "lodash";
-import { PlayerBoard, PlayerBoardJson, playerBoardJson } from "./board.js";
-import { Rank, Tensor } from "@tensorflow/tfjs-node-gpu";
+import { PlayerBoard, playerBoardJson } from "./board.js";
 import {
   requireDefined,
   drawN,
@@ -30,6 +29,7 @@ import {
   combineHashes,
 } from "studio-util";
 import * as io from "io-ts";
+import { KingdominoAction } from "./action.js";
 
 const playerStateJson = io.type({
   board: playerBoardJson,
@@ -423,5 +423,70 @@ export class KingdominoState implements GameState {
       ...this.props,
       playerIdToState: this.props.playerIdToState.set(playerId, newPlayerState),
     });
+  }
+
+  *possibleActions(): Generator<KingdominoAction> {
+    const nextAction = this.nextAction;
+    // const currentPlayer = requireDefined(this.currentPlayerId);
+    switch (nextAction) {
+      case undefined:
+        throw new Error(`No next action`);
+      case NextAction.CLAIM_OFFER: {
+        yield* this.possibleClaims();
+      }
+      case NextAction.RESOLVE_OFFER: {
+        yield KingdominoAction.discardTile();
+        yield* this.possiblePlacements().map((placement) =>
+          KingdominoAction.placeTile(placement)
+        );
+      }
+      default:
+        throw new Error(
+          `Unexpected case ${nextAction}; state is ${JSON.stringify(this)}`
+        );
+    }
+  }
+
+  private *possibleClaims(): Generator<KingdominoAction> {
+    for (const [index, offer] of requireDefined(
+      this.props.nextOffers?.offers?.entries()
+    )) {
+      if (!offer.isClaimed()) {
+        yield KingdominoAction.claimTile(new ClaimTile(index));
+      }
+    }
+  }
+
+  /**
+   * Returns all of the legal placements available from {@link state}
+   */
+  // Visible for testing
+  *possiblePlacements(): Generator<PlaceTile> {
+    const currentPlayerBoard = this.requireCurrentPlayerState().board;
+    const previousOffers = this.props.previousOffers;
+    if (previousOffers == undefined) {
+      // First round; can't place anything
+      return;
+    }
+    const firstUnplacedOfferTileNumber = Seq(previousOffers.offers)
+      .map((offer) => offer.tileNumber)
+      .find((tileNumber) => tileNumber != undefined);
+    if (firstUnplacedOfferTileNumber == undefined) {
+      // All tiles already placed
+      return;
+    }
+    const tile = Tile.withNumber(firstUnplacedOfferTileNumber);
+    for (const adjacentLocation of currentPlayerBoard.adjacentEmptyLocations()) {
+      for (const direction of Direction.values()) {
+        const square0Placement = new PlaceTile(adjacentLocation, direction);
+        if (currentPlayerBoard.isPlacementAllowed(square0Placement, tile)) {
+          yield square0Placement;
+        }
+        const square1Placement = square0Placement.flip();
+        if (currentPlayerBoard.isPlacementAllowed(square1Placement, tile)) {
+          yield square1Placement;
+        }
+      }
+    }
   }
 }

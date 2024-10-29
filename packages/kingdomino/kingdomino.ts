@@ -6,7 +6,6 @@ import {
   NO_CHANCE,
   Player,
   PlayerValues,
-  Players,
 } from "game";
 import { KingdominoState, NextAction, propsJson } from "./state.js";
 import _ from "lodash";
@@ -89,16 +88,7 @@ export class Kingdomino
     snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
     action: KingdominoAction
   ): boolean {
-    // return true;
-    // try {
-    //   this.apply(snapshot, action);
-    //   return true;
-    // } catch (e) {
-    //   return false;
-    // }
-
     const actionData = action.data;
-    // let result: [KingdominoState, ChanceKey];
     const currentPlayer = requireDefined(
       Kingdomino.INSTANCE.currentPlayer(snapshot)
     );
@@ -118,15 +108,8 @@ export class Kingdomino
           return false;
         }
         return true;
-        // result = this.handleClaim(snapshot, currentPlayer, actionData.claim);
       }
       case ActionCase.PLACE: {
-        // result = this.handlePlacement(
-        //   snapshot,
-        //   currentPlayer,
-        //   actionData.place
-        // );
-        // break;
         if (nextAction != NextAction.RESOLVE_OFFER) {
           return false;
         }
@@ -153,8 +136,6 @@ export class Kingdomino
         if (nextAction != NextAction.RESOLVE_OFFER) {
           return false;
         }
-        // result = this.handleDiscard(snapshot, currentPlayer);
-        // break;
         return true;
       }
     }
@@ -164,14 +145,6 @@ export class Kingdomino
     snapshot: KingdominoSnapshot,
     action: KingdominoAction
   ): [KingdominoState, ChanceKey] {
-    // console.log(`Handling ${JSON.stringify(action)}`);
-
-    // if (!action.player.equals(snapshot.state.currentPlayer)) {
-    //   throw new Error(
-    //     `Action specified player ${action.player.name} but should have been ${snapshot.state.currentPlayer?.name}`
-    //   );
-    // }
-
     const actionData = action.data;
     let result: [KingdominoState, ChanceKey];
     const currentPlayer = requireDefined(
@@ -195,12 +168,6 @@ export class Kingdomino
         break;
       }
     }
-    // console.log(
-    //   `Next player is ${JSON.stringify(this.currentState.currentPlayer)}`
-    // );
-
-    // console.log(`Next action is ${result[0].nextAction}`);
-
     return result;
   }
 
@@ -265,8 +232,6 @@ export class Kingdomino
     let [newState, chanceKey] = state
       .withPreviousOffers(nextOffers)
       .withNewNextOffers(kingdominoConfig);
-    // console.log(`Previous next offers is ${JSON.stringify(nextOffers)}`);
-    // console.log(`New next offers is ${JSON.stringify(newState.props.nextOffers)}`);
     newState = newState
       .withCurrentPlayer(
         requireDefined(
@@ -302,7 +267,6 @@ export class Kingdomino
         placement,
         requireDefined(unresolvedOfferInfo[1].tileNumber)
       );
-    // console.log(`isLastRound=${snapshot.state.isLastRound()}`);
     newState = this.handleOfferResolved(
       snapshot.episodeConfiguration,
       newState
@@ -330,10 +294,8 @@ export class Kingdomino
         ).playerId;
         const nextPlayer = episodeConfig.players.requirePlayer(nextPlayerId);
         state = state.withCurrentPlayer(nextPlayer);
-        // console.log(`Next player is ${JSON.stringify(nextPlayer)}`);
       }
     } else {
-      // console.log(`Setting next action to claim`);
       state = state.withNextAction(NextAction.CLAIM_OFFER);
     }
     return state;

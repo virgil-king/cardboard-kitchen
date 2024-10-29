@@ -207,7 +207,7 @@ export class PlayerBoard implements ValueObject {
       if (locationState.terrain == Terrain.TERRAIN_EMPTY) {
         continue;
       }
-      const visitResult = this.visit(locationState.terrain, location, scored);
+      const visitResult = this.visitForScoring(locationState.terrain, location, scored);
       score += visitResult.squareCount * visitResult.crownCount;
       scored = visitResult.scored;
       queue = queue.merge(visitResult.queue);
@@ -225,7 +225,7 @@ export class PlayerBoard implements ValueObject {
    * group of tiles with the same terrain.
    *
    */
-  visit(
+  visitForScoring(
     terrain: Terrain,
     location: Vector2,
     scored: Set<Vector2>
@@ -261,7 +261,7 @@ export class PlayerBoard implements ValueObject {
       if (scored.contains(neighborLocation)) {
         continue;
       }
-      let result = this.visit(terrain, neighborLocation, scored);
+      let result = this.visitForScoring(terrain, neighborLocation, scored);
       squareCount += result.squareCount;
       crownCount += result.crownCount;
       scored = result.scored;
@@ -354,6 +354,49 @@ export class PlayerBoard implements ValueObject {
         .toArray(),
     };
   }
+
+  // Visible for testing
+  *adjacentEmptyLocations(): Generator<Vector2> {
+    const center = PlayerBoard.center;
+    // Contains both occupied and empty locations.
+    // We use an immutable Set here, even though a mutable set would be more convenient in this case,
+    // because JS mutable sets don't support deep equality behavior (ValueObject in this case)
+    const visited = Set<Vector2>();
+    visited.add(center);
+    for (const [neighbor, _] of this.visitForEnumeration(center, visited)) {
+      yield neighbor;
+    }
+  }
+
+  /**
+   * Emits pairs whose first element is an empty neighbor and whose second element is a new set of all visited locations
+   */
+  private *visitForEnumeration(
+    location: Vector2,
+    visited: Set<Vector2>
+  ): Generator<[Vector2, Set<Vector2>]> {
+    let localVisited = visited;
+    for (const direction of Direction.values()) {
+      const neighbor = KingdominoVectors.plus(location, direction.offset);
+      if (localVisited.contains(neighbor)) {
+        continue;
+      }
+      localVisited = localVisited.add(neighbor);
+      const neighborState = this.getLocationState(neighbor);
+      if (neighborState.terrain == Terrain.TERRAIN_EMPTY) {
+        yield [neighbor, localVisited];
+      } else {
+        for (const [newNeighbor, newVisited] of this.visitForEnumeration(
+          neighbor,
+          localVisited
+        )) {
+          localVisited = newVisited;
+          yield [newNeighbor, newVisited];
+        }
+      }
+    }
+  }
+
 }
 
 type VisitResult = {

@@ -12,11 +12,12 @@ import {
   PlaceTile,
   centerX,
   centerY,
+  playAreaRadius,
 } from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
 import { requireDefined, valueObjectsEqual } from "studio-util";
-import { List } from "immutable";
+import { List, Set } from "immutable";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -291,6 +292,86 @@ test("encode/decode round trip", () => {
     afterState.props.offsetInScriptedTileNumbers
   );
   assert.equal(jsonString, secondJsonString);
+});
+
+test("possiblePlacements: returns all options for first tile", () => {
+  const episode = episodeWithPlayers(new Players(alice, bob, cecile));
+  episode.apply(claim(0), claim(1), claim(2));
+
+  const placements = Set(episode.currentSnapshot.state.possiblePlacements());
+
+  assert.equal(placements.count(), 24);
+  const check = (x: number, y: number, direction: Direction) => {
+    assert.isTrue(
+      placements.contains(new PlaceTile(new Vector2(x, y), direction))
+    );
+  };
+  // Placements for square zero touching the center
+  check(-1, 0, Direction.DOWN);
+  check(-1, 0, Direction.LEFT);
+  check(-1, 0, Direction.UP);
+  check(0, 1, Direction.LEFT);
+  check(0, 1, Direction.UP);
+  check(0, 1, Direction.RIGHT);
+  check(1, 0, Direction.UP);
+  check(1, 0, Direction.RIGHT);
+  check(1, 0, Direction.DOWN);
+  check(0, -1, Direction.RIGHT);
+  check(0, -1, Direction.DOWN);
+  check(0, -1, Direction.LEFT);
+
+  // Placements for square one touching the center
+  check(-1, -1, Direction.UP);
+  check(-2, 0, Direction.RIGHT);
+  check(-1, 1, Direction.DOWN);
+  check(-1, 1, Direction.RIGHT);
+  check(0, 2, Direction.DOWN);
+  check(1, 1, Direction.LEFT);
+  check(1, 1, Direction.DOWN);
+  check(2, 0, Direction.LEFT);
+  check(1, -1, Direction.UP);
+  check(1, -1, Direction.LEFT);
+  check(0, -2, Direction.UP);
+  check(-1, -1, Direction.RIGHT);
+});
+
+test("possiblePlacements: does not return out of bounds placements", () => {
+  // Arrange the tiles so that tiles with the same offer index in the first
+  // two rounds have matching terrain
+  const episode = episodeWithPlayers(
+    new Players(alice, bob, cecile),
+    [1, 3, 7, 2, 4, 8, 10, 11, 12]
+  );
+  episode.apply(claim(0), claim(1), claim(2));
+  const firstTilePlacement = new PlaceTile(new Vector2(1, 0), Direction.RIGHT);
+  episode.apply(
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(0)),
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(1)),
+    KingdominoAction.placeTile(firstTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(2))
+  );
+  const secondTilePlacement = new PlaceTile(new Vector2(3, 0), Direction.RIGHT);
+  episode.apply(
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(0)),
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(1)),
+    KingdominoAction.placeTile(secondTilePlacement),
+    KingdominoAction.claimTile(new ClaimTile(2))
+  );
+
+  const placements = Set(episode.currentSnapshot.state.possiblePlacements());
+
+  assert.isTrue(
+    placements.every((placement) => {
+      return (
+        placement.squareLocation(0).x <= playAreaRadius &&
+        placement.squareLocation(1).x <= playAreaRadius
+      );
+    })
+  );
 });
 
 function episodeWithPlayers(
