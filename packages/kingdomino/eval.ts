@@ -160,7 +160,7 @@ class MctsAgent<
       // action statistics, but no further visits are necessary
       // root.visit();
       this.visit(root);
-      return root.actionToChild.keys().next().value;
+      return requireDefined(root.actionToChild.keys().next().value);
     } else {
       for (let i of Range(
         0,

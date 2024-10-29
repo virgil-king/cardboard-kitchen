@@ -58,7 +58,7 @@ test("write: directory: size counted correctly", () => {
   const path = fs.mkdtempSync("/tmp/LogDirectoryTest");
   const dir = new LogDirectory(path, 15);
 
-  dir.write((path) => {
+  dir.write(async (path) => {
     fs.mkdirSync(path);
     fs.writeFileSync(`${path}/a`, "four");
     fs.writeFileSync(`${path}/b`, "four");

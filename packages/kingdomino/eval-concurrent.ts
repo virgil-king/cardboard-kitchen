@@ -223,7 +223,7 @@ function* mcts<
     // When root has exactly one child, visit it once to populate the
     // action statistics, but no further visits are necessary
     yield* root.visit();
-    return root.actionToChild.keys().next().value;
+    return requireDefined(root.actionToChild.keys().next().value);
   } else {
     for (const i of Range(
       0,
