@@ -24,7 +24,7 @@ async function main() {
     model,
     batchSize,
     sampleBufferSize,
-    "./out/worker.js",
+    "./out/self-play-worker.js",
     modelsDir,
     episodesDir
   );
