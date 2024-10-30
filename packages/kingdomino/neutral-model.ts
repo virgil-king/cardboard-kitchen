@@ -6,7 +6,7 @@ import { EpisodeSnapshot, PlayerValues } from "game";
 import { Kingdomino } from "./kingdomino.js";
 import { Map } from "immutable";
 
-class NeutralKingdominoModel
+export class NeutralKingdominoModel
   implements
     InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
 {

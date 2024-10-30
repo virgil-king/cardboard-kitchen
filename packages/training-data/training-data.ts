@@ -61,6 +61,9 @@ const stateSearchDataJson = io.type({
 
 type EncodedStateSearchData = io.TypeOf<typeof stateSearchDataJson>;
 
+/**
+ * Record of data associated with state search from one state
+ */
 export class StateSearchData<S extends GameState, A extends Action>
   implements JsonSerializable
 {

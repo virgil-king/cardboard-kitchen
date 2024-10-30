@@ -223,8 +223,8 @@ function* loadEpisodesJson(episodesDir: string): Generator<any> {
 }
 
 /**
- * Runs a new episode to completion and returns training data for each state in
- * the episode
+ * Generator function for training episodes. Yields snapshots, receives inference
+ * results, and returns episode training data.
  */
 export function* trainingEpisode<
   C extends GameConfiguration,

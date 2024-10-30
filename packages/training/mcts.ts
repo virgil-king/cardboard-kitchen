@@ -38,25 +38,34 @@ export class MctsConfig<
 > {
   readonly simulationCount: number;
   readonly explorationBias: number;
+  readonly modelValueWeight: number | undefined;
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
   readonly minPrior: number;
   constructor({
     simulationCount = 32,
-    explorationBias = 3, // Math.sqrt(2),
+    explorationBias = Math.sqrt(2),
+    modelValueWeight = 1,
     randomPlayoutConfig = undefined,
     maxChanceBranches = 4,
     minPolicyValue = 0.01,
   }: {
     simulationCount?: number;
     explorationBias?: number;
+    modelValueWeight?: number;
     randomPlayoutConfig?: RandomPlayoutConfig<C, S, A>;
     maxChanceBranches?: number;
     minPolicyValue?: number;
   }) {
     this.simulationCount = simulationCount;
     this.explorationBias = explorationBias;
+    this.modelValueWeight = modelValueWeight;
     this.randomPlayoutConfig = randomPlayoutConfig;
+    if (modelValueWeight == undefined && randomPlayoutConfig == undefined) {
+      throw new Error(
+        `modelValueWeight and randomPlayoutConfig were both null`
+      );
+    }
     this.maxChanceBranches = maxChanceBranches;
     this.minPrior = minPolicyValue;
   }
@@ -266,32 +275,38 @@ export class NonTerminalStateNode<
       return episodeResult;
     }
 
-    // Model prediction
-    let predictedValues = this.inferenceResult.value;
-    // debugLog(
-    //   () =>
-    //     `Using predicted values ${JSON.stringify(
-    //       predictedValues
-    //     )} for state ${JSON.stringify(this.snapshot.state)}`
-    // );
+    const modelValues = this.inferenceResult.value;
 
-    // Random playout
-    const randomPlayoutConfig = this.context.config.randomPlayoutConfig;
-    if (randomPlayoutConfig != undefined) {
-      const startMs = performance.now();
-      const randomPlayoutValues = this.randomPlayout(randomPlayoutConfig.agent);
-      predictedValues = new PlayerValues(
-        weightedMerge(
-          predictedValues.playerIdToValue,
-          1,
-          randomPlayoutValues.playerIdToValue,
-          randomPlayoutConfig.weight
-        )
-      );
-      this.context.stats.randomPlayoutTimeMs += performance.now() - startMs;
+    const config = this.context.config;
+    if (
+      config.modelValueWeight != undefined &&
+      config.randomPlayoutConfig == undefined
+    ) {
+      return modelValues;
     }
 
-    return predictedValues;
+    if (config.randomPlayoutConfig != undefined) {
+      const startMs = performance.now();
+      const randomPlayoutValues = this.randomPlayout(
+        config.randomPlayoutConfig.agent
+      );
+      this.context.stats.randomPlayoutTimeMs += performance.now() - startMs;
+
+      if (config.modelValueWeight == undefined) {
+        return randomPlayoutValues;
+      }
+
+      return new PlayerValues(
+        weightedMerge(
+          modelValues.playerIdToValue,
+          config.modelValueWeight,
+          randomPlayoutValues.playerIdToValue,
+          config.randomPlayoutConfig.weight
+        )
+      );
+    }
+
+    throw new Error("Neigher model values or random playouts configured");
   }
 
   randomPlayout(agent: Agent<C, S, A>): PlayerValues {

@@ -26,6 +26,7 @@ import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
 import { driveGenerators, requireDefined } from "studio-util";
+import { NeutralKingdominoModel } from "./neutral-model.js";
 
 const modelPath = newestModelPath("kingdomino", "conv3");
 if (modelPath == undefined) {
@@ -40,26 +41,46 @@ console.log(`episodeCount is ${episodeCount}`);
 
 const modelPlayer1 = new Player("model-1", "Model 1");
 const modelPlayer2 = new Player("model-2", "Model 2");
-const randomPlayer1 = new Player("random-1", "Random 1");
-const randomPlayer2 = new Player("random-2", "Random 2");
+const randomPlayer1 = new Player("baseline-1", "Baseline 1");
+const randomPlayer2 = new Player("baseline-2", "Baseline 2");
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 });
 
 async function main() {
-  const randomAgent = new RandomBatchAgent();
-  const model1Agent = new MctsBatchAgent((await model).inferenceModel);
+  const randomAgent = new RandomKingdominoAgent();
+  const baselineAgent = new MctsBatchAgent(
+    new NeutralKingdominoModel(),
+    new MctsConfig({
+      simulationCount: 32,
+      modelValueWeight: undefined,
+      randomPlayoutConfig: {
+        weight: 1,
+        agent: randomAgent,
+      },
+    })
+  );
+  const model1Agent = new MctsBatchAgent(
+    (await model).inferenceModel,
+    new MctsConfig({
+      simulationCount: 32,
+      randomPlayoutConfig: {
+        weight: 1,
+        agent: randomAgent,
+      },
+    })
+  );
   const agentIdToAgent = Map<string, BatchAgent>([
-    ["random", randomAgent],
+    ["baseline", baselineAgent],
     ["model", model1Agent],
   ]);
 
   const playerIdToAgentId = Map([
     [modelPlayer1.id, "model"],
     [modelPlayer2.id, "model"],
-    [randomPlayer1.id, "random"],
-    [randomPlayer2.id, "random"],
+    [randomPlayer1.id, "baseline"],
+    [randomPlayer2.id, "baseline"],
   ]);
   const episodeConfig = new EpisodeConfiguration(
     new Players(modelPlayer1, modelPlayer2, randomPlayer1, randomPlayer2)
@@ -127,23 +148,23 @@ interface BatchAgent {
 }
 
 class MctsBatchAgent implements BatchAgent {
-  readonly mctsConfig = new MctsConfig<
-    KingdominoConfiguration,
-    KingdominoState,
-    KingdominoAction
-  >({
-    simulationCount: 256,
-    randomPlayoutConfig: {
-      weight: 1,
-      agent: new RandomKingdominoAgent(),
-    },
-  });
   constructor(
     readonly model: InferenceModel<
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    >
+    >,
+    readonly mctsConfig: MctsConfig<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction
+    > = new MctsConfig({
+      simulationCount: 32,
+      randomPlayoutConfig: {
+        weight: 1,
+        agent: new RandomKingdominoAgent(),
+      },
+    })
   ) {}
   act(
     snapshots: ReadonlyArray<
@@ -151,27 +172,11 @@ class MctsBatchAgent implements BatchAgent {
     >
   ): ReadonlyArray<KingdominoAction> {
     const generators = snapshots.map((snapshot) => {
-      return mcts(
-        Kingdomino.INSTANCE,
-        this.model,
-        snapshot,
-        this.mctsConfig
-      );
+      return mcts(Kingdomino.INSTANCE, this.model, snapshot, this.mctsConfig);
     });
     return driveGenerators(generators, (snapshots) => {
       return this.model.infer(snapshots);
     });
-  }
-}
-
-class RandomBatchAgent implements BatchAgent {
-  nonBatchAgent = new RandomKingdominoAgent();
-  act(
-    snapshots: ReadonlyArray<
-      EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-    >
-  ): ReadonlyArray<KingdominoAction> {
-    return snapshots.map((snapshot) => this.nonBatchAgent.act(snapshot));
   }
 }
 
@@ -230,6 +235,8 @@ function* mcts<
  *
  * The purpose of this pattern is to allow multiple episodes to run
  * concurrently using batch inference to select next moves.
+ *
+ * This function does not record search data for training.
  */
 function* episode<
   C extends GameConfiguration,

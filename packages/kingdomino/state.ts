@@ -427,18 +427,19 @@ export class KingdominoState implements GameState {
 
   *possibleActions(): Generator<KingdominoAction> {
     const nextAction = this.nextAction;
-    // const currentPlayer = requireDefined(this.currentPlayerId);
     switch (nextAction) {
       case undefined:
         throw new Error(`No next action`);
       case NextAction.CLAIM_OFFER: {
         yield* this.possibleClaims();
+        break;
       }
       case NextAction.RESOLVE_OFFER: {
         yield KingdominoAction.discardTile();
-        yield* this.possiblePlacements().map((placement) =>
-          KingdominoAction.placeTile(placement)
-        );
+        for (const placement of this.possiblePlacements()) {
+          yield KingdominoAction.placeTile(placement);
+        }
+        break;
       }
       default:
         throw new Error(
