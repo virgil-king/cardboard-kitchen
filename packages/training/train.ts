@@ -31,11 +31,19 @@ const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
 });
 
-const gbBytes = 1024 * 1024 * 1024;
-const maxModelBytes = 16 * gbBytes;
-const maxEpisodeBytes = 64 * gbBytes;
-
 const textEncoder = new TextEncoder();
+
+// When true, generated data like self-play episodes and models won't
+// be saved to persistent storage
+const testing = true;
+
+const timeBetweenModelSavesMs = 15 * 60 * 1_000;
+
+/**
+ * How many self-play episode batches to receive from all self-play
+ * workers between issuing updated models
+ */
+const selfPlayBatchesBetweenModelUpdates = 2;
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -50,20 +58,14 @@ export async function train_parallel<
   model: Model<C, S, A, EncodedSampleT>,
   batchSize: number,
   sampleBufferSize: number,
-  workerScript: string,
-  modelsDirPath: string,
-  episodesDirPath?: string
+  selfPlayWorkerScript: string,
+  selfPlayWorkerCount: number,
+  evalWorkerScript: string,
+  modelsDir: LogDirectory,
+  episodesDir?: LogDirectory
 ) {
   const trainingModel = model.trainingModel(batchSize);
   const modelArtifacts = await model.toJson();
-  const modelsDir =
-    modelsDirPath == undefined
-      ? undefined
-      : new LogDirectory(modelsDirPath, maxModelBytes);
-  const episodesDir =
-    episodesDirPath == undefined
-      ? undefined
-      : new LogDirectory(episodesDirPath, maxEpisodeBytes);
 
   const buffer = new EpisodeBuffer<
     StateTrainingData<C, S, A>,
@@ -75,7 +77,6 @@ export async function train_parallel<
   function addEpisodeToBuffer(message: any) {
     const decoded = EpisodeTrainingData.decode(game, message);
     const encodedSamples = decoded.stateTrainingDataArray();
-    // .map((sample) => trainingModel.encodeSample(sample));
     buffer.addEpisode(new SimpleArrayLike(encodedSamples));
     if (buffer.sampleCount() >= batchSize) {
       bufferReady.fulfill(undefined);
@@ -83,8 +84,8 @@ export async function train_parallel<
   }
 
   let initialEpisodeCount = 0;
-  if (episodesDirPath != undefined) {
-    for (const encodedEpisode of loadEpisodesJson(episodesDirPath)) {
+  if (episodesDir != undefined) {
+    for (const encodedEpisode of loadEpisodesJson(episodesDir.path)) {
       addEpisodeToBuffer(encodedEpisode);
       initialEpisodeCount++;
       if (buffer.sampleCount() >= sampleBufferSize) {
@@ -102,7 +103,7 @@ export async function train_parallel<
   function receiveEpisodeBatch(episodes: Array<any>) {
     for (const episodeJson of episodes) {
       addEpisodeToBuffer(episodeJson);
-      if (episodesDir != undefined) {
+      if (episodesDir != undefined && !testing) {
         episodesDir.writeData(
           textEncoder.encode(JSON.stringify(episodeJson, undefined, 1))
         );
@@ -118,13 +119,12 @@ export async function train_parallel<
     );
   }
 
-  const workerCount = 16; // os.cpus().length - 2;
   const workers = new Array<worker_threads.Worker>();
   const workerPorts = new Array<worker_threads.MessagePort>();
-  for (let i = 0; i < workerCount; i++) {
+  for (let i = 0; i < selfPlayWorkerCount; i++) {
     const channel = new worker_threads.MessageChannel();
     channel.port1.on("message", receiveEpisodeBatch);
-    const worker = new worker_threads.Worker(workerScript, {
+    const worker = new worker_threads.Worker(selfPlayWorkerScript, {
       workerData: channel.port2,
       transferList: [channel.port2],
     });
@@ -132,11 +132,18 @@ export async function train_parallel<
     workers.push(worker);
     workerPorts.push(channel.port1);
   }
-  console.log(`Spawned ${workerCount} self play workers`);
+  console.log(`Spawned ${selfPlayWorkerCount} self play workers`);
+
+  const evalWorkerChannel = new worker_threads.MessageChannel();
+  const evalWorker = new worker_threads.Worker(evalWorkerScript, {
+    workerData: evalWorkerChannel.port2,
+    transferList: [evalWorkerChannel.port2],
+  });
 
   await bufferReady.promise;
 
-  let episodeBatchesBetweenModelUpdates = workerCount;
+  let episodeBatchesBetweenModelUpdates =
+    selfPlayWorkerCount * selfPlayBatchesBetweenModelUpdates;
   let episodeBatchesReceivedAtLastModelUpdate = 0;
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
@@ -184,10 +191,15 @@ export async function train_parallel<
       for (const port of workerPorts) {
         port.postMessage(modelArtifacts);
       }
+      evalWorkerChannel.port1.postMessage(modelArtifacts);
     }
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
-    if (modelsDir != undefined && timeSinceLastSave > 15 * 60 * 1_000) {
+    if (
+      modelsDir != undefined &&
+      timeSinceLastSave > timeBetweenModelSavesMs &&
+      !testing
+    ) {
       modelsDir.write((path) => {
         fs.mkdirSync(path);
         return model.save(path);
@@ -223,10 +235,10 @@ function* loadEpisodesJson(episodesDir: string): Generator<any> {
 }
 
 /**
- * Generator function for training episodes. Yields snapshots, receives inference
+ * Generator function for self-play episodes. Yields snapshots, receives inference
  * results, and returns episode training data.
  */
-export function* trainingEpisode<
+export function* selfPlayEpisode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action

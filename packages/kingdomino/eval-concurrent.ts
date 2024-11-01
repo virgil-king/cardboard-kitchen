@@ -16,7 +16,6 @@ import {
   MctsContext,
   MctsStats,
   NonTerminalStateNode,
-  newestModelPath,
 } from "training";
 
 import { KingdominoConfiguration } from "./base.js";
@@ -24,71 +23,68 @@ import { KingdominoState } from "./state.js";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import {
+  KingdominoInferenceModel,
+} from "./model-cnn.js";
 import { driveGenerators, requireDefined } from "studio-util";
 import { NeutralKingdominoModel } from "./neutral-model.js";
+import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
+import _ from "lodash";
 
-const modelPath = newestModelPath("kingdomino", "conv3");
-if (modelPath == undefined) {
-  throw new Error("No model to evaluate");
-}
-
-const model = KingdominoConvolutionalModel.load(modelPath);
-console.log(`Loaded model from ${modelPath}`);
-
-const episodeCount = parseInt(process.argv[2]);
-console.log(`episodeCount is ${episodeCount}`);
-
-const modelPlayer1 = new Player("model-1", "Model 1");
-const modelPlayer2 = new Player("model-2", "Model 2");
-const randomPlayer1 = new Player("baseline-1", "Baseline 1");
-const randomPlayer2 = new Player("baseline-2", "Baseline 2");
+const subjectPlayer1 = new Player("model-1", "Model 1");
+const subjectPlayer2 = new Player("model-2", "Model 2");
+const baselinePlayer1 = new Player("baseline-1", "Baseline 1");
+const baselinePlayer2 = new Player("baseline-2", "Baseline 2");
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 });
 
-async function main() {
-  const randomAgent = new RandomKingdominoAgent();
+export type EvalResult = {
+  subjectPoints: number;
+  baselinePoints: number;
+};
+
+/**
+ * Performs `episodeCount` eval episodes with four players.
+ *
+ * Subject players use `model`.
+ *
+ * Baseline players use a neutral model.
+ *
+ * Both players use `simulationCount` simulations per action.
+ *
+ * @return total points for subject and baseline players. The best possible ratio is 5:1.
+ */
+export function evalEpisodeBatch(
+  model: KingdominoInferenceModel,
+  episodeCount: number
+): EvalResult {
   const baselineAgent = new MctsBatchAgent(
     new NeutralKingdominoModel(),
-    new MctsConfig({
-      simulationCount: 32,
-      modelValueWeight: undefined,
-      randomPlayoutConfig: {
-        weight: 1,
-        agent: randomAgent,
-      },
-    })
+    EVAL_BASELINE_MCTS_CONFIG
   );
-  const model1Agent = new MctsBatchAgent(
-    (await model).inferenceModel,
-    new MctsConfig({
-      simulationCount: 32,
-      randomPlayoutConfig: {
-        weight: 1,
-        agent: randomAgent,
-      },
-    })
-  );
+  const model1Agent = new MctsBatchAgent(model, EVAL_MCTS_CONFIG);
   const agentIdToAgent = Map<string, BatchAgent>([
     ["baseline", baselineAgent],
     ["model", model1Agent],
   ]);
 
   const playerIdToAgentId = Map([
-    [modelPlayer1.id, "model"],
-    [modelPlayer2.id, "model"],
-    [randomPlayer1.id, "baseline"],
-    [randomPlayer2.id, "baseline"],
+    [subjectPlayer1.id, "model"],
+    [subjectPlayer2.id, "model"],
+    [baselinePlayer1.id, "baseline"],
+    [baselinePlayer2.id, "baseline"],
   ]);
-  const episodeConfig = new EpisodeConfiguration(
-    new Players(modelPlayer1, modelPlayer2, randomPlayer1, randomPlayer2)
-  );
 
+  const players = [subjectPlayer1, subjectPlayer2, baselinePlayer1, baselinePlayer2];
   let playerIdToValue = Map<string, number>();
   const generators = Range(0, episodeCount)
-    .map(() => episode(Kingdomino.INSTANCE, episodeConfig))
+    .map(() => {
+      const shuffledPlayers = _.shuffle(players);
+      const episodeConfig = new EpisodeConfiguration(new Players(...shuffledPlayers));
+      return episode(Kingdomino.INSTANCE, episodeConfig);
+    })
     .toArray();
 
   const start = performance.now();
@@ -125,18 +121,37 @@ async function main() {
     )} ms (${decimalFormat.format(elapsed / episodeCount)} per episode)`
   );
 
+  const result = {
+    subjectPoints: 0,
+    baselinePoints: 0,
+  } satisfies EvalResult;
+
   for (const snapshot of terminalSnapshots) {
-    const result = requireDefined(Kingdomino.INSTANCE.result(snapshot));
-    for (const player of episodeConfig.players.players) {
-      const value = requireDefined(result.playerIdToValue.get(player.id));
+    const episodeResult = requireDefined(Kingdomino.INSTANCE.result(snapshot));
+    for (const player of snapshot.episodeConfiguration.players.players) {
+      const value = requireDefined(
+        episodeResult.playerIdToValue.get(player.id)
+      );
       playerIdToValue = playerIdToValue.set(
         player.id,
         value + playerIdToValue.get(player.id, 0)
       );
+      const agentId = playerIdToAgentId.get(player.id);
+      switch (agentId) {
+        case "model":
+          result.subjectPoints += value;
+          break;
+        case "baseline":
+          result.baselinePoints += value;
+          break;
+        default:
+          throw new Error(`Unexpected agent ID ${agentId}`);
+      }
     }
   }
 
   console.log(playerIdToValue.toArray());
+  return result;
 }
 
 interface BatchAgent {
@@ -189,9 +204,7 @@ class MctsBatchAgent implements BatchAgent {
 function* mcts<
   C extends GameConfiguration,
   S extends GameState,
-  A extends Action,
-  E
->(
+  A extends Action>(
   game: Game<C, S, A>,
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
@@ -213,7 +226,7 @@ function* mcts<
     yield* root.visit();
     return requireDefined(root.actionToChild.keys().next().value);
   } else {
-    for (const i of Range(
+    for (const {} of Range(
       0,
       Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
     )) {
@@ -264,5 +277,3 @@ function* episode<
   );
   return snapshot;
 }
-
-main();

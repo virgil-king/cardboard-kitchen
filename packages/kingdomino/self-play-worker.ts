@@ -6,16 +6,15 @@ import {
 } from "studio-util";
 import { EpisodeConfiguration, Player, Players } from "game";
 import {
-  MctsConfig,
   MctsStats,
-  trainingEpisode,
+  selfPlayEpisode,
 } from "training";
-import { RandomKingdominoAgent } from "./randomplayer.js";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { KingdominoConvolutionalModel } from "./model-cnn.js";
 import { Range } from "immutable";
+import { SELF_PLAY_EPISODES_PER_BATCH, SELF_PLAY_MCTS_CONFIG } from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -27,12 +26,6 @@ const cecile = new Player("cecile", "Cecile");
 const derek = new Player("derek", "Derek");
 const players = new Players(alice, bob, cecile, derek);
 const episodeConfig = new EpisodeConfiguration(players);
-const randomAgent = new RandomKingdominoAgent();
-
-const mctsConfig = new MctsConfig({
-  simulationCount: 256,
-  randomPlayoutConfig: { weight: 1, agent: randomAgent },
-});
 
 const ready = new SettablePromise<undefined>();
 
@@ -40,15 +33,13 @@ messagePort.on("message", async (message: any) => {
   const newModel = await KingdominoConvolutionalModel.fromJson(message);
   model?.model.dispose();
   model = newModel;
-  console.log(`Received new model`);
+  console.log(`Self-play worker received new model`);
   ready.fulfill(undefined);
 });
 
 const home = process.env.HOME;
 const gamesDir = `${home}/ckdata/kingdomino/games`;
 fs.mkdirSync(gamesDir, { recursive: true });
-
-const concurrentEpisodeCount = 64;
 
 async function main() {
   await ready.promise;
@@ -59,15 +50,15 @@ async function main() {
     const localModel = requireDefined(model);
 
     const mctsContext = {
-      config: mctsConfig,
+      config: SELF_PLAY_MCTS_CONFIG,
       game: Kingdomino.INSTANCE,
       model: localModel.inferenceModel,
       stats: new MctsStats(),
     };
 
-    const generators = Range(0, concurrentEpisodeCount)
+    const generators = Range(0, SELF_PLAY_EPISODES_PER_BATCH)
       .map((i) => {
-        return trainingEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
+        return selfPlayEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
       })
       .toArray();
 
@@ -80,12 +71,12 @@ async function main() {
 
     const elapsedMs = performance.now() - startMs;
     console.log(
-      `Inference time: ${
+      `Self-play inference time: ${
         mctsContext.stats.inferenceTimeMs / elapsedMs
       } of total`
     );
     console.log(
-      `Random playout time: ${
+      `Self-play random playout time: ${
         mctsContext.stats.randomPlayoutTimeMs / elapsedMs
       } of total`
     );
@@ -98,14 +89,6 @@ async function main() {
           .toArray()
           .sort((a, b) => a - b)}`
       );
-
-      // messagePort.postMessage(episode.toJson());
-
-      // const encoded = episode.toJson();
-      // fs.writeFileSync(
-      //   `${gamesDir}/${new Date().toISOString()}`,
-      //   JSON.stringify(encoded, undefined, 1)
-      // );
     }
 
     messagePort.postMessage(episodes.map((episode) => episode.toJson()));
