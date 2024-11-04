@@ -89,10 +89,16 @@ export function weightedMerge<K>(
         ? value
         : value * normalizedAWeight + bValue * normalizedBWeight;
     result = result.set(key, mergedValue);
+    if (Number.isNaN(mergedValue)) {
+      throw new Error("In both maps");
+    }
   }
   // Keys in b but not in a
   for (const [key, value] of b.removeAll(a.keys())) {
     result = result.set(key, value);
+    if (Number.isNaN(value)) {
+      throw new Error("In b but not a");
+    }
   }
   return result;
 }
@@ -108,6 +114,7 @@ export function decodeOrThrow<DecodedT>(
   const decodeResult = decoder.decode(json);
   if (fp.either.isLeft(decodeResult)) {
     console.log(`Failed to decode ${json} using ${decoder}`);
+    console.log(new Error().stack);
     throw decodeResult.left[0];
   }
   return decodeResult.right;

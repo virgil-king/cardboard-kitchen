@@ -29,18 +29,22 @@ export class ExpandDimsLayer extends tf.layers.Layer {
 
   override call(inputs: tf.Tensor | tf.Tensor[]): tf.Tensor | tf.Tensor[] {
     return tf.tidy(() => {
-      if (inputs instanceof tf.Tensor) {
-        let result = inputs;
-        for (const index of this.dimensionIndices) {
-          result = result.expandDims(index);
-        }
-        return result;
-      } else {
-        throw new Error(
-          `Expected one input tensor but received ${inputs.length}`
-        );
+      let result = this.getSingleTensor(inputs);
+      for (const index of this.dimensionIndices) {
+        result = result.expandDims(index);
       }
+      return result;
     });
+  }
+
+  getSingleTensor(input: tf.Tensor | tf.Tensor[]): tf.Tensor {
+    if (input instanceof tf.Tensor) {
+      return input;
+    } else if (Array.isArray(input) && input.length == 1) {
+      return input[0];
+    } else {
+      throw new Error(`Expected one tensor but received ${input.length}`);
+    }
   }
 
   override getConfig(): tf.serialization.ConfigDict {

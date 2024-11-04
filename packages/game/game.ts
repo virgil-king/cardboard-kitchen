@@ -105,7 +105,13 @@ type EncodedPlayerValues = io.TypeOf<typeof playerValuesJson>;
  * non-final game states.
  */
 export class PlayerValues implements JsonSerializable {
-  constructor(readonly playerIdToValue: Map<string, number>) {}
+  constructor(readonly playerIdToValue: Map<string, number>) {
+    for (const entry of playerIdToValue.entries()) {
+      if (Number.isNaN(entry[1])) {
+        throw new Error("Player value cannot be NaN");
+      }
+    }
+  }
   toJson(): EncodedPlayerValues {
     return {
       playerIdToValue: this.playerIdToValue.entrySeq().toArray(),

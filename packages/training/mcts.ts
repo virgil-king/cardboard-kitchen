@@ -296,14 +296,18 @@ export class NonTerminalStateNode<
         return randomPlayoutValues;
       }
 
-      return new PlayerValues(
-        weightedMerge(
-          modelValues.playerIdToValue,
-          config.modelValueWeight,
-          randomPlayoutValues.playerIdToValue,
-          config.randomPlayoutConfig.weight
-        )
+      const mergedValues = weightedMerge(
+        modelValues.playerIdToValue,
+        config.modelValueWeight,
+        randomPlayoutValues.playerIdToValue,
+        config.randomPlayoutConfig.weight
       );
+      if (mergedValues.find((n) => Number.isNaN(n)) != undefined) {
+        throw new Error(
+          `modelValues: ${modelValues.playerIdToValue}, playout values: ${randomPlayoutValues.playerIdToValue}`
+        );
+      }
+      return new PlayerValues(mergedValues);
     }
 
     throw new Error("Neigher model values or random playouts configured");
@@ -363,6 +367,8 @@ export class NonTerminalStateNode<
     const currentPlayer = requireDefined(
       this.context.game.currentPlayer(this.snapshot)
     );
+    const childEvs = [];
+    const ucbs = [];
     for (const [action, child] of this.actionToChild) {
       if (child.visitCount == 0) {
         debugLog(
@@ -379,14 +385,18 @@ export class NonTerminalStateNode<
             currentPlayer.id
           )}, prior ${child.prior}, and visit count ${child.visitCount}`
       );
+      const childEv = child.playerExpectedValues.playerIdToValue.get(
+        currentPlayer.id
+      );
+      childEvs.push(childEv);
       const ucb =
-        requireDefined(
-          child.playerExpectedValues.playerIdToValue.get(currentPlayer.id)
-        ) +
+        requireDefined(childEv) +
         (child.prior *
           this.context.config.explorationBias *
           Math.sqrt(Math.log(this.visitCount))) /
           child.visitCount;
+      ucbs.push(ucb);
+      // console.log(`ucb is ${ucb}`);
       if (ucb > maxUcb) {
         debugLog(
           () => `New max UCB ${ucb} for action ${JSON.stringify(action)}`
@@ -401,7 +411,13 @@ export class NonTerminalStateNode<
           this.snapshot.state,
           undefined,
           2
-        )}`
+        )}; policy ${JSON.stringify(
+          this.inferenceResult.policy.toArray(),
+          undefined,
+          2
+        )}; child priors ${[...this.actionToChild.entries()].map(
+          (entry) => entry[1].prior
+        )}; ucbs = ${ucbs}; child evs = ${childEvs}`
       );
     }
     debugLog(

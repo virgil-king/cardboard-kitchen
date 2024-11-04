@@ -56,24 +56,6 @@ export class OneHotCodec implements VectorCodec<number> {
   }
 }
 
-/** Stores an optional non-negative integer */
-// export class OptionalOneHotCodec implements VectorCodec<number | undefined> {
-//   readonly columnCount: number;
-//   private readonly zeros: ReadonlyArray<number>;
-//   constructor(maxValue: number) {
-//     this.columnCount = maxValue + 1;
-//     this.zeros = Array(this.columnCount).fill(0);
-//   }
-//   encode(value: number | undefined, into: Float32Array, offset: number): void {
-//     return value == undefined
-//       ? this.zeros
-//       : oneHotValues(this.columnCount, value);
-//   }
-//   decode(values: ReadonlyArray<number>): number {
-//     return requireDefined(Seq(values).max());
-//   }
-// }
-
 /**
  * Encodes defined inputs using a delegate codec and encodes undefined input as
  * all zeros

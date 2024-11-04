@@ -8,9 +8,9 @@ import {
   Players,
 } from "game";
 import {
-  policyLinearization,
+  placementPolicyLinearization,
   KingdominoConvolutionalModel,
-  policyCodec,
+  linearPolicyCodec,
   LocationStateCodec,
   locationStateCodec,
   boardCodec,
@@ -25,6 +25,7 @@ import { ActionStatistics, StateTrainingData } from "training-data";
 import * as _ from "lodash";
 import { requireDefined } from "studio-util";
 import { Terrain } from "./tile.js";
+import tf from "@tensorflow/tfjs-node-gpu";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -90,17 +91,13 @@ test("encodePolicy: stores placement values at expected index", () => {
     ],
   ]);
 
-  const policyVector = model
+  const placementProbabilitiesVector = model
     .trainingModel()
-    .encodePolicy(actionToVisitCount, NO_TRANSFORM);
-  const placeProbabilitiesVector = policyCodec.decode(
-    policyVector,
-    0
-  ).placeProbabilities;
+    .encodePlacementPolicy(actionToVisitCount, NO_TRANSFORM);
 
   assertClose(
-    policyLinearization.get(
-      placeProbabilitiesVector,
+    placementPolicyLinearization.get(
+      placementProbabilitiesVector,
       placement1.location.x + playAreaRadius,
       placement1.location.y + playAreaRadius,
       placement1.direction.index
@@ -108,8 +105,8 @@ test("encodePolicy: stores placement values at expected index", () => {
     1 / 3
   );
   assertClose(
-    policyLinearization.get(
-      placeProbabilitiesVector,
+    placementPolicyLinearization.get(
+      placementProbabilitiesVector,
       placement2.location.x + playAreaRadius,
       placement2.location.y + playAreaRadius,
       placement2.direction.index
@@ -221,16 +218,13 @@ test("encodeSample: returns expected board and policy vectors", () => {
       );
     }
   }
-  const alicePlaceVisitCounts = policyCodec.decode(
-    encodedSample.policyOutput,
-    0
-  ).placeProbabilities;
+  const alicePlaceVisitCounts = encodedSample.placementPolicyOutput;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
         const policyValue =
           alicePlaceVisitCounts[
-            policyLinearization.getOffset(
+            placementPolicyLinearization.getOffset(
               x + playAreaRadius,
               y + playAreaRadius,
               directionIndex
@@ -323,16 +317,13 @@ test("encodeSample: with transformation: returns expected board and policy vecto
       );
     }
   }
-  const alicePlaceVisitCounts = policyCodec.decode(
-    encodedSample.policyOutput,
-    0
-  ).placeProbabilities;
+  const alicePlaceVisitCounts = encodedSample.placementPolicyOutput;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
         const policyValue =
           alicePlaceVisitCounts[
-            policyLinearization.getOffset(
+            placementPolicyLinearization.getOffset(
               x + playAreaRadius,
               y + playAreaRadius,
               directionIndex
@@ -346,6 +337,16 @@ test("encodeSample: with transformation: returns expected board and policy vecto
       }
     }
   }
+});
+
+test("tensor testing", () => {
+  const array = [[1, 2], [3, 4]];
+  const tensor = tf.tensor(array);
+  const data = tensor.dataSync<"float32">();
+  assertClose(data[0], 1);
+  assertClose(data[1], 2);
+  assertClose(data[2], 3);
+  assertClose(data[3], 4);
 });
 
 function assertClose(actual: number, expected: number) {

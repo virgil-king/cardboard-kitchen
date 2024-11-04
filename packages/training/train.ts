@@ -35,15 +35,17 @@ const textEncoder = new TextEncoder();
 
 // When true, generated data like self-play episodes and models won't
 // be saved to persistent storage
-const testing = true;
+const testing = false;
 
 const timeBetweenModelSavesMs = 15 * 60 * 1_000;
 
 /**
  * How many self-play episode batches to receive from all self-play
- * workers between issuing updated models
+ * workers between issuing updated models. The goal of this mechanism
+ * is to avoid sending models faster than self-play workers can use
+ * them.
  */
-const selfPlayBatchesBetweenModelUpdates = 2;
+const selfPlayBatchesBetweenModelUpdates = 1;
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -176,7 +178,7 @@ export async function train_parallel<
         performance.now() - beforeBatch
       )} ms`
     );
-    await sleep(0);
+    await sleep(1);
     const episodeBatchesReceivedSinceLastModelUpdate =
       episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
     if (

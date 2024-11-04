@@ -2,14 +2,20 @@ import tf from "@tensorflow/tfjs-node-gpu";
 
 export interface BroadcastArgs {
   name?: string;
-  shape: ReadonlyArray<number>;
+  /**
+   * Null values will cause the input tensor to retain its size in that dimension.
+   *
+   * Unlike broadcastTo, the number of dimensions in this shape must equal the
+   * number of dimensions in the input tensor's shape.
+   */
+  shape: ReadonlyArray<number | null>;
 }
 
 /** See {@link tf.broadcastTo} */
 export class BroadcastLayer extends tf.layers.Layer {
   /** @nocollapse */
   static className = "BroadcastLayer";
-  readonly shape: ReadonlyArray<number>;
+  readonly shape: ReadonlyArray<number | null>;
 
   constructor(args: BroadcastArgs) {
     super(args);
@@ -17,19 +23,40 @@ export class BroadcastLayer extends tf.layers.Layer {
   }
 
   override computeOutputShape(inputShape: tf.Shape): tf.Shape {
-    return [inputShape[0], ...this.shape, ...inputShape.slice(1)];
+    return this.shape.map((value, index) => {
+      if (value == null) {
+        return inputShape[index];
+      } else {
+        return value;
+      }
+    });
   }
 
   override call(inputs: tf.Tensor | tf.Tensor[]): tf.Tensor | tf.Tensor[] {
     return tf.tidy(() => {
-      if (inputs instanceof tf.Tensor) {
-        return inputs.broadcastTo([...this.shape]);
-      } else {
-        throw new Error(
-          `Expected one input tensor but received ${inputs.length}`
-        );
-      }
+      const derivedInput = this.getSingleTensor(inputs);
+      // console.log(`input shape is ${derivedInput.shape}`);
+      const inputShape = derivedInput.shape;
+      const nonNullShape = this.shape.map((value, index) => {
+        if (value == null) {
+          return inputShape[index];
+        } else {
+          return value;
+        }
+      });
+      // console.log(`nonNullShape is ${nonNullShape}`);
+      return derivedInput.broadcastTo([...nonNullShape]);
     });
+  }
+
+  getSingleTensor(input: tf.Tensor | tf.Tensor[]): tf.Tensor {
+    if (input instanceof tf.Tensor) {
+      return input;
+    } else if (Array.isArray(input) && input.length == 1) {
+      return input[0];
+    } else {
+      throw new Error(`Expected one tensor but received ${input.length}`);
+    }
   }
 
   override getConfig(): tf.serialization.ConfigDict {
