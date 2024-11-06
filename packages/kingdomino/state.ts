@@ -4,7 +4,6 @@ import {
   GameState,
   NO_CHANCE,
   Player,
-  // PlayerState,
   PlayerValues,
   scoresToPlayerValues,
 } from "game";
@@ -41,19 +40,14 @@ const playerStateJson = io.type({
 type EncodedPlayerState = io.TypeOf<typeof playerStateJson>;
 
 export class KingdominoPlayerState implements ValueObject {
-  // readonly bonusPoints: number;
   // Cache score since board.score() is expensive
   readonly score: number;
   constructor(
     readonly board: PlayerBoard,
     private readonly bonusPoints: number
   ) {
-    // this.bonusPoints = board.score();
     this.score = board.score() + bonusPoints;
   }
-  // get score(): number {
-  //   return this.board.score() + this.bonusPoints;
-  // }
   withBoard(board: PlayerBoard): KingdominoPlayerState {
     return new KingdominoPlayerState(board, this.bonusPoints);
   }
@@ -173,10 +167,6 @@ export class KingdominoState implements GameState {
       this.props.playerIdToState.map((state) => state.score)
     );
   }
-
-  // private playerCount(): number {
-  //   return this.props.playerIdToState.size;
-  // }
 
   get currentPlayerId(): string | undefined {
     return this.props.currentPlayerId;
@@ -348,7 +338,6 @@ export class KingdominoState implements GameState {
    */
   withNewNextOffers(
     config: KingdominoConfiguration
-    // scriptedTileNumbers: Array<number> | undefined
   ): [KingdominoState, ChanceKey] {
     const scriptedTileNumbers = config.scriptedTileNumbers;
     if (scriptedTileNumbers != undefined) {
@@ -373,7 +362,6 @@ export class KingdominoState implements GameState {
     } else {
       const remainingTileCount =
         config.tileCount - this.props.drawnTileNumbers.count();
-      // console.log(`remainingTileCount is ${remainingTileCount}`);
       if (remainingTileCount == 0) {
         // End of game
         return [this.withNoNextOffers(), NO_CHANCE];
@@ -383,7 +371,6 @@ export class KingdominoState implements GameState {
         const remainingTiles = tileNumbersSet
           .subtract(this.props.drawnTileNumbers)
           .toArray();
-        // console.log(`remainingTiles is ${JSON.stringify(remainingTiles)}`);
         const tileNumbers = drawN(remainingTiles, config.turnsPerRound);
         tileNumbers.sort((a, b) => a - b);
 

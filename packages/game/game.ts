@@ -3,7 +3,6 @@ import { combineHashes, decodeOrThrow, requireDefined } from "studio-util";
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
-// import tf from "@tensorflow/tfjs-node-gpu";
 
 export const playerJson = io.type({ id: io.string, name: io.string });
 
@@ -66,30 +65,6 @@ export class Players implements ValueObject {
     );
   }
 }
-
-// export class PlayerState implements ValueObject {
-//   constructor(
-//     /**
-//      * "Victory points". Consider removing since not all games have this
-//      * concept.
-//      */
-//     readonly score: number
-//   ) {}
-
-//   withScore(score: number): PlayerState {
-//     return new PlayerState(score);
-//   }
-
-//   equals(other: unknown): boolean {
-//     if (!(other instanceof PlayerState)) {
-//       return false;
-//     }
-//     return this.score == other.score;
-//   }
-//   hashCode(): number {
-//     return hash(this.score);
-//   }
-// }
 
 export const playerValuesJson = io.type({
   playerIdToValue: io.array(io.tuple([io.string, io.number])),
@@ -201,17 +176,7 @@ export interface Agent<
   act(snapshot: EpisodeSnapshot<C, S>): A;
 }
 
-// TODO add vector-able
-export interface GameState extends JsonSerializable {
-  /** Returns whether the game is over */
-  // gameOver: boolean;
-  // result: PlayerValues | undefined;
-  // /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
-  // playerState(playerId: string): PlayerState;
-  // // result: GameResult | undefined;
-  // /** Returns the current player or undefined if the game is over */
-  // currentPlayer: Player | undefined;
-}
+export interface GameState extends JsonSerializable {}
 
 export class Transcript<StateT extends GameState, ActionT extends Action> {
   readonly steps: Array<[ActionT, StateT]> = new Array();
@@ -255,24 +220,6 @@ export class EpisodeConfiguration implements JsonSerializable {
  */
 export interface GameConfiguration extends JsonSerializable {}
 
-// export interface Episode<
-//   GameConfigurationT extends GameConfiguration,
-//   StateT extends GameState,
-//   ActionT extends Action
-// > {
-//   episodeConfiguration: EpisodeConfiguration;
-//   gameConfiguration: GameConfigurationT;
-//   // transcript: Transcript<StateT, ActionT>;
-//   /** Equals the last state in {@link transcript} */
-//   currentState: StateT;
-//   /**
-//    * Returns the state resulting from applying {@link action} to
-//    * {@link currentState} and a {@link ChanceKey} capturing the
-//    * non-deterministic portion of the new state
-//    */
-//   apply(action: ActionT): [StateT, ChanceKey];
-// }
-
 export class EpisodeSnapshot<C extends GameConfiguration, S extends GameState> {
   constructor(
     readonly episodeConfiguration: EpisodeConfiguration,
@@ -298,7 +245,6 @@ export interface Game<
   A extends Action
 > {
   playerCounts: number[];
-  // newEpisode(config: EpisodeConfiguration): Episode<any, StateT, ActionT>;
   /**
    * Returns a new episode using a default game configuration
    */
@@ -308,13 +254,7 @@ export interface Game<
 
   apply(snapshot: EpisodeSnapshot<C, S>, action: A): [S, ChanceKey];
 
-  // tensorToAction(tensor: tf.Tensor): ActionT;
-
-  // gameOver(snapshot: EpisodeSnapshot<GameConfigurationT, StateT>): boolean;
   result(snapshot: EpisodeSnapshot<C, S>): PlayerValues | undefined;
-  /** Returns the state for {@link playerId} if it's a valid player ID or else throws an error */
-  // playerState(playerId: string): PlayerState;
-  // result: GameResult | undefined;
 
   /** Returns the current player or undefined if the game is over */
   currentPlayer(snapshot: EpisodeSnapshot<C, S>): Player | undefined;
@@ -348,14 +288,9 @@ export class Episode<
 
   constructor(
     readonly game: Game<C, S, A>,
-    readonly snapshot: EpisodeSnapshot<C, S> // readonly episodeConfig: EpisodeConfiguration, // readonly gameConfig: C, // state: S
+    readonly snapshot: EpisodeSnapshot<C, S>
   ) {
     this.currentSnapshot = snapshot;
-    // this.currentSnapshot = new EpisodeSnapshot(
-    //   episodeConfig,
-    //   gameConfig,
-    //   state
-    // );
   }
 
   apply(...actions: Array<A>): Episode<C, S, A> {
@@ -365,58 +300,13 @@ export class Episode<
       this.currentSnapshot = this.currentSnapshot.derive(newState);
     }
     return this;
-    // return [newState, chanceKey];
   }
-
-  // batch(actions: A[]): Episode<C, S, A> {
-  //   for (let action of actions) {
-  //     this.apply(action);
-  //   }
-  //   return this;
-  // }
 }
 
-// export function unroll<StateT extends GameState, ActionT extends Action>(
-//   episode: Episode<any, StateT, ActionT>,
-//   actions: ReadonlyArray<ActionT>
-// ) {
-//   for (let action of actions) {
-//     episode.apply(action);
-//   }
-//   // let [result] = episode.apply(actions[0]);
-//   // for (const action of actions.slice(1)) {
-//   //   [result] = episode.apply(action);
-//   // }
-//   // return episode.currentSnapshot.derive(result);
-// }
-
 /**
- * Runs a new episode to completion using {@link playerIdToAgent} to act for {@link players}.
- *
- * @returns the episode in completed state
+ * Runs a new episode of {@link game} using {@link playerIdToAgent} to
+ * select actions and yielding each new snapshot.
  */
-// export function runEpisode<StateT extends GameState, ActionT extends Action>(
-//   game: Game<StateT, ActionT>,
-//   players: Players,
-//   playerIdToAgent: Map<string, Agent<StateT, ActionT>>
-// ) {
-//   const episode = game.newEpisode(players);
-//   let state = episode.currentState;
-//   while (!state.gameOver) {
-//     const currentPlayer = state.currentPlayer;
-//     if (currentPlayer == undefined) {
-//       throw new Error(`Current player is undefined but game isn't over`);
-//     }
-//     const agent = playerIdToAgent.get(currentPlayer.id);
-//     if (agent == undefined) {
-//       throw new Error(`No agent for ${currentPlayer.id}`);
-//     }
-//     const action = agent.act(state);
-//     [state, ] = episode.apply(action);
-//   }
-//   return episode;
-// }
-
 export function* generateEpisode<
   C extends GameConfiguration,
   S extends GameState,

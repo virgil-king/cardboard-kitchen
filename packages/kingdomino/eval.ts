@@ -27,8 +27,7 @@ import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoModel } from "./model.js";
 import { driveGenerators, requireDefined } from "studio-util";
 
-// const model1 = KingdominoModel.load(process.argv[2]);
-// const model2 = KingdominoModel.load(process.argv[3]);
+// Script to run eval episodes on a saved model
 
 const modelPath = newestModelPath("kingdomino", "conv3");
 if (modelPath == undefined) {
@@ -51,8 +50,6 @@ const mctsConfig = new MctsConfig<
     weight: 1,
     agent: new RandomKingdominoAgent(),
   },
-  // explorationBias: Math.sqrt(2),
-  //   maxChanceBranches: 4,
 });
 
 const model1 = new Player("model-1", "Model 1");
@@ -71,14 +68,6 @@ async function main() {
     model: (await model).inferenceModel,
     stats: new MctsStats(),
   };
-  // const playerIdToMctsContext = Map<
-  //   string,
-  //   MctsContext<KingdominoConfiguration, KingdominoState, KingdominoAction>
-  // >([
-  //   [model1.id, mctsContext],
-  //   [model2.id, mctsContext],
-  // ]);
-
   const randomAgent = new RandomKingdominoAgent();
   const mctsAgent = new MctsAgent(Kingdomino.INSTANCE, mctsContext);
   const playerIdToAgent = Map([
@@ -118,21 +107,6 @@ async function main() {
         value + playerIdToValue.get(player.id, 0)
       );
     }
-    // const player1Score = lastSnapshot.state.requirePlayerState(model1.id).score;
-    // console.log(`Player 1 score: ${player1Score}`);
-    // const player2Score = lastSnapshot.state.requirePlayerState(model2.id).score;
-    // console.log(`Player 2 score: ${player2Score}`);
-    // if (player1Score > player2Score) {
-    //   playerIdToValue = playerIdToValue.set(
-    //     model1.id,
-    //     playerIdToValue.get(model1.id, 0) + 1
-    //   );
-    // } else if (player2Score > player1Score) {
-    //   playerIdToValue = playerIdToValue.set(
-    //     model2.id,
-    //     playerIdToValue.get(model2.id, 0) + 1
-    //   );
-    // }
   }
   console.log(playerIdToValue.toArray());
 }
@@ -158,7 +132,6 @@ class MctsAgent<
     if (root.actionToChild.size == 1) {
       // When root has exactly one child, visit it once to populate the
       // action statistics, but no further visits are necessary
-      // root.visit();
       this.visit(root);
       return requireDefined(root.actionToChild.keys().next().value);
     } else {
@@ -169,7 +142,6 @@ class MctsAgent<
           root.actionToChild.size
         )
       )) {
-        // root.visit();
         this.visit(root);
       }
       const currentPlayer = requireDefined(this.game.currentPlayer(snapshot));
@@ -187,14 +159,6 @@ class MctsAgent<
 
   visit(node: NonTerminalStateNode<C, S, A>) {
     const generator = node.visit();
-    // let next = generator.next();
-    // while (true) {
-    //   if (next.done) {
-    //     return;
-    //   }
-    //   const inference = this.mctsContext.model.infer([next.value])[0];
-    //   next = generator.next(inference);
-    // }
     driveGenerators([generator], (snapshots) =>
       this.mctsContext.model.infer(snapshots)
     );

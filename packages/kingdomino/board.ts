@@ -143,7 +143,6 @@ export class PlayerBoard implements ValueObject {
   }
 
   isPlacementAllowed(placement: PlaceTile, tile: Tile): boolean {
-    // console.log(JSON.stringify(this.toAssociationList()));
     // Each square of the tile must be:
     for (let i = 0; i < 2; i++) {
       const location = placement.squareLocation(i);
@@ -279,9 +278,7 @@ export class PlayerBoard implements ValueObject {
    * Returns whether the center of the kingdom is the starting tile location
    */
   isCentered(): boolean {
-    // console.log(this.occupiedRectangle);
     const center = this.occupiedRectangle.center();
-    // console.log(center);
     // Board coordinates refer to corners of tiles, not tiles themselves, so a
     // centered board's center is in the middle of the center tile
     return center.x == 0.5 && center.y == 0.5;
@@ -315,7 +312,6 @@ export class PlayerBoard implements ValueObject {
       for (let i = 0; i < quarterTurns; i++) {
         newLocation = KingdominoVectors.instance(newLocation.y, -newLocation.x);
       }
-      // console.log(`Rotating ${JSON.stringify(location)} to ${JSON.stringify(newLocation)}`);
       map = map.set(newLocation, state);
     }
     return new PlayerBoard(map);
@@ -330,7 +326,6 @@ export class PlayerBoard implements ValueObject {
     var map = Map<Vector2, LocationState>();
     for (const [location, state] of this.locationStates) {
       var newLocation = KingdominoVectors.instance(-location.x, location.y);
-      // console.log(`Mirroring ${JSON.stringify(location)} to ${JSON.stringify(newLocation)}`);
       map = map.set(newLocation, state);
     }
     return new PlayerBoard(map);

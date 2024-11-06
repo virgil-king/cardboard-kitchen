@@ -59,9 +59,6 @@ export class Direction {
   opposite(): Direction {
     return Direction.opposites[Direction.valuesArray.indexOf(this)];
   }
-  // index(): number {
-  //   return Direction.valuesArray.indexOf(this);
-  // }
   static fromIndex(index: number): Direction {
     return Direction.valuesArray[index];
   }

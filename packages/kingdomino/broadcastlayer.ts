@@ -35,7 +35,6 @@ export class BroadcastLayer extends tf.layers.Layer {
   override call(inputs: tf.Tensor | tf.Tensor[]): tf.Tensor | tf.Tensor[] {
     return tf.tidy(() => {
       const derivedInput = this.getSingleTensor(inputs);
-      // console.log(`input shape is ${derivedInput.shape}`);
       const inputShape = derivedInput.shape;
       const nonNullShape = this.shape.map((value, index) => {
         if (value == null) {
@@ -44,7 +43,6 @@ export class BroadcastLayer extends tf.layers.Layer {
           return value;
         }
       });
-      // console.log(`nonNullShape is ${nonNullShape}`);
       return derivedInput.broadcastTo([...nonNullShape]);
     });
   }

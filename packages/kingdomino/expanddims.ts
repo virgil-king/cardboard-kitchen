@@ -10,6 +10,7 @@ export interface ExpandDimsArgs {
   shape: ReadonlyArray<number>;
 }
 
+/** See {@link tf.Tensor.expandDims} */
 export class ExpandDimsLayer extends tf.layers.Layer {
   static className = "ExpandDimsLayer";
   readonly dimensionIndices: ReadonlyArray<number>;
