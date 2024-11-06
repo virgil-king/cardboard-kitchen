@@ -14,7 +14,7 @@ import {
   TRAINING_SAMPLE_BUFFER_SIZE,
 } from "./config.js";
 
-const modelName = "conv4";
+const modelName = "conv5";
 const home = process.env.HOME;
 
 async function main() {

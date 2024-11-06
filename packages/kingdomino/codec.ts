@@ -1,7 +1,12 @@
-import { Map, Seq } from "immutable";
+import { Map, Range, Seq } from "immutable";
 import { Vector2 } from "./util.js";
 import { Linearization } from "./linearization.js";
 
+/**
+ * Codec from {@link ValueT} to and from {@link Float32Array}.
+ *
+ * Some implementations may not support decoding.
+ */
 export interface VectorCodec<ValueT> {
   columnCount: number;
   encode(value: ValueT, into: Float32Array, offset: number): void;
@@ -123,6 +128,7 @@ export class ObjectCodec<T extends { [key: string]: VectorCodec<unknown> }>
   }
 }
 
+// TODO consider changing to IterableCodec
 export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
   columnCount: number;
   constructor(readonly itemCodec: VectorCodec<T>, readonly length: number) {
@@ -137,12 +143,22 @@ export class ArrayCodec<T> implements VectorCodec<ReadonlyArray<T>> {
   }
   decode(from: Float32Array, offset: number): ReadonlyArray<T> {
     const result: T[] = [];
-    let itemOffset = offset;
-    for (let i = 0; i < this.length; i++) {
-      result.push(this.itemCodec.decode(from, itemOffset));
-      itemOffset += this.itemCodec.columnCount;
+    for (const item of this.decodeAsGenerator(from, offset)) {
+      result.push(item);
     }
     return result;
+  }
+
+  /**
+   * Returns an {@link Iterable<T>} that yields the items from {@link from}
+   * starting at {@link offset}
+   */
+  *decodeAsGenerator(from: Float32Array, offset: number): Iterable<T> {
+    let itemOffset = offset;
+    for (let i = 0; i < this.length; i++) {
+      yield this.itemCodec.decode(from, itemOffset);
+      itemOffset += this.itemCodec.columnCount;
+    }
   }
 }
 
@@ -159,7 +175,7 @@ export class RawCodec implements VectorCodec<Float32Array> {
 
 /**
  * Codec for 2D maps of {@link T}.
- * 
+ *
  * Coordinates with no corresponding entry are left as zeros.
  */
 export class Sparse2dCodec<T> implements VectorCodec<Map<Vector2, T>> {
@@ -195,4 +211,14 @@ export class Sparse2dCodec<T> implements VectorCodec<Map<Vector2, T>> {
   decode(from: Float32Array, offset: number): Map<Vector2, T> {
     throw new Error("Method not implemented.");
   }
+}
+
+export function* decodeAsGenerator<T>(
+  itemCodec: VectorCodec<T>,
+  itemCount: number,
+  from: Float32Array,
+  offset: number = 0
+) {
+  const arrayCodec = new ArrayCodec(itemCodec, itemCount);
+  yield* arrayCodec.decodeAsGenerator(from, offset);
 }

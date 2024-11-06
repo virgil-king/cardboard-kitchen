@@ -47,6 +47,13 @@ export function requireDefined<T>(
   return val;
 }
 
+export function requireNotDone<T>(result: IteratorResult<T>): T {
+  if (result.done) {
+    throw new Error("Iterator completed unexpectedly");
+  }
+  return result.value;
+}
+
 // export function apply<T, U>(value: T, func: (it: T) => U) {
 //   return func(value);
 // }

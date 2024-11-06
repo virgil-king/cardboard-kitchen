@@ -10,11 +10,10 @@ import {
 import {
   placementPolicyLinearization,
   KingdominoConvolutionalModel,
-  linearPolicyCodec,
-  LocationStateCodec,
-  locationStateCodec,
   boardCodec,
   locationPropertiesCodec,
+  encodePlacementPolicy,
+  policyCodec,
 } from "./model-cnn.js";
 import { assert } from "chai";
 import { Map, Range } from "immutable";
@@ -50,16 +49,13 @@ test("encodeValues: two players: result has length four", () => {
 test("decodeValues: returns expected values", () => {
   const vector = [0.1, 0.2, 0.3, 0.4];
 
-  const playerValues = model.inferenceModel.decodeValues(
-    players,
-    new Float32Array(vector)
-  );
+  const playerValues = model.inferenceModel.decodeValues(players, vector);
 
   assertClose(requireDefined(playerValues.playerIdToValue.get(alice.id)), 0.1);
   assertClose(requireDefined(playerValues.playerIdToValue.get(bob.id)), 0.2);
 });
 
-test("encodePolicy: stores placement values at expected index", () => {
+test("encodePlacementPolicy: stores placement values at expected index", () => {
   const placement1 = new PlaceTile(new Vector2(-4, -3), Direction.LEFT);
   const placement2 = new PlaceTile(new Vector2(1, 2), Direction.DOWN);
   const actionToVisitCount = Map([
@@ -91,9 +87,10 @@ test("encodePolicy: stores placement values at expected index", () => {
     ],
   ]);
 
-  const placementProbabilitiesVector = model
-    .trainingModel()
-    .encodePlacementPolicy(actionToVisitCount, NO_TRANSFORM);
+  const placementProbabilitiesVector = encodePlacementPolicy(
+    actionToVisitCount,
+    NO_TRANSFORM
+  );
 
   assertClose(
     placementPolicyLinearization.get(
@@ -102,7 +99,7 @@ test("encodePolicy: stores placement values at expected index", () => {
       placement1.location.y + playAreaRadius,
       placement1.direction.index
     ),
-    1 / 3
+    1
   );
   assertClose(
     placementPolicyLinearization.get(
@@ -111,7 +108,7 @@ test("encodePolicy: stores placement values at expected index", () => {
       placement2.location.y + playAreaRadius,
       placement2.direction.index
     ),
-    2 / 3
+    2
   );
 });
 
@@ -218,7 +215,10 @@ test("encodeSample: returns expected board and policy vectors", () => {
       );
     }
   }
-  const alicePlaceVisitCounts = encodedSample.placementPolicyOutput;
+  const alicePlaceVisitCounts = policyCodec.decode(
+    encodedSample.policyOutput,
+    0
+  ).placeProbabilities;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
@@ -317,7 +317,10 @@ test("encodeSample: with transformation: returns expected board and policy vecto
       );
     }
   }
-  const alicePlaceVisitCounts = encodedSample.placementPolicyOutput;
+  const alicePlaceVisitCounts = policyCodec.decode(
+    encodedSample.policyOutput,
+    0
+  ).placeProbabilities;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
@@ -340,7 +343,10 @@ test("encodeSample: with transformation: returns expected board and policy vecto
 });
 
 test("tensor testing", () => {
-  const array = [[1, 2], [3, 4]];
+  const array = [
+    [1, 2],
+    [3, 4],
+  ];
   const tensor = tf.tensor(array);
   const data = tensor.dataSync<"float32">();
   assertClose(data[0], 1);

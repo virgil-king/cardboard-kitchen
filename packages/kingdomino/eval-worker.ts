@@ -57,4 +57,6 @@ messagePort.on("message", async (message: any) => {
   if (evalsInProgress > 0) {
     console.log(`${evalsInProgress} evals in progress`);
   }
+
+  messagePort.postMessage(undefined);
 });

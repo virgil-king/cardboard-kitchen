@@ -137,12 +137,20 @@ export async function train_parallel<
   console.log(`Spawned ${selfPlayWorkerCount} self play workers`);
 
   const evalWorkerChannel = new worker_threads.MessageChannel();
-  const evalWorker = new worker_threads.Worker(evalWorkerScript, {
+  new worker_threads.Worker(evalWorkerScript, {
     workerData: evalWorkerChannel.port2,
     transferList: [evalWorkerChannel.port2],
   });
+  evalWorkerChannel.port1.on("message", async (_) => {
+    console.log(`Received completion from eval worker; sending new model`)
+    const modelArtifacts = await model.toJson();
+    evalWorkerChannel.port1.postMessage(modelArtifacts);
+  });
 
   await bufferReady.promise;
+
+  // Kick off first eval loop
+  evalWorkerChannel.port1.postMessage(await model.toJson());
 
   let episodeBatchesBetweenModelUpdates =
     selfPlayWorkerCount * selfPlayBatchesBetweenModelUpdates;
@@ -178,7 +186,7 @@ export async function train_parallel<
         performance.now() - beforeBatch
       )} ms`
     );
-    await sleep(1);
+    await sleep(0);
     const episodeBatchesReceivedSinceLastModelUpdate =
       episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
     if (
@@ -193,7 +201,6 @@ export async function train_parallel<
       for (const port of workerPorts) {
         port.postMessage(modelArtifacts);
       }
-      evalWorkerChannel.port1.postMessage(modelArtifacts);
     }
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
@@ -271,7 +278,7 @@ export function* selfPlayEpisode<
       yield* root.visit();
       selectedAction = root.actionToChild.keys().next().value;
     } else {
-      for (let i of Range(
+      for (let _i of Range(
         0,
         Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
       )) {
