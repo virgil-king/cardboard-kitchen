@@ -68,8 +68,6 @@ import { ExpandDimsLayer } from "./expanddims.js";
  * legal) move.
  */
 
-const SCHEMA_VERSION = 0;
-
 /**
  * Size used in various places in the model shape that take arbitrary sizes.
  *
@@ -291,6 +289,7 @@ export class KingdominoModel
     });
     console.log(`Linear input shape is ${linearInputLayer.shape}`);
 
+    // One analysis board input per player
     const boardModule = new BoardAnalysisModule();
     const boardInputs = Range(0, Kingdomino.INSTANCE.maxPlayerCount)
       .map((playerIndex) =>
@@ -301,11 +300,15 @@ export class KingdominoModel
       )
       .toArray();
 
+    // Policy board input is equal to the analysis board input for the
+    // current player
     const policyBoardInput = tf.layers.input({
       shape: BoardInputTensor.shape,
       name: `policy_board_input`,
     });
 
+    // Analysis board outputs are a 1x1xN vectors. Flatten them and concatenate
+    // them with with the linear input as the input to the dense layers stack.
     const boardAnalysisOutputs = boardInputs.map((input) => {
       const boardModuleOutput = boardModule.apply(linearInputLayer, input);
       return tf.layers.flatten().apply(boardModuleOutput) as tf.SymbolicTensor;
@@ -332,6 +335,7 @@ export class KingdominoModel
         .apply(hiddenOutput) as tf.SymbolicTensor;
     }
 
+    // Output layer container state value for each player
     const valueOutput = tf.layers
       .dense({
         units: playerValuesCodec.columnCount,
@@ -340,6 +344,7 @@ export class KingdominoModel
       })
       .apply(hiddenOutput) as tf.SymbolicTensor;
 
+    // Internal layer containing the non-placement policy values
     const linearPolicyOutput = tf.layers
       .dense({
         units: linearPolicyCodec.columnCount,
@@ -348,12 +353,15 @@ export class KingdominoModel
       })
       .apply(hiddenOutput) as tf.SymbolicTensor;
 
+    // Placement policy module input is dense stack output plus policy board input
     const placementPolicyModule = new PlacementPolicyModule();
     const placementPolicyOutput = placementPolicyModule.apply(
       hiddenOutput,
       policyBoardInput
     );
 
+    // Policy board output is 9x9x4 placement logits. Flatten it for concatenation
+    // into the policy output layer.
     const flattenedPolicyBoardOutput = tf.layers
       .flatten({ name: "flatten_board_policy_output" })
       .apply(placementPolicyOutput) as tf.SymbolicTensor;
@@ -578,6 +586,7 @@ export class KingdominoModel
     const boardPolicyArray = new Float32Array(states.length * boardSize);
 
     for (const [sampleIndex, encodedState] of states.entries()) {
+      // TODO try to use generators to encapsulate offset arithmetic
       linearStateArray.set(
         encodedState.linearState,
         sampleIndex * linearStateCodec.columnCount
