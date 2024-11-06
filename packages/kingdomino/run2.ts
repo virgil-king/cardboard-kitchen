@@ -1,7 +1,7 @@
 import { train_parallel, Model, modelsDirectory } from "training";
 import { Kingdomino } from "./kingdomino.js";
 import _ from "lodash";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoAction } from "./action.js";
 import { KingdominoState } from "./state.js";
@@ -13,6 +13,8 @@ import {
   TRAINING_MAX_MODEL_BYTES,
   TRAINING_SAMPLE_BUFFER_SIZE,
 } from "./config.js";
+
+// Top-level script for Kingdomino training
 
 const modelName = "conv5";
 const home = process.env.HOME;
@@ -49,13 +51,13 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoConvolutionalModel.load(modelPath);
+  const result = await KingdominoModel.load(modelPath);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }
 
 function freshModel() {
-  const result = KingdominoConvolutionalModel.fresh();
+  const result = KingdominoModel.fresh();
   console.log("Created randomly initialized model");
   return result;
 }

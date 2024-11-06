@@ -1,6 +1,6 @@
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { Range } from "immutable";
 import { evalEpisodeBatch, EvalResult } from "./eval-concurrent.js";
 import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
@@ -26,7 +26,7 @@ let evalsInProgress = 0;
 messagePort.on("message", async (message: any) => {
   evalsInProgress++;
   const date = new Date();
-  const newModel = await KingdominoConvolutionalModel.fromJson(message);
+  const newModel = await KingdominoModel.fromJson(message);
   modelNumber++;
   console.log(`Eval worker received model #${modelNumber}`);
 

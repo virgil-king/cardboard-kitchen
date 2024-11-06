@@ -9,12 +9,12 @@ import {
 } from "game";
 import {
   placementPolicyLinearization,
-  KingdominoConvolutionalModel,
+  KingdominoModel,
   boardCodec,
   locationPropertiesCodec,
   encodePlacementPolicy,
   policyCodec,
-} from "./model-cnn.js";
+} from "./model.js";
 import { assert } from "chai";
 import { Map, Range } from "immutable";
 import { KingdominoAction } from "./action.js";
@@ -30,7 +30,7 @@ const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const players = new Players(alice, bob);
 const episodeConfig = new EpisodeConfiguration(players);
-const model = KingdominoConvolutionalModel.fresh();
+const model = KingdominoModel.fresh();
 
 test("encodeValues: two players: result has length four", () => {
   const vector = model.trainingModel().encodeValues(
@@ -114,7 +114,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
 
 test("JSON round trip: inference behavior is preserved", async () => {
   const artifacts = await model.toJson();
-  const model2 = await KingdominoConvolutionalModel.fromJson(artifacts);
+  const model2 = await KingdominoModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = model.inferenceModel.infer([snapshot])[0];
@@ -128,7 +128,7 @@ test("JSON round trip: inference behavior is preserved", async () => {
 
 test("JSON + structured clone round trip: inference behavior is preserved", async () => {
   const artifacts = structuredClone(await model.toJson());
-  const model2 = await KingdominoConvolutionalModel.fromJson(artifacts);
+  const model2 = await KingdominoModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = model.inferenceModel.infer([snapshot])[0];
@@ -361,47 +361,3 @@ function assertClose(actual: number, expected: number) {
     `${actual} was not close to ${expected}`
   );
 }
-
-// test("tensor encoding", async () => {
-//   // const array = [1, 2, 3, 4, 5, 6];
-//   // const tensor = tf.tensor(array, [3, 2, 1]);
-//   // console.log(tensor.toString());
-
-//   // const array = _.range(0, 9 * 9 * 9);
-//   // const matrix = new Array<Array<Array<number>>>();
-//   // for (const x of boardIndices) {
-//   //   const xIndex = x + playAreaRadius;
-//   //   const row = new Array<Array<number>>();
-//   //   matrix[xIndex] = row;
-//   //   const xOffset = xIndex * 9 * 9;
-//   //   for (const y of boardIndices) {
-//   //     const yIndex = y + playAreaRadius;
-//   //     const yOffset = yIndex * 9;
-//   //     const start = xOffset + yOffset;
-//   //     row[yIndex] = array.slice(start, start + 9);
-//   //   }
-//   // }
-//   // console.log(`matrix: ${matrix}`);
-
-//   let board = new PlayerBoard(Map()).withTile(
-//     new PlaceTile(new Vector2(1, -1), Direction.DOWN),
-//     1
-//   );
-//   const tile = Tile.withNumber(1);
-
-//   const floatArray = KingdominoConvolutionalModel.encodeBoard(board);
-//   // console.log(`float array: ${floatArray}`);
-//   const tensor = tf.tensor(floatArray, [9, 9, 9]);
-//   // console.log(`tensor: ${tensor}`);
-//   const roundTripMatrix = await tensor.arraySync();
-//   // console.log(`roundTripMatrix: ${roundTripMatrix}`);
-//   // assert.isTrue(_.isEqual(matrix, roundTripMatrix));
-
-//   const yWidth = BoardResidualBlock.filterCount;
-//   const xWidth = playAreaSize * yWidth;
-//   assert.equal(
-//     roundTripMatrix[
-//       (1 + playAreaRadius) * xWidth + (-1 + playAreaRadius) * yWidth
-//     ]
-//   );
-// });

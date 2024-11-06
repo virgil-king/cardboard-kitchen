@@ -24,7 +24,7 @@ import { KingdominoState } from "./state.js";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { driveGenerators, requireDefined } from "studio-util";
 
 // const model1 = KingdominoModel.load(process.argv[2]);
@@ -35,7 +35,7 @@ if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
 
-const model = KingdominoConvolutionalModel.load(modelPath);
+const model = KingdominoModel.load(modelPath);
 console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);

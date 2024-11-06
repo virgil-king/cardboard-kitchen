@@ -12,13 +12,13 @@ import {
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { Range } from "immutable";
 import { SELF_PLAY_EPISODES_PER_BATCH, SELF_PLAY_MCTS_CONFIG } from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
-let model: KingdominoConvolutionalModel | undefined;
+let model: KingdominoModel | undefined;
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -30,7 +30,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  const newModel = await KingdominoConvolutionalModel.fromJson(message);
+  const newModel = await KingdominoModel.fromJson(message);
   model?.model.dispose();
   model = newModel;
   console.log(`Self-play worker received new model`);

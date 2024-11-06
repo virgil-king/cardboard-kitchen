@@ -264,7 +264,7 @@ export class EncodedSample {
 
 // TODOS:
 // - add linear input to placement policy module?
-export class KingdominoConvolutionalModel
+export class KingdominoModel
   implements
     Model<
       KingdominoConfiguration,
@@ -284,7 +284,7 @@ export class KingdominoConvolutionalModel
   inferenceModel = new KingdominoInferenceModel(this);
   private _trainingModel: KingdominoTrainingModel | undefined;
 
-  static fresh(): KingdominoConvolutionalModel {
+  static fresh(): KingdominoModel {
     const linearInputLayer = tf.input({
       shape: [linearStateCodec.columnCount],
       name: "linear_input",
@@ -372,13 +372,13 @@ export class KingdominoConvolutionalModel
 
     model.summary(200);
 
-    return new KingdominoConvolutionalModel(model);
+    return new KingdominoModel(model);
   }
 
   /**
    * @param path path to the directory containing the model files
    */
-  static async load(path: string): Promise<KingdominoConvolutionalModel> {
+  static async load(path: string): Promise<KingdominoModel> {
     const layersModel = await tf.loadLayersModel(`file://${path}/model.json`);
     // console.log(layersModel.getWeights().toString());
     console.log(
@@ -387,7 +387,7 @@ export class KingdominoConvolutionalModel
       )}`
     );
 
-    return new KingdominoConvolutionalModel(layersModel);
+    return new KingdominoModel(layersModel);
   }
 
   constructor(model: tf.LayersModel) {
@@ -437,7 +437,7 @@ export class KingdominoConvolutionalModel
             snapshot.episodeConfiguration.players.players.get(playerIndex)
           );
           const transform = playerIdToTransform(player);
-          return KingdominoConvolutionalModel.encodeBoard(
+          return KingdominoModel.encodeBoard(
             snapshot.state
               .requirePlayerState(player.id)
               .board.transform(transform)
@@ -633,13 +633,13 @@ export class KingdominoConvolutionalModel
 
   static async fromJson(
     artifacts: tfcore.io.ModelArtifacts
-  ): Promise<KingdominoConvolutionalModel> {
+  ): Promise<KingdominoModel> {
     const model = await tf.loadLayersModel({
       load: () => {
         return Promise.resolve(artifacts);
       },
     });
-    return new KingdominoConvolutionalModel(model);
+    return new KingdominoModel(model);
   }
 }
 
@@ -647,7 +647,7 @@ export class KingdominoInferenceModel
   implements
     InferenceModel<KingdominoConfiguration, KingdominoState, KingdominoAction>
 {
-  constructor(private readonly model: KingdominoConvolutionalModel) {}
+  constructor(private readonly model: KingdominoModel) {}
 
   infer(
     snapshots: ReadonlyArray<
@@ -1017,7 +1017,7 @@ export class KingdominoTrainingModel
   private readonly optimizer: tf.Optimizer;
 
   constructor(
-    private readonly model: KingdominoConvolutionalModel,
+    private readonly model: KingdominoModel,
     private readonly batchSize: number = 128
   ) {
     this.optimizer = tf.train.adam();

@@ -1,5 +1,5 @@
 import { newestModelPath } from "training";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { evalEpisodeBatch } from "./eval-concurrent.js";
 
 const modelPath = newestModelPath("kingdomino", "conv3");
@@ -7,7 +7,7 @@ if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
 
-const model = KingdominoConvolutionalModel.load(modelPath);
+const model = KingdominoModel.load(modelPath);
 console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);

@@ -2,7 +2,7 @@ import { requireDefined } from "studio-util";
 import { Model, newestModelPath } from "training";
 import { KingdominoAction } from "./action.js";
 import { KingdominoConfiguration } from "./base.js";
-import { KingdominoConvolutionalModel } from "./model-cnn.js";
+import { KingdominoModel } from "./model.js";
 import { KingdominoState } from "./state.js";
 import * as fs from "node:fs";
 import { Map } from "immutable";
@@ -100,13 +100,13 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoConvolutionalModel.load(modelPath);
+  const result = await KingdominoModel.load(modelPath);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }
 
 function freshModel() {
-  const result = KingdominoConvolutionalModel.fresh();
+  const result = KingdominoModel.fresh();
   console.log("Created randomly initialized model");
   return result;
 }

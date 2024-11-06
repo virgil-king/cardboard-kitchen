@@ -25,7 +25,7 @@ import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import {
   KingdominoInferenceModel,
-} from "./model-cnn.js";
+} from "./model.js";
 import { driveGenerators, requireDefined } from "studio-util";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
