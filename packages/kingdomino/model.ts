@@ -800,7 +800,8 @@ export class ResidualBlock {
   private readonly conv1 = ResidualBlock.conv2D();
   private readonly conv2 = ResidualBlock.conv2D();
 
-  static filterCount = SIZE_FACTOR;
+  // SIZE_FACTOR for tiled non-spatial data plus the original spatial data
+  static filterCount = SIZE_FACTOR + locationStateCodec.columnCount;
 
   constructor() {}
 
@@ -846,8 +847,8 @@ class BoardInputTensor {
 /**
  * Network module for analyzing player boards.
  *
- * Input format is 9x9x9: x => y => channel (terrain type and crown count)
- * Output format is 9x9x64: x => y => output feature
+ * Input shapes are [,N] (game linear input) and [9,9,9] (board state)
+ * Output shape is [1,1,SIZE_FACTOR]
  */
 class BoardAnalysisModule {
   /** Number of steps needed to traverse a kingdom from corner to corner */
@@ -858,14 +859,11 @@ class BoardAnalysisModule {
   static readonly outputSize =
     playAreaSize * playAreaSize * this.outputChannelCount;
 
-  // Pixel-wise downsize input channel count to internal channel count
-  private inputLayer = tf.layers.conv2d({
-    kernelSize: 1,
-    filters: ResidualBlock.filterCount,
-    padding: "same",
-    strides: 1,
+  // Compress linear input down to SIZE_FACTOR columns
+  private linearInputCompressor = tf.layers.dense({
+    units: SIZE_FACTOR,
     activation: "relu",
-    name: "board_analysis_pinch",
+    name: "board_analysis_compress_linear_input",
   });
 
   // Aggreggate the entire board into one vector of output channels
@@ -889,9 +887,11 @@ class BoardAnalysisModule {
     linearInput: tf.SymbolicTensor,
     boardInput: tf.SymbolicTensor
   ): tf.SymbolicTensor {
-    let output = this.inputMerger.apply(linearInput, boardInput);
-    console.log(`Concatenated board analysis input is ${output.shape}`);
-    output = this.inputLayer.apply(output) as tf.SymbolicTensor;
+    let compressedLinearInput = this.linearInputCompressor.apply(
+      linearInput
+    ) as tf.SymbolicTensor;
+
+    let output = this.inputMerger.apply(compressedLinearInput, boardInput);
     output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
     output = tf.layers.reLU().apply(output) as tf.SymbolicTensor;
 
@@ -923,8 +923,7 @@ class BoardInputMerger {
   });
 
   /**
-   * Takes a batch of game linear inputs ({@link linearStateCodec}) and board
-   * inputs {@link boardCodec}.
+   * Takes a batch of linear inputs and board inputs {@link boardCodec}.
    *
    * Returns a {@link tf.SymbolicTensor} defined by tiling the linear inputs
    * to match the spatial dimensions of the board inputs and then stacking
@@ -957,8 +956,8 @@ class BoardInputMerger {
 /**
  * Network module for analyzing player boards.
  *
- * Input format is 9x9xCHANNELS: x => y => input channels (hidden output plus location properties)
- * Output format is 9x9x4: x => y => placement direction
+ * Input shapes are [,N] (hidden layer output) and [9,9,9] (board state)
+ * Output shape is [9,9,4]: x, y, placement direction
  */
 class PlacementPolicyModule {
   /** Number of steps needed to traverse a kingdom from corner to corner */
@@ -968,13 +967,11 @@ class PlacementPolicyModule {
 
   private readonly inputMerger = new BoardInputMerger("board_policy");
 
-  // Pixel-wise downsize input channel count to internal channel count
-  private inputLayer = tf.layers.conv2d({
-    name: "placement_policy_pinch",
-    kernelSize: 1,
-    filters: ResidualBlock.filterCount,
-    strides: 1,
+  // Compress linear input down to SIZE_FACTOR columns
+  private linearInputCompressor = tf.layers.dense({
+    units: SIZE_FACTOR,
     activation: "relu",
+    name: "placement_policy_compress_linear_input",
   });
 
   private readonly blocks = Range(0, PlacementPolicyModule.blockCount).map(
@@ -996,11 +993,11 @@ class PlacementPolicyModule {
     linearInput: tf.SymbolicTensor,
     boardInput: tf.SymbolicTensor
   ): tf.SymbolicTensor {
-    let output = this.inputMerger.apply(linearInput, boardInput);
-    console.log(`Concatenated placement policy input shape is ${output.shape}`);
+    let compressedLinearInput = this.linearInputCompressor.apply(
+      linearInput
+    ) as tf.SymbolicTensor;
 
-    // Project the input shape to the residual block shape
-    output = this.inputLayer.apply(output) as tf.SymbolicTensor;
+    let output = this.inputMerger.apply(compressedLinearInput, boardInput);
     output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
     output = tf.layers.reLU().apply(output) as tf.SymbolicTensor;
 
