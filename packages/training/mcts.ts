@@ -42,14 +42,7 @@ export class MctsConfig<
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
   readonly minPrior: number;
-  constructor({
-    simulationCount = 32,
-    explorationBias = Math.sqrt(2),
-    modelValueWeight = 1,
-    randomPlayoutConfig = undefined,
-    maxChanceBranches = 4,
-    minPolicyValue = 0.01,
-  }: {
+  constructor(params: {
     simulationCount?: number;
     explorationBias?: number;
     modelValueWeight?: number;
@@ -57,17 +50,20 @@ export class MctsConfig<
     maxChanceBranches?: number;
     minPolicyValue?: number;
   }) {
-    this.simulationCount = simulationCount;
-    this.explorationBias = explorationBias;
-    this.modelValueWeight = modelValueWeight;
-    this.randomPlayoutConfig = randomPlayoutConfig;
-    if (modelValueWeight == undefined && randomPlayoutConfig == undefined) {
+    this.simulationCount = params.simulationCount ?? 32;
+    this.explorationBias = params.explorationBias ?? Math.sqrt(2);
+    this.modelValueWeight = params.modelValueWeight;
+    this.randomPlayoutConfig = params.randomPlayoutConfig;
+    if (
+      this.modelValueWeight == undefined &&
+      this.randomPlayoutConfig == undefined
+    ) {
       throw new Error(
         `modelValueWeight and randomPlayoutConfig were both null`
       );
     }
-    this.maxChanceBranches = maxChanceBranches;
-    this.minPrior = minPolicyValue;
+    this.maxChanceBranches = params.maxChanceBranches ?? 4;
+    this.minPrior = params.minPolicyValue ?? 0.01;
   }
 }
 

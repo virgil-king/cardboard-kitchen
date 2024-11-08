@@ -262,6 +262,8 @@ export class EncodedSample {
 
 // TODOS:
 // - add linear input to placement policy module?
+// - include raw location data in the board internal layers instead of
+//   pinching it together with non-location data in an entrance layer
 export class KingdominoModel
   implements
     Model<
@@ -335,7 +337,7 @@ export class KingdominoModel
         .apply(hiddenOutput) as tf.SymbolicTensor;
     }
 
-    // Output layer container state value for each player
+    // Output layer containing state value for each player
     const valueOutput = tf.layers
       .dense({
         units: playerValuesCodec.columnCount,
@@ -387,6 +389,7 @@ export class KingdominoModel
    * @param path path to the directory containing the model files
    */
   static async load(path: string): Promise<KingdominoModel> {
+    console.log(`Loading model from ${path}`);
     const layersModel = await tf.loadLayersModel(`file://${path}/model.json`);
     // console.log(layersModel.getWeights().toString());
     console.log(

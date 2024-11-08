@@ -23,9 +23,7 @@ import { KingdominoState } from "./state.js";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
-import {
-  KingdominoInferenceModel,
-} from "./model.js";
+import { KingdominoInferenceModel } from "./model.js";
 import { driveGenerators, requireDefined } from "studio-util";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
@@ -77,12 +75,19 @@ export function evalEpisodeBatch(
     [baselinePlayer2.id, "baseline"],
   ]);
 
-  const players = [subjectPlayer1, subjectPlayer2, baselinePlayer1, baselinePlayer2];
+  const players = [
+    subjectPlayer1,
+    subjectPlayer2,
+    baselinePlayer1,
+    baselinePlayer2,
+  ];
   let playerIdToValue = Map<string, number>();
   const generators = Range(0, episodeCount)
     .map(() => {
       const shuffledPlayers = _.shuffle(players);
-      const episodeConfig = new EpisodeConfiguration(new Players(...shuffledPlayers));
+      const episodeConfig = new EpisodeConfiguration(
+        new Players(...shuffledPlayers)
+      );
       return episode(Kingdomino.INSTANCE, episodeConfig);
     })
     .toArray();
@@ -204,7 +209,8 @@ class MctsBatchAgent implements BatchAgent {
 function* mcts<
   C extends GameConfiguration,
   S extends GameState,
-  A extends Action>(
+  A extends Action
+>(
   game: Game<C, S, A>,
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
@@ -226,7 +232,7 @@ function* mcts<
     yield* root.visit();
     return requireDefined(root.actionToChild.keys().next().value);
   } else {
-    for (const {} of Range(
+    for (const _ of Range(
       0,
       Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
     )) {
