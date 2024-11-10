@@ -73,12 +73,12 @@ async function main() {
     console.log(
       `Self-play inference time: ${
         mctsContext.stats.inferenceTimeMs / elapsedMs
-      } of total`
+      }% of total`
     );
     console.log(
       `Self-play random playout time: ${
         mctsContext.stats.randomPlayoutTimeMs / elapsedMs
-      } of total`
+      }% of total`
     );
 
     for (const episode of episodes) {

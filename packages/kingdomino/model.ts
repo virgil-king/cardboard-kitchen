@@ -32,7 +32,6 @@ import {
   randomBoolean,
   requireDefined,
   requireNotDone,
-  sleep,
 } from "studio-util";
 import _ from "lodash";
 import { Terrain, Tile, terrainValues } from "./tile.js";

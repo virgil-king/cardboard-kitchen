@@ -5,6 +5,10 @@ import { Range } from "immutable";
 import { evalEpisodeBatch, EvalResult } from "./eval-concurrent.js";
 import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
 
+// const decimalFormat = Intl.NumberFormat(undefined, {
+//   maximumFractionDigits: 0,
+// });
+
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let modelNumber = 0;
@@ -16,7 +20,8 @@ const logFilePath = `${logsDir}/${new Date().toISOString()}`;
 
 type EvalLogEntry = {
   time: string;
-  results: EvalResult;
+  subjectPoints: number;
+  baselinePoints: number;
 };
 
 const log = new Array<EvalLogEntry>();
@@ -40,18 +45,31 @@ messagePort.on("message", async (message: any) => {
     subjectPoints += batchResult.subjectPoints;
     baselinePoints += batchResult.baselinePoints;
     console.log(`Eval completed batch ${i}`);
+    const totalTimeMs = batchResult.subjectTimeMs + batchResult.baselineTimeMs;
+    console.log(
+      `Subject time: ${Math.round(batchResult.subjectTimeMs)}ms (${Math.round(
+        (100 * batchResult.subjectTimeMs) / totalTimeMs
+      )}%)`
+    );
+    console.log(
+      `Baseline time: ${Math.round(batchResult.baselineTimeMs)}ms (${Math.round(
+        (100 * batchResult.baselineTimeMs) / totalTimeMs
+      )}%)`
+    );
   }
 
   const logEntry = {
     time: date.toISOString(),
-    results: {
-      subjectPoints: subjectPoints,
-      baselinePoints: baselinePoints,
-    },
+    subjectPoints: subjectPoints,
+    baselinePoints: baselinePoints,
   } satisfies EvalLogEntry;
   log.push(logEntry);
   const logString = JSON.stringify(log, undefined, 4);
-  console.log(`Eval worker completed batch for ${modelNumber}: ${JSON.stringify(logEntry)}`);
+  console.log(
+    `Eval worker completed batch for ${modelNumber}: ${JSON.stringify(
+      logEntry
+    )}`
+  );
   fs.writeFileSync(logFilePath, logString);
   evalsInProgress--;
   if (evalsInProgress > 0) {

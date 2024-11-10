@@ -40,7 +40,9 @@ const decimalFormat = Intl.NumberFormat(undefined, {
 
 export type EvalResult = {
   subjectPoints: number;
+  subjectTimeMs: number;
   baselinePoints: number;
+  baselineTimeMs: number;
 };
 
 /**
@@ -92,6 +94,9 @@ export function evalEpisodeBatch(
     })
     .toArray();
 
+  let subjectTimeMs = 0;
+  let baselineTimeMs = 0;
+
   const start = performance.now();
   const terminalSnapshots = driveGenerators(generators, (snapshots) => {
     const agentIdToRequests = List(snapshots)
@@ -105,9 +110,24 @@ export function evalEpisodeBatch(
         return requireDefined(playerIdToAgentId.get(currentPlayerId));
       });
     const agentIdToResponses = agentIdToRequests.map((requests, agentId) => {
-      return requireDefined(agentIdToAgent.get(agentId)).act(
+      const actStart = performance.now();
+      const result = requireDefined(agentIdToAgent.get(agentId)).act(
         requests.map((request) => request.snapshot).toArray()
       );
+      const elapsed = performance.now() - actStart;
+      switch (agentId) {
+        case "model": {
+          subjectTimeMs += elapsed;
+          break;
+        }
+        case "baseline": {
+          baselineTimeMs += elapsed;
+          break;
+        }
+        default:
+          throw new Error(`Unexpected agent ID ${agentId}`);
+      }
+      return result;
     });
     const actions = new Array<KingdominoAction>(snapshots.length);
     for (const [agentId, requests] of agentIdToRequests) {
@@ -128,7 +148,9 @@ export function evalEpisodeBatch(
 
   const result = {
     subjectPoints: 0,
+    subjectTimeMs: subjectTimeMs,
     baselinePoints: 0,
+    baselineTimeMs: baselineTimeMs,
   } satisfies EvalResult;
 
   for (const snapshot of terminalSnapshots) {
