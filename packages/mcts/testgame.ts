@@ -192,13 +192,17 @@ export class PickANumberModel
     snapshots: ReadonlyArray<
       EpisodeSnapshot<GameConfiguration, PickANumberState>
     >
-  ): ReadonlyArray<{
-    value: PlayerValues;
-    policy: Map<NumberAction, number>;
-  }> {
-    return snapshots.map((snapshot) => {
-      return { value: this.value(snapshot), policy: this.policy(snapshot) };
-    });
+  ): Promise<
+    ReadonlyArray<{
+      value: PlayerValues;
+      policy: Map<NumberAction, number>;
+    }>
+  > {
+    return Promise.resolve(
+      snapshots.map((snapshot) => {
+        return { value: this.value(snapshot), policy: this.policy(snapshot) };
+      })
+    );
   }
 
   private policy(

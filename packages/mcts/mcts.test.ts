@@ -1,8 +1,4 @@
-import {
-  Player,
-  Players,
-  EpisodeConfiguration,
-} from "game";
+import { Player, Players, EpisodeConfiguration } from "game";
 import { test } from "vitest";
 import { assert } from "chai";
 import { List } from "immutable";
@@ -15,13 +11,13 @@ const bob = new Player("bob", "Bob");
 // const cecile = new Player("cecile", "Cecile");
 // const derek = new Player("derek", "Derek");
 
-test("mcts: single-step deterministic game: one step per first action: expected values come from model", () => {
+test("mcts: single-step deterministic game: one step per first action: expected values come from model", async () => {
   const players = new Players(alice, bob);
   const mctsConfig = new MctsConfig({
     simulationCount: 9,
     modelValueWeight: 1,
   });
-  const result = mcts(
+  const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
     PickANumberModel.INSTANCE,
@@ -41,13 +37,13 @@ test("mcts: single-step deterministic game: one step per first action: expected 
   }
 });
 
-test("mcts: single-step deterministic game: one more step than first actions: last step selects action with greatest prior", () => {
+test("mcts: single-step deterministic game: one more step than first actions: last step selects action with greatest prior", async () => {
   const players = new Players(alice, bob);
   const mctsConfig = new MctsConfig({
     simulationCount: 10,
     modelValueWeight: 1,
   });
-  const result = mcts(
+  const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
     PickANumberModel.INSTANCE,
@@ -64,13 +60,13 @@ test("mcts: single-step deterministic game: one more step than first actions: la
   assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
 });
 
-test("mcts: single-step deterministic game: many simulations: best move has highest expected value", () => {
+test("mcts: single-step deterministic game: many simulations: best move has highest expected value", async () => {
   const players = new Players(alice, bob);
   const mctsConfig = new MctsConfig({
     simulationCount: 100,
     modelValueWeight: 1,
   });
-  const result = mcts(
+  const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
     PickANumberModel.INSTANCE,

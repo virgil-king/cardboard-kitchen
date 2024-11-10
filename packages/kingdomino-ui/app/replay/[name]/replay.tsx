@@ -15,7 +15,7 @@ type ReplayProps = {
   episodeJsonString: string;
 };
 
-export function Replay(props: ReplayProps) {
+export function Replay(props: ReplayProps): JSX.Element {
   const episodeJson = JSON.parse(props.episodeJsonString);
   const episode = EpisodeTrainingData.decode(Kingdomino.INSTANCE, episodeJson);
 

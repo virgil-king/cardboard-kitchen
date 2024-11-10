@@ -1,9 +1,10 @@
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
-import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH, KingdominoModel } from "kingdomino";
+import { KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
-import { evalEpisodeBatch, EvalResult } from "./eval-concurrent.js";
+import { evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
+import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
 
 // const decimalFormat = Intl.NumberFormat(undefined, {
 //   maximumFractionDigits: 0,
@@ -38,7 +39,7 @@ messagePort.on("message", async (message: any) => {
   let subjectPoints = 0;
   let baselinePoints = 0;
   for (const i of Range(0, EVAL_BATCHES)) {
-    const batchResult = evalEpisodeBatch(
+    const batchResult = await evalEpisodeBatch(
       newModel.inferenceModel,
       EVAL_EPISODES_PER_BATCH
     );

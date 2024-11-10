@@ -6,15 +6,17 @@ import {
   KingdominoConfiguration,
   KingdominoModel,
   KingdominoState,
+} from "kingdomino";
+import { newestModelPath, LogDirectory } from "training";
+import { Model } from "mcts";
+import * as tf from "@tensorflow/tfjs-node-gpu";
+import {
   SELF_PLAY_WORKER_COUNT,
   TRAINING_BATCH_SIZE,
   TRAINING_MAX_EPISODE_BYTES,
   TRAINING_MAX_MODEL_BYTES,
   TRAINING_SAMPLE_BUFFER_SIZE,
-} from "kingdomino";
-import { newestModelPath, LogDirectory } from "training";
-import { Model } from "mcts";
-import * as tf from "@tensorflow/tfjs-node-gpu";
+} from "./config.js";
 
 // Top-level script for Kingdomino training
 
@@ -53,7 +55,7 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoModel.load(modelPath, tf);
+  const result = await KingdominoModel.loadFromFile(modelPath, tf);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }

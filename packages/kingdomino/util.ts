@@ -22,8 +22,12 @@ export class Vector2 implements ValueObject, JsonSerializable {
     return new Vector2(parsed.x, parsed.y);
   }
 
-  plus(other: Vector2) {
+  plus(other: Vector2): Vector2 {
     return new Vector2(this.x + other.x, this.y + other.y);
+  }
+
+  minus(other: Vector2): Vector2 {
+    return new Vector2(this.x - other.x, this.y - other.y);
   }
 
   multiply(value: number) {
@@ -102,7 +106,7 @@ export class Direction {
     }
     return result;
   }
-  static withOffset(offset: Vector2) {
+  static withOffset(offset: Vector2): Direction | undefined {
     return Seq(Direction.values()).find((d) => d.offset.equals(offset));
   }
 }
@@ -158,7 +162,7 @@ export class Rectangle implements ValueObject {
 export type BoardTransformation = {
   /**
    * Whether to mirror around the Y axis (left/right).
-   * 
+   *
    * Mirroring must be performed before rotation.
    */
   readonly mirror?: boolean;

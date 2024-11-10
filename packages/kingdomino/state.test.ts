@@ -218,6 +218,26 @@ test("placeTile: end of game: next action is undefined", () => {
   assert.equal(episode.currentSnapshot.state.nextAction, undefined);
 });
 
+test("placeTile: end of game: current player is undefined", () => {
+  const players = new Players(alice, bob, cecile);
+  const episode = episodeWithPlayers(players, _.range(1, 4)).apply(
+    claim(0),
+    claim(1),
+    claim(2),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    ),
+    KingdominoAction.placeTile(
+      new PlaceTile(new Vector2(1, 0), Direction.RIGHT)
+    )
+  );
+
+  assert.equal(episode.currentSnapshot.state.currentPlayerId, undefined);
+});
+
 test("placeTile: end of game: center bonus applied correctly", () => {
   const players = new Players(alice, bob);
   const episode = episodeWithPlayers(players, _.range(1, 5)).apply(

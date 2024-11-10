@@ -102,7 +102,7 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoModel.load(modelPath, tf);
+  const result = await KingdominoModel.loadFromFile(modelPath, tf);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }

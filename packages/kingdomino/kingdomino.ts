@@ -317,7 +317,7 @@ export class Kingdomino
   }
 
   handleEndOfGame(state: KingdominoState): KingdominoState {
-    let result = state.withNextAction(undefined);
+    let result = state.withNextAction(undefined).withCurrentPlayer(undefined);
     for (const [playerId, state] of result.props.playerIdToState.entries()) {
       let bonusPoints = 0;
       const board = state.board;

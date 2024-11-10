@@ -18,7 +18,11 @@ import {
   KingdominoState,
   RandomKingdominoAgent,
 } from "kingdomino";
-import { driveGenerators, requireDefined } from "studio-util";
+import {
+  driveAsyncGenerators,
+  driveGenerators,
+  requireDefined,
+} from "studio-util";
 import _ from "lodash";
 import {
   InferenceModel,
@@ -28,11 +32,8 @@ import {
   MctsStats,
   NonTerminalStateNode,
 } from "mcts";
-import {
-  EVAL_BASELINE_MCTS_CONFIG,
-  EVAL_MCTS_CONFIG,
-} from "kingdomino/config.js";
-import { NeutralKingdominoModel } from "kingdomino/neutral-model.js";
+import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
+import { NeutralKingdominoModel } from "./neutral-model.js";
 
 const subjectPlayer1 = new Player("model-1", "Model 1");
 const subjectPlayer2 = new Player("model-2", "Model 2");
@@ -61,10 +62,11 @@ export type EvalResult = {
  *
  * @return total points for subject and baseline players. The best possible ratio is 5:1.
  */
-export function evalEpisodeBatch(
+// TODO save episodes for inspection using the same encoding as self-play episodes
+export async function evalEpisodeBatch(
   model: KingdominoInferenceModel,
   episodeCount: number
-): EvalResult {
+): Promise<EvalResult> {
   const baselineAgent = new MctsBatchAgent(
     new NeutralKingdominoModel(),
     EVAL_BASELINE_MCTS_CONFIG
@@ -103,47 +105,50 @@ export function evalEpisodeBatch(
   let baselineTimeMs = 0;
 
   const start = performance.now();
-  const terminalSnapshots = driveGenerators(generators, (snapshots) => {
-    const agentIdToRequests = List(snapshots)
-      .map((snapshot, index) => {
-        return { requestIndex: index, snapshot: snapshot };
-      })
-      .groupBy((request) => {
-        const currentPlayerId = requireDefined(
-          Kingdomino.INSTANCE.currentPlayer(request.snapshot)
-        ).id;
-        return requireDefined(playerIdToAgentId.get(currentPlayerId));
+  const terminalSnapshots = await driveGenerators(
+    generators,
+    async (snapshots) => {
+      const agentIdToRequests = List(snapshots)
+        .map((snapshot, index) => {
+          return { requestIndex: index, snapshot: snapshot };
+        })
+        .groupBy((request) => {
+          const currentPlayerId = requireDefined(
+            Kingdomino.INSTANCE.currentPlayer(request.snapshot)
+          ).id;
+          return requireDefined(playerIdToAgentId.get(currentPlayerId));
+        });
+      const agentIdToResponses = agentIdToRequests.map((requests, agentId) => {
+        const actStart = performance.now();
+        const result = requireDefined(agentIdToAgent.get(agentId)).act(
+          requests.map((request) => request.snapshot).toArray()
+        );
+        const elapsed = performance.now() - actStart;
+        switch (agentId) {
+          case "model": {
+            subjectTimeMs += elapsed;
+            break;
+          }
+          case "baseline": {
+            baselineTimeMs += elapsed;
+            break;
+          }
+          default:
+            throw new Error(`Unexpected agent ID ${agentId}`);
+        }
+        return result;
       });
-    const agentIdToResponses = agentIdToRequests.map((requests, agentId) => {
-      const actStart = performance.now();
-      const result = requireDefined(agentIdToAgent.get(agentId)).act(
-        requests.map((request) => request.snapshot).toArray()
-      );
-      const elapsed = performance.now() - actStart;
-      switch (agentId) {
-        case "model": {
-          subjectTimeMs += elapsed;
-          break;
+      const actions = new Array<KingdominoAction>(snapshots.length);
+      for (const [agentId, requests] of agentIdToRequests) {
+        const responses = await requireDefined(agentIdToResponses.get(agentId));
+        for (const [agentRequestIndex, request] of requests.entries()) {
+          const response = responses[agentRequestIndex];
+          actions[request.requestIndex] = response;
         }
-        case "baseline": {
-          baselineTimeMs += elapsed;
-          break;
-        }
-        default:
-          throw new Error(`Unexpected agent ID ${agentId}`);
       }
-      return result;
-    });
-    const actions = new Array<KingdominoAction>(snapshots.length);
-    for (const [agentId, requests] of agentIdToRequests) {
-      const responses = requireDefined(agentIdToResponses.get(agentId));
-      for (const [agentRequestIndex, request] of requests.entries()) {
-        const response = responses[agentRequestIndex];
-        actions[request.requestIndex] = response;
-      }
+      return actions;
     }
-    return actions;
-  });
+  );
   const elapsed = performance.now() - start;
   console.log(
     `Completed ${episodeCount} episodes in ${decimalFormat.format(
@@ -191,7 +196,7 @@ interface BatchAgent {
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
-  ): ReadonlyArray<KingdominoAction>;
+  ): Promise<ReadonlyArray<KingdominoAction>>;
 }
 
 class MctsBatchAgent implements BatchAgent {
@@ -213,15 +218,15 @@ class MctsBatchAgent implements BatchAgent {
       },
     })
   ) {}
-  act(
+  async act(
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
-  ): ReadonlyArray<KingdominoAction> {
+  ): Promise<ReadonlyArray<KingdominoAction>> {
     const generators = snapshots.map((snapshot) => {
       return mcts(Kingdomino.INSTANCE, this.model, snapshot, this.mctsConfig);
     });
-    return driveGenerators(generators, (snapshots) => {
+    return driveAsyncGenerators(generators, (snapshots) => {
       return this.model.infer(snapshots);
     });
   }
@@ -233,7 +238,7 @@ class MctsBatchAgent implements BatchAgent {
  *
  * @returns the greedily selected best action according to the MCTS results
  */
-function* mcts<
+async function* mcts<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -242,7 +247,7 @@ function* mcts<
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
   mctsConfig: MctsConfig<C, S, A>
-): Generator<EpisodeSnapshot<C, S>, A, InferenceResult<A>> {
+): AsyncGenerator<EpisodeSnapshot<C, S>, A, InferenceResult<A>> {
   const mctsContext: MctsContext<C, S, A> = {
     config: mctsConfig,
     game: game,

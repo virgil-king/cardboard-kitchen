@@ -38,7 +38,9 @@ export interface InferenceModel<
   A extends Action
 > {
   /** Returns value and policy results for {@link snapshots} */
-  infer(snapshots: ReadonlyArray<EpisodeSnapshot<C, S>>): ReadonlyArray<InferenceResult<A>>;
+  infer(
+    snapshots: ReadonlyArray<EpisodeSnapshot<C, S>>
+  ): Promise<ReadonlyArray<InferenceResult<A>>>;
 }
 
 export interface TrainingModel<

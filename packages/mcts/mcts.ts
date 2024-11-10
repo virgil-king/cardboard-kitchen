@@ -11,7 +11,12 @@ import {
   Agent,
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { driveGenerator, requireDefined, weightedMerge } from "studio-util";
+import {
+  driveAsyncGenerator,
+  driveGenerator,
+  requireDefined,
+  weightedMerge,
+} from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
 
 const debugLoggingEnabled = true;
@@ -127,9 +132,9 @@ class ActionNode<
    * Updates the node by applying {@link action} to {@link episode} and then
    * creating or visiting the resulting state node
    */
-  *visit(
+  async *visit(
     snapshot: EpisodeSnapshot<C, S>
-  ): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
+  ): AsyncGenerator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     const [childState, chanceKey] = this.context.game.apply(
       snapshot,
       this.action
@@ -154,7 +159,7 @@ class ActionNode<
       }
       this.addToCache(chanceKey, stateNode);
       // Use the new node's initial predicted values
-      result = stateNode.predictedValues();
+      result = await stateNode.predictedValues();
     } else {
       // Existing child: continue the search into a grandchild node
       // debugLog(
@@ -204,8 +209,12 @@ interface StateNode<
   A extends Action
 > {
   visitCount: number;
-  predictedValues(): PlayerValues;
-  visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>>;
+  predictedValues(): Promise<PlayerValues>;
+  visit(): AsyncGenerator<
+    EpisodeSnapshot<C, S>,
+    PlayerValues,
+    InferenceResult<A>
+  >;
 }
 
 /**
@@ -258,7 +267,7 @@ export class NonTerminalStateNode<
   /**
    * Returns expected values computed using all enabled prediction methods
    */
-  predictedValues(): PlayerValues {
+  async predictedValues(): Promise<PlayerValues> {
     const episodeResult = this.context.game.result(this.snapshot);
     if (episodeResult != undefined) {
       debugLog(
@@ -283,7 +292,7 @@ export class NonTerminalStateNode<
 
     if (config.randomPlayoutConfig != undefined) {
       const startMs = performance.now();
-      const randomPlayoutValues = this.randomPlayout(
+      const randomPlayoutValues = await this.randomPlayout(
         config.randomPlayoutConfig.agent
       );
       this.context.stats.randomPlayoutTimeMs += performance.now() - startMs;
@@ -309,7 +318,7 @@ export class NonTerminalStateNode<
     throw new Error("Neigher model values or random playouts configured");
   }
 
-  randomPlayout(agent: Agent<C, S, A>): PlayerValues {
+  async randomPlayout(agent: Agent<C, S, A>): Promise<PlayerValues> {
     // console.log(`Starting random playout from ${JSON.stringify(this.snapshot.state)}`);
     let snapshot = this.snapshot;
     while (true) {
@@ -318,7 +327,10 @@ export class NonTerminalStateNode<
         return result;
       }
       // Ignore chance keys
-      const [newState] = this.context.game.apply(snapshot, agent.act(snapshot));
+      const [newState] = this.context.game.apply(
+        snapshot,
+        await agent.act(snapshot)
+      );
       snapshot = snapshot.derive(newState);
     }
   }
@@ -329,7 +341,11 @@ export class NonTerminalStateNode<
    * this node's expected values based on that visit, and returns this node's
    * new expected values
    */
-  *visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
+  async *visit(): AsyncGenerator<
+    EpisodeSnapshot<C, S>,
+    PlayerValues,
+    InferenceResult<A>
+  > {
     this.visitCount++;
 
     const episodeResult = this.context.game.result(this.snapshot);
@@ -443,11 +459,15 @@ export class TerminalStateNode<
     this.result = gameResult;
   }
 
-  predictedValues(): PlayerValues {
+  async predictedValues(): Promise<PlayerValues> {
     return this.result;
   }
 
-  *visit(): Generator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
+  async *visit(): AsyncGenerator<
+    EpisodeSnapshot<C, S>,
+    PlayerValues,
+    InferenceResult<A>
+  > {
     this.visitCount++;
     return this.result;
   }
@@ -466,7 +486,7 @@ export class TerminalStateNode<
  * @param snapshot game state from which to search
  * @returns map from valid actions to their expected values
  */
-export function mcts<
+export async function mcts<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -475,19 +495,22 @@ export function mcts<
   game: Game<C, S, A>,
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>
-): ImmutableMap<A, PlayerValues> {
+): Promise<ImmutableMap<A, PlayerValues>> {
   const context: MctsContext<C, S, A> = {
     config: config,
     game: game,
     model: model,
     stats: new MctsStats(),
   };
-  const inferenceResult = model.infer([snapshot])[0];
+  const inferenceResult = (await model.infer([snapshot]))[0];
   const root = new NonTerminalStateNode(context, snapshot, inferenceResult);
   for (let step = 0; step < config.simulationCount; step++) {
     debugLog(() => `New simulation`);
 
-    driveGenerator(root.visit(), (snapshot) => model.infer([snapshot])[0]);
+    await driveAsyncGenerator(root.visit(), async (snapshot) => {
+      const batchResult = await model.infer([snapshot]);
+      return batchResult[0];
+    });
   }
   const result = ImmutableMap(
     Seq(root.actionToChild.entries()).map(([action, node]) => [

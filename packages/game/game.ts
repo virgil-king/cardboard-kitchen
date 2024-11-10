@@ -173,7 +173,7 @@ export interface Agent<
   S extends GameState,
   A extends Action
 > {
-  act(snapshot: EpisodeSnapshot<C, S>): A;
+  act(snapshot: EpisodeSnapshot<C, S>): Promise<A>;
 }
 
 export interface GameState extends JsonSerializable {}
@@ -307,7 +307,7 @@ export class Episode<
  * Runs a new episode of {@link game} using {@link playerIdToAgent} to
  * select actions and yielding each new snapshot.
  */
-export function* generateEpisode<
+export async function* generateEpisode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -315,7 +315,7 @@ export function* generateEpisode<
   game: Game<C, S, A>,
   config: EpisodeConfiguration,
   playerIdToAgent: Map<string, Agent<C, S, A>>
-): Generator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, unknown> {
+): AsyncGenerator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, unknown> {
   let snapshot = game.newEpisode(config);
   let episode = new Episode(game, snapshot);
   yield episode.currentSnapshot;
@@ -329,7 +329,7 @@ export function* generateEpisode<
       throw new Error(`No agent for ${currentPlayer.id}`);
     }
     const action = agent.act(episode.currentSnapshot);
-    episode.apply(action);
+    episode.apply(await action);
     yield episode.currentSnapshot;
   }
   return episode.currentSnapshot;

@@ -1,22 +1,22 @@
 import {
   SettablePromise,
+  driveAsyncGenerators,
   driveGenerators,
   requireDefined,
   sleep,
 } from "studio-util";
 import { EpisodeConfiguration, Player, Players } from "game";
 import { selfPlayEpisode } from "training";
-import {
-  Kingdomino,
-  KingdominoModel,
-  SELF_PLAY_EPISODES_PER_BATCH,
-  SELF_PLAY_MCTS_CONFIG,
-} from "kingdomino";
+import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { Range } from "immutable";
 import { MctsStats } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
+import {
+  SELF_PLAY_MCTS_CONFIG,
+  SELF_PLAY_EPISODES_PER_BATCH,
+} from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -64,7 +64,7 @@ async function main() {
       })
       .toArray();
 
-    const episodes = driveGenerators(generators, (snapshots) => {
+    const episodes = await driveAsyncGenerators(generators, (snapshots) => {
       const startMs = performance.now();
       const result = localModel.inferenceModel.infer(snapshots);
       mctsContext.stats.inferenceTimeMs += performance.now() - startMs;

@@ -34,7 +34,7 @@ const agents = Map([
 
 let startCount = 0;
 
-export default function Home() {
+export default function Home(): JSX.Element {
   let [gameState, setGameState] = useState<
     EpisodeSnapshot<KingdominoConfiguration, KingdominoState> | undefined
   >(); 
@@ -46,30 +46,30 @@ export default function Home() {
     };
   });
 
-  function* play(): Operation<void> {
-    console.log(`play`);
-    startCount++;
-    let myStartCount = startCount;
-    for (let snapshot of generateEpisode(
-      kingdomino,
-      new EpisodeConfiguration(players),
-      agents
-    )) {
-      console.log(`Updating state from ${myStartCount}`);
-      setGameState(snapshot);
-      yield* sleep(20);
-    }
-  }
+  // async function* play(): AsyncGenerator<Operation<void>> {
+  //   console.log(`play`);
+  //   startCount++;
+  //   let myStartCount = startCount;
+  //   for await (let snapshot of generateEpisode(
+  //     kingdomino,
+  //     new EpisodeConfiguration(players),
+  //     agents
+  //   )) {
+  //     console.log(`Updating state from ${myStartCount}`);
+  //     setGameState(snapshot);
+  //     yield* sleep(20);
+  //   }
+  // }
 
   function start() {
-    const previousTask = task;
-    const newTask = scope.run(function* () {
-      if (previousTask != undefined) {
-        yield* previousTask.halt();
-      }
-      yield* play();
-    });
-    setTask(newTask);
+    // const previousTask = task;
+    // const newTask = scope.run(function* () {
+    //   if (previousTask != undefined) {
+    //     yield* previousTask.halt();
+    //   }
+    //   yield* play();
+    // });
+    // setTask(newTask);
   }
 
   let content: JSX.Element;

@@ -261,8 +261,8 @@ export class KingdominoState implements GameState {
 
   // State updating methods
 
-  withCurrentPlayer(player: Player): KingdominoState {
-    return new KingdominoState({ ...this.props, currentPlayerId: player.id });
+  withCurrentPlayer(player: Player | undefined): KingdominoState {
+    return new KingdominoState({ ...this.props, currentPlayerId: player?.id });
   }
 
   withNextAction(nextAction: NextAction | undefined): KingdominoState {

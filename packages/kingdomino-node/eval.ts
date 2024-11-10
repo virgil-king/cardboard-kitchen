@@ -22,7 +22,13 @@ import {
   RandomKingdominoAgent,
 } from "kingdomino";
 import { driveGenerators, requireDefined } from "studio-util";
-import { MctsAgent, MctsConfig, MctsContext, MctsStats, NonTerminalStateNode } from "mcts";
+import {
+  MctsAgent,
+  MctsConfig,
+  MctsContext,
+  MctsStats,
+  NonTerminalStateNode,
+} from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 
 // Script to run eval episodes on a saved model
@@ -32,7 +38,7 @@ if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
 
-const model = KingdominoModel.load(modelPath, tf);
+const model = KingdominoModel.loadFromFile(modelPath, tf);
 console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);
@@ -82,9 +88,9 @@ async function main() {
   for (const episodeIndex of Range(0, episodeCount)) {
     console.log(`Starting episode ${episodeIndex}`);
     const start = performance.now();
-    const transcript = [
-      ...generateEpisode(Kingdomino.INSTANCE, episodeConfig, playerIdToAgent),
-    ];
+    const transcript = await Array.fromAsync(
+      generateEpisode(Kingdomino.INSTANCE, episodeConfig, playerIdToAgent)
+    );
 
     const lastStateIndex = transcript.length - 1;
     const lastSnapshot = transcript[lastStateIndex];

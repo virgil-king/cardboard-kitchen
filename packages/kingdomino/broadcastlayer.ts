@@ -1,4 +1,4 @@
-import tfStatic from "@tensorflow/tfjs";
+import tfTypes from "@tensorflow/tfjs";
 import { TfModule } from "./tf.js";
 
 export interface BroadcastArgs {
@@ -13,7 +13,7 @@ export interface BroadcastArgs {
 }
 
 export interface BroadcastLayerFactory {
-  create(args: BroadcastArgs): tfStatic.layers.Layer;
+  create(args: BroadcastArgs): tfTypes.layers.Layer;
 }
 
 let _factory: BroadcastLayerFactory | undefined = undefined;
@@ -54,7 +54,7 @@ function createBroadcastLayerFactory(
       this.shape = args.shape;
     }
 
-    override computeOutputShape(inputShape: tfStatic.Shape): tfStatic.Shape {
+    override computeOutputShape(inputShape: tfTypes.Shape): tfTypes.Shape {
       return this.shape.map((value, index) => {
         if (value == null) {
           return inputShape[index];
@@ -65,8 +65,8 @@ function createBroadcastLayerFactory(
     }
 
     override call(
-      inputs: tfStatic.Tensor | tfStatic.Tensor[]
-    ): tfStatic.Tensor | tfStatic.Tensor[] {
+      inputs: tfTypes.Tensor | tfTypes.Tensor[]
+    ): tfTypes.Tensor | tfTypes.Tensor[] {
       return tfRuntime.tidy(() => {
         const derivedInput = this.getSingleTensor(inputs);
         const inputShape = derivedInput.shape;
@@ -82,8 +82,8 @@ function createBroadcastLayerFactory(
     }
 
     getSingleTensor(
-      input: tfStatic.Tensor | tfStatic.Tensor[]
-    ): tfStatic.Tensor {
+      input: tfTypes.Tensor | tfTypes.Tensor[]
+    ): tfTypes.Tensor {
       if (input instanceof tfRuntime.Tensor) {
         return input;
       } else if (Array.isArray(input) && input.length == 1) {
@@ -93,7 +93,7 @@ function createBroadcastLayerFactory(
       }
     }
 
-    override getConfig(): tfStatic.serialization.ConfigDict {
+    override getConfig(): tfTypes.serialization.ConfigDict {
       const config = {
         shape: [...this.shape],
       };
@@ -102,9 +102,9 @@ function createBroadcastLayerFactory(
       return config;
     }
 
-    static override fromConfig<T extends tfStatic.serialization.Serializable>(
-      cls: tfStatic.serialization.SerializableConstructor<T>,
-      config: tfStatic.serialization.ConfigDict
+    static override fromConfig<T extends tfTypes.serialization.Serializable>(
+      cls: tfTypes.serialization.SerializableConstructor<T>,
+      config: tfTypes.serialization.ConfigDict
     ): T {
       return new cls(config);
     }

@@ -8,7 +8,7 @@ if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
 
-const model = KingdominoModel.load(modelPath, tf);
+const model = KingdominoModel.loadFromFile(modelPath, tf);
 console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);

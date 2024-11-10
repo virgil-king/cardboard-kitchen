@@ -20,7 +20,6 @@ import { ActionCase, KingdominoAction } from "./action.js";
 import { InferenceModel, InferenceResult, Model, TrainingModel } from "mcts";
 import { Map, Range, Seq } from "immutable";
 import tfTypes from "@tensorflow/tfjs";
-// import tfcore from "@tensorflow/tfjs-core";
 import { Kingdomino } from "./kingdomino.js";
 import {
   randomBelow,
@@ -408,7 +407,7 @@ export class KingdominoModel
   /**
    * @param path path to the directory containing the model files
    */
-  static async load(
+  static async loadFromFile(
     path: string,
     tfRuntime: TfModule
   ): Promise<KingdominoModel> {
@@ -417,6 +416,23 @@ export class KingdominoModel
     const layersModel = await tfRuntime.loadLayersModel(
       `file://${path}/model.json`
     );
+    // console.log(layersModel.getWeights().toString());
+    console.log(
+      `Input shape is ${(layersModel.input as tfTypes.SymbolicTensor[]).map(
+        (t) => t.shape
+      )}`
+    );
+
+    return new KingdominoModel(layersModel, tfRuntime);
+  }
+
+  /**
+   * @param url path to the directory containing the model files
+   */
+  static async loadFromUrl(url: string, tfRuntime: TfModule): Promise<KingdominoModel> {
+    console.log(`Loading model from ${url}`);
+    this.registerCustomTableTypes(tfRuntime);
+    const layersModel = await tfRuntime.loadLayersModel(`${url}/model.json`);
     // console.log(layersModel.getWeights().toString());
     console.log(
       `Input shape is ${(layersModel.input as tfTypes.SymbolicTensor[]).map(
@@ -692,11 +708,11 @@ export class KingdominoInferenceModel
 {
   constructor(private readonly model: KingdominoModel) {}
 
-  infer(
+  async infer(
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
-  ): ReadonlyArray<InferenceResult<KingdominoAction>> {
+  ): Promise<ReadonlyArray<InferenceResult<KingdominoAction>>> {
     const encodedInputs = snapshots.map((snapshot) =>
       this.model.encodeState(snapshot)
     );
@@ -722,8 +738,8 @@ export class KingdominoInferenceModel
       throw new Error(`Expected 2 tensors but received ${outputTensor.length}`);
     }
 
-    const valuesArray = outputTensor[0].dataSync<"float32">();
-    const policyArray = outputTensor[1].dataSync<"float32">();
+    const valuesArray = await outputTensor[0].data<"float32">();
+    const policyArray = await outputTensor[1].data<"float32">();
 
     const valuesGenerator = decodeAsGenerator(
       playerValuesCodec,

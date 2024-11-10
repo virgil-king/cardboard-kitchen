@@ -247,7 +247,7 @@ function* loadEpisodesJson(episodesDir: string): Generator<any> {
  * Generator function for self-play episodes. Yields snapshots, receives inference
  * results, and returns episode training data.
  */
-export function* selfPlayEpisode<
+export async function* selfPlayEpisode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -255,7 +255,7 @@ export function* selfPlayEpisode<
   game: Game<C, S, A>,
   mctsContext: MctsContext<C, S, A>,
   episodeConfig: EpisodeConfiguration
-): Generator<
+): AsyncGenerator<
   EpisodeSnapshot<C, S>,
   EpisodeTrainingData<C, S, A>,
   InferenceResult<A>

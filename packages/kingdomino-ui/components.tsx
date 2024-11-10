@@ -23,7 +23,7 @@ import {
 } from "kingdomino";
 import { KingdominoConfiguration, playAreaRadius } from "kingdomino";
 import { Vector2 } from "kingdomino";
-import { Map } from "immutable";
+import { Map, Set } from "immutable";
 
 import styles from "@/app/page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
@@ -40,19 +40,35 @@ const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 });
 
+export type TilePlacementState = {
+  previouslyPlacedSquareLocation?: Vector2;
+  previouslyPlacedSquareProperties?: LocationProperties;
+  nextSquareProperties: LocationProperties;
+  nextSquarePossibleLocations: Set<Vector2>;
+  onPlaceNextSquare: (location: Vector2) => void;
+};
+
 type GameProps = {
   snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>;
+
+  onClaimTile?: (tileIndex: number) => void;
+  tilePlacementState?: TilePlacementState;
+  onDiscardTile?: () => void;
+
+  // Training data
   predictedValues?: PlayerValues;
   terminalValues?: PlayerValues;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
 };
 
-export function GameComponent(props: GameProps) {
+export function GameComponent(props: GameProps): JSX.Element {
   const state = props.snapshot.state;
   function offersElement(
     title: string,
     offers?: TileOffers,
-    stats?: Map<KingdominoAction, ActionStatistics>
+    stats?: Map<KingdominoAction, ActionStatistics>,
+    onClaimTile?: (offerIndex: number) => void,
+    onDiscardTile?: () => void
   ) {
     if (offers == undefined) {
       return <></>;
@@ -64,6 +80,8 @@ export function GameComponent(props: GameProps) {
           episodeConfig={props.snapshot.episodeConfiguration}
           offers={offers}
           actionToStatistics={stats}
+          onClaimTile={onClaimTile}
+          onDiscardTile={onDiscardTile}
         ></TileOffersComponent>
       </div>
     );
@@ -71,12 +89,16 @@ export function GameComponent(props: GameProps) {
   // const previousOffers = state.props.previousOffers;
   const previousOffersElement = offersElement(
     "Previous offers",
-    state.props.previousOffers
+    state.props.previousOffers,
+    undefined,
+    undefined,
+    props.onDiscardTile
   );
   const nextOffersElement = offersElement(
     "Next offers",
     state.props.nextOffers,
-    props.actionToStatistics
+    props.actionToStatistics,
+    props.onClaimTile
   );
 
   const policyElement =
@@ -97,25 +119,13 @@ export function GameComponent(props: GameProps) {
         {previousOffersElement}
         {nextOffersElement}
       </div>
-
-      <PlayersComponent
-        snapshot={props.snapshot}
-        predictedValues={props.predictedValues}
-        terminalValues={props.terminalValues}
-      ></PlayersComponent>
-
+      {PlayersComponent(props)}
       {policyElement}
     </div>
   );
 }
 
-type PlayersProps = {
-  snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>;
-  predictedValues?: PlayerValues;
-  terminalValues?: PlayerValues;
-};
-
-export function PlayersComponent(props: GameProps) {
+export function PlayersComponent(props: GameProps): JSX.Element {
   const currentPlayer = Kingdomino.INSTANCE.currentPlayer(props.snapshot);
   const playerComponents =
     props.snapshot.episodeConfiguration.players.players.map((player) => {
@@ -128,6 +138,9 @@ export function PlayersComponent(props: GameProps) {
           expectedValue={props.predictedValues?.playerIdToValue?.get(player.id)}
           terminalValue={props.terminalValues?.playerIdToValue?.get(player.id)}
           isCurrentPlayer={isCurrentPlayer}
+          tilePlacementState={
+            isCurrentPlayer ? props.tilePlacementState : undefined
+          }
         />
       );
     });
@@ -140,6 +153,7 @@ type PlayerProps = {
   expectedValue?: number;
   terminalValue?: number;
   isCurrentPlayer?: boolean;
+  tilePlacementState?: TilePlacementState;
 };
 
 function PlayerComponent(props: PlayerProps) {
@@ -174,7 +188,10 @@ function PlayerComponent(props: PlayerProps) {
       {terminalValueElement}
       <div style={{ height: s_spacing }} />
       <div>
-        <BoardComponent board={props.playerState.board} />
+        <BoardComponent
+          board={props.playerState.board}
+          tilePlacementState={props.tilePlacementState}
+        />
       </div>
     </div>
   );
@@ -182,19 +199,28 @@ function PlayerComponent(props: PlayerProps) {
 
 type BoardProps = {
   board: PlayerBoard;
+  tilePlacementState?: TilePlacementState;
 };
 
 function BoardComponent(props: BoardProps) {
   const rows = _.range(playAreaRadius, -playAreaRadius - 1, -1).map((row) => {
     const cells = _.range(-playAreaRadius, playAreaRadius + 1).map((column) => {
-      const locationState = props.board.getLocationState(
-        new Vector2(column, row)
-      );
+      const location = new Vector2(column, row);
+      const isPossibleNextLocation =
+        props.tilePlacementState != undefined &&
+        props.tilePlacementState.nextSquarePossibleLocations.contains(location);
+      const onClick = isPossibleNextLocation
+        ? () => props.tilePlacementState?.onPlaceNextSquare(location)
+        : undefined;
+      const locationState = isPossibleNextLocation
+        ? requireDefined(props.tilePlacementState).nextSquareProperties
+        : props.board.getLocationState(location);
       return (
         <Square
           key={column.toString()}
           terrain={locationState.terrain}
           crowns={locationState.crowns}
+          onClick={onClick}
         />
       );
     });
@@ -215,6 +241,7 @@ type SquareProps = {
   key: string;
   terrain: Terrain;
   crowns: number;
+  onClick?: () => void;
 };
 
 type TerrainRenderingInfo = {
@@ -248,7 +275,14 @@ function Square(props: SquareProps) {
     text = "";
   }
   return (
-    <td className={classNames} style={{ alignContent: "center" }}>
+    <td
+      className={classNames}
+      style={{
+        alignContent: "center",
+        opacity: props.onClick == undefined ? 1 : 0.5,
+      }}
+      onClick={props.onClick}
+    >
       {text}
     </td>
   );
@@ -259,20 +293,34 @@ type TileOffersProps = {
   offers: TileOffers;
   title: string;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
+  onClaimTile?: (offerIndex: number) => void;
+  onDiscardTile?: () => void;
 };
 
 function TileOffersComponent(props: TileOffersProps) {
+  const firstIndexWithTile = props.offers.offers.findIndex((offer) =>
+    offer.hasTile()
+  );
   return (
     <div className={styles.verticalFlex} style={{ border: "1pt solid gray" }}>
       <div style={{ padding: s_spacing }}>{props.title}</div>
-      {props.offers.offers.map((offer, offerIndex) => (
-        <TileOfferComponent
-          episodeConfig={props.episodeConfig}
-          offer={offer}
-          offerIndex={offerIndex}
-          actionToStatistics={props.actionToStatistics}
-        ></TileOfferComponent>
-      ))}
+      {props.offers.offers.map((offer, offerIndex) => {
+        const onDiscard =
+          props.onDiscardTile != undefined && offerIndex == firstIndexWithTile
+            ? props.onDiscardTile
+            : undefined;
+        return (
+          <TileOfferComponent
+            key={offerIndex}
+            episodeConfig={props.episodeConfig}
+            offer={offer}
+            offerIndex={offerIndex}
+            actionToStatistics={props.actionToStatistics}
+            onClaim={ifDefined(props.onClaimTile, (f) => () => f(offerIndex))}
+            onDiscardTile={onDiscard}
+          ></TileOfferComponent>
+        );
+      })}
     </div>
   );
 }
@@ -282,14 +330,11 @@ type TileOfferProps = {
   offer: TileOffer;
   offerIndex: number;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
+  onClaim?: () => void;
+  onDiscardTile?: () => void;
 };
 
 function TileOfferComponent(props: TileOfferProps) {
-  const claim = props.offer.claim;
-  const claimPlayerName =
-    claim == undefined
-      ? ""
-      : props.episodeConfig.players.requirePlayer(claim.playerId).name;
   const tileNumber = props.offer.tileNumber;
   const tileNumberString = tileNumber == undefined ? "" : tileNumber.toString();
   function squareProperties(index: number): LocationProperties {
@@ -303,6 +348,24 @@ function TileOfferComponent(props: TileOfferProps) {
   const policyValue = props.actionToStatistics?.get(
     KingdominoAction.claimTile(new ClaimTile(props.offerIndex))
   );
+  const buttonElement = (() => {
+    const claim = props.offer.claim;
+    // const claimPlayerName =
+    //   claim == undefined
+    //     ? ""
+    //     : props.episodeConfig.players.requirePlayer(claim.playerId).name;
+    if (props.onDiscardTile != undefined) {
+      return <button onClick={props.onDiscardTile}>Discard</button>;
+    } else if (claim != undefined) {
+      return (
+        <>{props.episodeConfig.players.requirePlayer(claim.playerId).name}</>
+      );
+    } else if (props.onClaim != undefined) {
+      return <button onClick={props.onClaim}>Claim</button>;
+    } else {
+      return <></>;
+    }
+  })();
   const policyElement = (() => {
     if (props.actionToStatistics == undefined) {
       return <></>;
@@ -335,13 +398,20 @@ function TileOfferComponent(props: TileOfferProps) {
           </tr>
         </tbody>
       </table>
-      <div style={{ padding: s_spacing, width: "8ch" }}>{claimPlayerName}</div>
+      <div style={{ padding: s_spacing, width: "8ch" }}>{buttonElement}</div>
       {policyElement}
     </div>
   );
 }
 
 type ClaimStatisticsProps = { statistics: ActionStatistics };
+
+function ifDefined<T, U>(t: T | undefined, f: (t: T) => U): U | undefined {
+  if (t == undefined) {
+    return undefined;
+  }
+  return f(t);
+}
 
 function ClaimStatistics(props: ClaimStatisticsProps) {
   const stats = props.statistics;
