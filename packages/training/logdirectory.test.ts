@@ -54,11 +54,11 @@ test("writeData: enforcement deletes oldest file", () => {
   assert.equal(filenames.indexOf(filename1), -1);
 });
 
-test("write: directory: size counted correctly", () => {
+test("write: directory: size counted correctly", async () => {
   const path = fs.mkdtempSync("/tmp/LogDirectoryTest");
   const dir = new LogDirectory(path, 15);
 
-  dir.write(async (path) => {
+  await dir.write(async (path) => {
     fs.mkdirSync(path);
     fs.writeFileSync(`${path}/a`, "four");
     fs.writeFileSync(`${path}/b`, "four");

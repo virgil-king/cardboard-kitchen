@@ -22,7 +22,7 @@ import {
   InferenceResult,
   Model,
   TrainingModel,
-} from "training";
+} from "mcts";
 import { Map, Range, Seq } from "immutable";
 import tf from "@tensorflow/tfjs-node-gpu";
 import tfcore from "@tensorflow/tfjs-core";

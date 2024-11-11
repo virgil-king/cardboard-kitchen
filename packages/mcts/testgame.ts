@@ -1,6 +1,5 @@
 import {
   Player,
-  Players,
   scoresToPlayerValues,
   Game,
   Action,
@@ -12,20 +11,12 @@ import {
   EpisodeSnapshot,
 } from "game";
 
-import { test } from "vitest";
-import { assert } from "chai";
-import { List, Map, Range, Set } from "immutable";
+import { Map, Range, Set } from "immutable";
 import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
 import { decodeOrThrow, requireDefined } from "studio-util";
-import { MctsConfig, mcts } from "./mcts.js";
 import { InferenceModel, TrainingModel } from "./model.js";
 import * as io from "io-ts";
 import { StateTrainingData } from "training-data";
-
-const alice = new Player("alice", "Alice");
-const bob = new Player("bob", "Bob");
-// const cecile = new Player("cecile", "Cecile");
-// const derek = new Player("derek", "Derek");
 
 class NotSerializable implements JsonSerializable {
   static readonly INSTANCE = new NotSerializable();
@@ -184,11 +175,11 @@ export class PickANumber
 /**
  * Fake model for {@link PickANumber}.
  *
- * The policy function slightly uses the move number itself as the probability.
+ * The policy function uses the move number itself as the probability.
  *
  * The value function acts as if the game will end up tied.
  */
-class PickANumberModel
+export class PickANumberModel
   implements
     InferenceModel<GameConfiguration, PickANumberState, NumberAction>,
     TrainingModel<GameConfiguration, PickANumberState, NumberAction, any>
@@ -249,64 +240,3 @@ class PickANumberModel
     throw new Error("Method not implemented.");
   }
 }
-
-test("mcts: single-step deterministic game: one step per first action: expected values come from model", () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({ simulationCount: 9 });
-  const result = mcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  assert.equal(result.count(), 9);
-  for (const actionResult of result.values()) {
-    for (const player of players.players) {
-      assert.equal(
-        actionResult.playerIdToValue.get(player.id),
-        PickANumberModel.STATE_VALUE
-      );
-    }
-  }
-});
-
-test("mcts: single-step deterministic game: one more step than first actions: last step selects action with greatest prior", () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({ simulationCount: 10 });
-  const result = mcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  const actionWithGreatestExpectedValue = requireDefined(
-    List(result.entries()).max(
-      ([, values1], [, values2]) =>
-        requireDefined(values1.playerIdToValue.get(alice.id)) -
-        requireDefined(values2.playerIdToValue.get(alice.id))
-    )
-  )[0];
-  assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
-});
-
-test("mcts: single-step deterministic game: many simulations: best move has highest expected value", () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({ simulationCount: 100 });
-  const result = mcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  const actionWithGreatestExpectedValue = requireDefined(
-    List(result.entries()).max(
-      ([, values1], [, values2]) =>
-        requireDefined(values1.playerIdToValue.get(alice.id)) -
-        requireDefined(values2.playerIdToValue.get(alice.id))
-    )
-  )[0];
-  assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
-});

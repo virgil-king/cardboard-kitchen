@@ -11,13 +11,7 @@ import {
   Player,
   Players,
 } from "game";
-import {
-  MctsConfig,
-  MctsContext,
-  MctsStats,
-  NonTerminalStateNode,
-  newestModelPath,
-} from "training";
+import { newestModelPath } from "training";
 
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoState } from "./state.js";
@@ -26,6 +20,7 @@ import { Kingdomino } from "./kingdomino.js";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoModel } from "./model.js";
 import { driveGenerators, requireDefined } from "studio-util";
+import { MctsConfig, MctsContext, MctsStats, NonTerminalStateNode } from "mcts";
 
 // Script to run eval episodes on a saved model
 

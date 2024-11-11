@@ -1,10 +1,10 @@
-import { InferenceModel, InferenceResult } from "training";
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoAction } from "./action.js";
 import { KingdominoState } from "./state.js";
 import { EpisodeSnapshot, PlayerValues } from "game";
 import { Kingdomino } from "./kingdomino.js";
 import { Map } from "immutable";
+import { InferenceModel, InferenceResult } from "mcts";
 
 export class NeutralKingdominoModel
   implements

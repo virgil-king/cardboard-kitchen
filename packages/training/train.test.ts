@@ -6,14 +6,9 @@ import {
   StateSearchData,
 } from "training-data";
 import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
-import {
-  NumberAction,
-  PickANumber,
-  PickANumberConfiguration,
-  PickANumberState,
-} from "./mcts.test.js";
 import { Map, Range, Set } from "immutable";
 import * as _ from "lodash";
+import { NumberAction, PickANumber, PickANumberConfiguration, PickANumberState } from "mcts";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");

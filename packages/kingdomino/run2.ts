@@ -1,4 +1,4 @@
-import { train_parallel, Model, modelsDirectory } from "training";
+import { train_parallel, modelsDirectory } from "training";
 import { Kingdomino } from "./kingdomino.js";
 import _ from "lodash";
 import { KingdominoModel } from "./model.js";
@@ -13,6 +13,7 @@ import {
   TRAINING_MAX_MODEL_BYTES,
   TRAINING_SAMPLE_BUFFER_SIZE,
 } from "./config.js";
+import { Model } from "mcts";
 
 // Top-level script for Kingdomino training
 

@@ -6,3 +6,4 @@ export * from "./randomplayer.js";
 export * from "./state.js";
 export * from "./tile.js";
 export * from "./util.js";
+export * from "./model.js";

@@ -230,3 +230,14 @@ export function driveGenerators<ItemT, ReturnT, NextT>(
 
   return results;
 }
+
+export function driveGenerator<OutT, ReturnT, InT>(
+  generator: Generator<OutT, ReturnT, InT>,
+  func: (_: OutT) => InT
+): ReturnT {
+  let item = generator.next();
+  while (!item.done) {
+    item = generator.next(func(item.value));
+  }
+  return item.value;
+}

@@ -5,16 +5,17 @@ import {
   sleep,
 } from "studio-util";
 import { EpisodeConfiguration, Player, Players } from "game";
-import {
-  MctsStats,
-  selfPlayEpisode,
-} from "training";
+import { selfPlayEpisode } from "training";
 import { Kingdomino } from "./kingdomino.js";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { KingdominoModel } from "./model.js";
 import { Range } from "immutable";
-import { SELF_PLAY_EPISODES_PER_BATCH, SELF_PLAY_MCTS_CONFIG } from "./config.js";
+import {
+  SELF_PLAY_EPISODES_PER_BATCH,
+  SELF_PLAY_MCTS_CONFIG,
+} from "./config.js";
+import { MctsStats } from "mcts";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 

@@ -13,9 +13,9 @@ import {
   GameState,
   PlayerValues,
 } from "game";
-import { MctsContext, NonTerminalStateNode } from "./mcts.js";
+import { MctsContext, NonTerminalStateNode } from "mcts";
 import { List, Map, Range, Seq } from "immutable";
-import { InferenceResult, Model } from "./model.js";
+import { InferenceResult, Model } from "../mcts/model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";

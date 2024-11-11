@@ -11,10 +11,10 @@ import {
   Agent,
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { requireDefined, weightedMerge } from "studio-util";
+import { driveGenerator, requireDefined, weightedMerge } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
 
-const debugLoggingEnabled = false;
+const debugLoggingEnabled = true;
 function debugLog(block: () => string) {
   if (debugLoggingEnabled) {
     console.log(block());
@@ -385,6 +385,7 @@ export class NonTerminalStateNode<
         currentPlayer.id
       );
       childEvs.push(childEv);
+      // TODO move child.visitCount inside the sqrt?
       const ucb =
         requireDefined(childEv) +
         (child.prior *
@@ -454,7 +455,10 @@ export class TerminalStateNode<
 
 /**
  * Returns a map from possible actions from {@link snapshot} to their predicted
- * values for all players
+ * values for all players.
+ *
+ * This function is not currently used in production since it doesn't support
+ * batch inference.
  *
  * @param config MCTS configuration
  * @param game game with which to simulate episodes
@@ -472,7 +476,6 @@ export function mcts<
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>
 ): ImmutableMap<A, PlayerValues> {
-  const currentPlayer = requireDefined(game.currentPlayer(snapshot));
   const context: MctsContext<C, S, A> = {
     config: config,
     game: game,
@@ -483,7 +486,8 @@ export function mcts<
   const root = new NonTerminalStateNode(context, snapshot, inferenceResult);
   for (let step = 0; step < config.simulationCount; step++) {
     debugLog(() => `New simulation`);
-    root.visit();
+
+    driveGenerator(root.visit(), (snapshot) => model.infer([snapshot])[0]);
   }
   const result = ImmutableMap(
     Seq(root.actionToChild.entries()).map(([action, node]) => [

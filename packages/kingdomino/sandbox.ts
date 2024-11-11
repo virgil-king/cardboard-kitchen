@@ -1,5 +1,5 @@
 import { requireDefined } from "studio-util";
-import { Model, newestModelPath } from "training";
+import { newestModelPath } from "training";
 import { KingdominoAction } from "./action.js";
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoModel } from "./model.js";
@@ -9,6 +9,7 @@ import { Map } from "immutable";
 import { EpisodeTrainingData } from "training-data";
 import { Kingdomino } from "./kingdomino.js";
 import { EpisodeSnapshot } from "game";
+import { Model } from "mcts";
 
 const modelName = "conv3";
 const home = process.env.HOME;
@@ -47,9 +48,7 @@ async function main() {
     );
   });
   console.log(
-    `Batch time: ${decimalFormat.format(
-      batchTime
-    )} ms (${decimalFormat.format(
+    `Batch time: ${decimalFormat.format(batchTime)} ms (${decimalFormat.format(
       batchTime / inferenceCount
     )} ms per inference)`
   );

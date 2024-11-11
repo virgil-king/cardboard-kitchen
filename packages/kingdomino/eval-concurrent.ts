@@ -9,14 +9,6 @@ import {
   Player,
   Players,
 } from "game";
-import {
-  InferenceModel,
-  InferenceResult,
-  MctsConfig,
-  MctsContext,
-  MctsStats,
-  NonTerminalStateNode,
-} from "training";
 
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoState } from "./state.js";
@@ -28,6 +20,7 @@ import { driveGenerators, requireDefined } from "studio-util";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
 import _ from "lodash";
+import { InferenceModel, InferenceResult, MctsConfig, MctsContext, MctsStats, NonTerminalStateNode } from "mcts";
 
 const subjectPlayer1 = new Player("model-1", "Model 1");
 const subjectPlayer2 = new Player("model-2", "Model 2");

@@ -1,4 +1,4 @@
-import { MctsConfig } from "training";
+import { MctsConfig } from "mcts";
 import { RandomKingdominoAgent } from "./randomplayer.js";
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoState } from "./state.js";
