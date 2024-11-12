@@ -1,6 +1,6 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import tf from "@tensorflow/tfjs-node-gpu";
+import * as tf from "@tensorflow/tfjs";
 import { ExpandDimsLayer } from "./expanddims.js";
 import _ from "lodash";
 

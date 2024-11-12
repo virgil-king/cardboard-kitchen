@@ -24,13 +24,13 @@ import { ActionStatistics, StateTrainingData } from "training-data";
 import * as _ from "lodash";
 import { requireDefined } from "studio-util";
 import { Terrain } from "./tile.js";
-import tf from "@tensorflow/tfjs-node-gpu";
+import * as tf from "@tensorflow/tfjs";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const players = new Players(alice, bob);
 const episodeConfig = new EpisodeConfiguration(players);
-const model = KingdominoModel.fresh();
+const model = KingdominoModel.fresh(tf);
 
 test("encodeValues: two players: result has length four", () => {
   const vector = model.trainingModel().encodeValues(
@@ -114,7 +114,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
 
 test("JSON round trip: inference behavior is preserved", async () => {
   const artifacts = await model.toJson();
-  const model2 = await KingdominoModel.fromJson(artifacts);
+  const model2 = await KingdominoModel.fromJson(artifacts, tf);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = model.inferenceModel.infer([snapshot])[0];
@@ -128,7 +128,7 @@ test("JSON round trip: inference behavior is preserved", async () => {
 
 test("JSON + structured clone round trip: inference behavior is preserved", async () => {
   const artifacts = structuredClone(await model.toJson());
-  const model2 = await KingdominoModel.fromJson(artifacts);
+  const model2 = await KingdominoModel.fromJson(artifacts, tf);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = model.inferenceModel.infer([snapshot])[0];

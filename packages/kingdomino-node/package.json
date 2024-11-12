@@ -1,5 +1,5 @@
 {
-    "name": "kingdomino",
+    "name": "kingdomino-node",
     "version": "1.0.0",
     "author": "Virgil King <virgilking@gmail.com>",
     "type": "module",
@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@tensorflow/tfjs-core": "^4.22.0",
+        "@tensorflow/tfjs-node-gpu": "^4.22.0",
         "@types/node": "^20.17.3",
         "chai": "^5.1.2",
         "effection": "^3.0.3",
@@ -19,6 +20,7 @@
         "game": "workspace:*",
         "immutable": "5.0.0-beta.5",
         "io-ts": "^2.2.21",
+        "kingdomino": "workspace:^",
         "lodash": "^4.17.21",
         "long": "^5.2.3",
         "mcts": "workspace:^",

@@ -6,16 +6,17 @@ import {
 } from "studio-util";
 import { EpisodeConfiguration, Player, Players } from "game";
 import { selfPlayEpisode } from "training";
-import { Kingdomino } from "./kingdomino.js";
-import * as worker_threads from "node:worker_threads";
-import * as fs from "fs";
-import { KingdominoModel } from "./model.js";
-import { Range } from "immutable";
 import {
+  Kingdomino,
+  KingdominoModel,
   SELF_PLAY_EPISODES_PER_BATCH,
   SELF_PLAY_MCTS_CONFIG,
-} from "./config.js";
+} from "kingdomino";
+import * as worker_threads from "node:worker_threads";
+import * as fs from "fs";
+import { Range } from "immutable";
 import { MctsStats } from "mcts";
+import * as tf from "@tensorflow/tfjs-node-gpu";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -31,7 +32,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  const newModel = await KingdominoModel.fromJson(message);
+  const newModel = await KingdominoModel.fromJson(message, tf);
   model?.model.dispose();
   model = newModel;
   console.log(`Self-play worker received new model`);

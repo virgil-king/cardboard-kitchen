@@ -10,17 +10,29 @@ import {
   Players,
 } from "game";
 
-import { KingdominoConfiguration } from "./base.js";
-import { KingdominoState } from "./state.js";
-import { KingdominoAction } from "./action.js";
-import { Kingdomino } from "./kingdomino.js";
-import { RandomKingdominoAgent } from "./randomplayer.js";
-import { KingdominoInferenceModel } from "./model.js";
+import {
+  Kingdomino,
+  KingdominoAction,
+  KingdominoConfiguration,
+  KingdominoInferenceModel,
+  KingdominoState,
+  RandomKingdominoAgent,
+} from "kingdomino";
 import { driveGenerators, requireDefined } from "studio-util";
-import { NeutralKingdominoModel } from "./neutral-model.js";
-import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
 import _ from "lodash";
-import { InferenceModel, InferenceResult, MctsConfig, MctsContext, MctsStats, NonTerminalStateNode } from "mcts";
+import {
+  InferenceModel,
+  InferenceResult,
+  MctsConfig,
+  MctsContext,
+  MctsStats,
+  NonTerminalStateNode,
+} from "mcts";
+import {
+  EVAL_BASELINE_MCTS_CONFIG,
+  EVAL_MCTS_CONFIG,
+} from "kingdomino/config.js";
+import { NeutralKingdominoModel } from "kingdomino/neutral-model.js";
 
 const subjectPlayer1 = new Player("model-1", "Model 1");
 const subjectPlayer2 = new Player("model-2", "Model 2");

@@ -1,9 +1,9 @@
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
-import { KingdominoModel } from "./model.js";
+import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH, KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
 import { evalEpisodeBatch, EvalResult } from "./eval-concurrent.js";
-import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
+import * as tf from "@tensorflow/tfjs-node-gpu";
 
 // const decimalFormat = Intl.NumberFormat(undefined, {
 //   maximumFractionDigits: 0,
@@ -31,7 +31,7 @@ let evalsInProgress = 0;
 messagePort.on("message", async (message: any) => {
   evalsInProgress++;
   const date = new Date();
-  const newModel = await KingdominoModel.fromJson(message);
+  const newModel = await KingdominoModel.fromJson(message, tf);
   modelNumber++;
   console.log(`Eval worker received model #${modelNumber}`);
 

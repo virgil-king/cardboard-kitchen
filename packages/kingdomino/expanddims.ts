@@ -1,4 +1,4 @@
-import tf from "@tensorflow/tfjs-node-gpu";
+import * as tf from "@tensorflow/tfjs";
 
 export interface ExpandDimsArgs {
   name?: string;

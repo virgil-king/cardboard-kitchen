@@ -12,7 +12,7 @@ import {
 } from "game";
 
 import { Map, Range, Set } from "immutable";
-import { Tensor, Rank } from "@tensorflow/tfjs-node-gpu";
+import { Tensor, Rank } from "@tensorflow/tfjs";
 import { decodeOrThrow, requireDefined } from "studio-util";
 import { InferenceModel, TrainingModel } from "./model.js";
 import * as io from "io-ts";

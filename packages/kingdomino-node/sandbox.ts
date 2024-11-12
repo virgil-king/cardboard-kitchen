@@ -1,15 +1,18 @@
 import { requireDefined } from "studio-util";
 import { newestModelPath } from "training";
-import { KingdominoAction } from "./action.js";
-import { KingdominoConfiguration } from "./base.js";
-import { KingdominoModel } from "./model.js";
-import { KingdominoState } from "./state.js";
+import {
+  Kingdomino,
+  KingdominoAction,
+  KingdominoConfiguration,
+  KingdominoModel,
+  KingdominoState,
+} from "kingdomino";
 import * as fs from "node:fs";
 import { Map } from "immutable";
 import { EpisodeTrainingData } from "training-data";
-import { Kingdomino } from "./kingdomino.js";
 import { EpisodeSnapshot } from "game";
 import { Model } from "mcts";
+import * as tf from "@tensorflow/tfjs-node-gpu";
 
 const modelName = "conv3";
 const home = process.env.HOME;
@@ -99,13 +102,13 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoModel.load(modelPath);
+  const result = await KingdominoModel.load(modelPath, tf);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }
 
 function freshModel() {
-  const result = KingdominoModel.fresh();
+  const result = KingdominoModel.fresh(tf);
   console.log("Created randomly initialized model");
   return result;
 }

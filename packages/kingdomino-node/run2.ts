@@ -1,19 +1,20 @@
 import { train_parallel, modelsDirectory } from "training";
-import { Kingdomino } from "./kingdomino.js";
 import _ from "lodash";
-import { KingdominoModel } from "./model.js";
-import { KingdominoConfiguration } from "./base.js";
-import { KingdominoAction } from "./action.js";
-import { KingdominoState } from "./state.js";
-import { newestModelPath, LogDirectory } from "training";
 import {
+  Kingdomino,
+  KingdominoAction,
+  KingdominoConfiguration,
+  KingdominoModel,
+  KingdominoState,
   SELF_PLAY_WORKER_COUNT,
   TRAINING_BATCH_SIZE,
   TRAINING_MAX_EPISODE_BYTES,
   TRAINING_MAX_MODEL_BYTES,
   TRAINING_SAMPLE_BUFFER_SIZE,
-} from "./config.js";
+} from "kingdomino";
+import { newestModelPath, LogDirectory } from "training";
 import { Model } from "mcts";
+import * as tf from "@tensorflow/tfjs-node-gpu";
 
 // Top-level script for Kingdomino training
 
@@ -52,13 +53,13 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoModel.load(modelPath);
+  const result = await KingdominoModel.load(modelPath, tf);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }
 
 function freshModel() {
-  const result = KingdominoModel.fresh();
+  const result = KingdominoModel.fresh(tf);
   console.log("Created randomly initialized model");
   return result;
 }
