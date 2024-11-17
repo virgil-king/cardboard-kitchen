@@ -100,7 +100,9 @@ async function main() {
       `Episode complete after ${
         (performance.now() - start) / 1_000
       } seconds. Scores: ${JSON.stringify(
-        lastSnapshot.state.props.playerIdToState.map((state) => state.score)
+        lastSnapshot.state.props.playerIdToState
+          .map((state) => state.score)
+          .sort()
       )}`
     );
 
