@@ -13,13 +13,12 @@ import {
 import { Map as ImmutableMap, Seq } from "immutable";
 import {
   driveAsyncGenerator,
-  driveGenerator,
   requireDefined,
   weightedMerge,
 } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
 
-const debugLoggingEnabled = true;
+const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
   if (debugLoggingEnabled) {
     console.log(block());
@@ -148,7 +147,10 @@ class ActionNode<
       // );
       const childSnapshot = snapshot.derive(childState);
       if (this.context.game.result(childSnapshot) == undefined) {
+        const start = performance.now();
         const inferenceResult = yield childSnapshot;
+        this.context.stats.inferenceTimeMs += performance.now() - start;
+        this.context.stats.inferences++;
         stateNode = new NonTerminalStateNode(
           this.context,
           childSnapshot,
