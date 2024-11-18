@@ -141,6 +141,10 @@ export class Kingdomino
     }
   }
 
+  legalActions(snapshot: KingdominoSnapshot): Iterable<KingdominoAction> {
+    return snapshot.state.possibleActions();
+  }
+
   apply(
     snapshot: KingdominoSnapshot,
     action: KingdominoAction

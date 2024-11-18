@@ -19,16 +19,6 @@ export function randomBoolean(): boolean {
   return Math.random() > 0.5;
 }
 
-// export function shuffle<T>(items: ReadonlyArray<T>): Array<T> {
-//   const length = items.length;
-//   const result = Array.from(items);
-//   for (let i = 0; i < length - 1; i++) {
-//     const dest = randomBetween(i, length - 1);
-//     [result[i], result[dest]] = [result[dest], result[i]];
-//   }
-//   return result;
-// }
-
 export function combineHashes(...hashes: Array<number>): number {
   let result = hashes[0];
   for (let hash of hashes.slice(1)) {
@@ -54,9 +44,14 @@ export function requireNotDone<T>(result: IteratorResult<T>): T {
   return result.value;
 }
 
-// export function apply<T, U>(value: T, func: (it: T) => U) {
-//   return func(value);
-// }
+export function requireFulfilled<T>(result: PromiseSettledResult<T>): T {
+  if (result.status == "rejected") {
+    throw new Error(
+      `Promise result was unexpectedly 'rejected': ${JSON.stringify(result)}`
+    );
+  }
+  return result.value;
+}
 
 /**
  * Returns N items drawn randomly from {@link items}.
@@ -325,4 +320,13 @@ export async function driveAsyncGenerator<OutT, ReturnT, InT>(
 
 export function sum(seq: Seq<unknown, number>): number {
   return seq.reduce((result, value) => result + value, 0);
+}
+
+export async function throwFirstRejection(promises: Promise<unknown>[]) {
+  const results = await Promise.allSettled(promises);
+  for (const result of results) {
+    if (result.status == "rejected") {
+      throw new Error(`Promise was rejected with ${result.reason}`);
+    }
+  }
 }

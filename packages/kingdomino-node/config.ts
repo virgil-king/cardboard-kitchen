@@ -1,4 +1,4 @@
-import { MctsConfig } from "mcts";
+import { mcts } from "mcts";
 import {
   KingdominoAction,
   KingdominoConfiguration,
@@ -16,7 +16,7 @@ const mctsConfigDefaults = {
 };
 
 const randomAgent = new RandomKingdominoAgent();
-export const SELF_PLAY_MCTS_CONFIG = new MctsConfig<
+export const SELF_PLAY_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction
@@ -42,7 +42,7 @@ export const EVAL_EPISODES_PER_BATCH = 32;
 /** Number of evaluation batches per model */
 export const EVAL_BATCHES = 1;
 /** MCTS config used by the baseline agent during eval */
-export const EVAL_BASELINE_MCTS_CONFIG = new MctsConfig<
+export const EVAL_BASELINE_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction
@@ -54,7 +54,7 @@ export const EVAL_BASELINE_MCTS_CONFIG = new MctsConfig<
   },
 });
 /** MCTS config used by the subject agent during eval */
-export const EVAL_MCTS_CONFIG = new MctsConfig<
+export const EVAL_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction

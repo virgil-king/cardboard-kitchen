@@ -48,7 +48,7 @@ export type TilePlacementState = {
   onPlaceNextSquare: (location: Vector2) => void;
 };
 
-type GameProps = {
+export type GameProps = {
   snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>;
 
   onClaimTile?: (tileIndex: number) => void;
@@ -56,7 +56,8 @@ type GameProps = {
   onDiscardTile?: () => void;
 
   // Training data
-  predictedValues?: PlayerValues;
+  modelValues?: PlayerValues;
+  searchValues?: PlayerValues;
   terminalValues?: PlayerValues;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
 };
@@ -86,7 +87,6 @@ export function GameComponent(props: GameProps): JSX.Element {
       </div>
     );
   }
-  // const previousOffers = state.props.previousOffers;
   const previousOffersElement = offersElement(
     "Previous offers",
     state.props.previousOffers,
@@ -135,7 +135,7 @@ export function PlayersComponent(props: GameProps): JSX.Element {
           key={player.id}
           player={player}
           playerState={props.snapshot.state.requirePlayerState(player.id)}
-          expectedValue={props.predictedValues?.playerIdToValue?.get(player.id)}
+          modelValue={props.modelValues?.playerIdToValue?.get(player.id)}
           terminalValue={props.terminalValues?.playerIdToValue?.get(player.id)}
           isCurrentPlayer={isCurrentPlayer}
           tilePlacementState={
@@ -150,21 +150,13 @@ export function PlayersComponent(props: GameProps): JSX.Element {
 type PlayerProps = {
   player: Player;
   playerState: KingdominoPlayerState;
-  expectedValue?: number;
+  modelValue?: number;
   terminalValue?: number;
   isCurrentPlayer?: boolean;
   tilePlacementState?: TilePlacementState;
 };
 
 function PlayerComponent(props: PlayerProps) {
-  const expectedValueElement =
-    props.expectedValue != undefined ? (
-      <div style={{ textAlign: "center" }}>
-        Expected value: {decimalFormat.format(props.expectedValue)}
-      </div>
-    ) : (
-      <></>
-    );
   const terminalValueElement =
     props.terminalValue != undefined ? (
       <div style={{ textAlign: "center" }}>
@@ -184,7 +176,10 @@ function PlayerComponent(props: PlayerProps) {
       <div style={{ textAlign: "center" }}>
         Score: {props.playerState.score}
       </div>
-      {expectedValueElement}
+      <div style={{ textAlign: "center" }}>
+        Model value:{" "}
+        {props.modelValue ? decimalFormat.format(props.modelValue) : ""}
+      </div>
       {terminalValueElement}
       <div style={{ height: s_spacing }} />
       <div>
@@ -350,10 +345,6 @@ function TileOfferComponent(props: TileOfferProps) {
   );
   const buttonElement = (() => {
     const claim = props.offer.claim;
-    // const claimPlayerName =
-    //   claim == undefined
-    //     ? ""
-    //     : props.episodeConfig.players.requirePlayer(claim.playerId).name;
     if (props.onDiscardTile != undefined) {
       return <button onClick={props.onDiscardTile}>Discard</button>;
     } else if (claim != undefined) {
@@ -367,17 +358,15 @@ function TileOfferComponent(props: TileOfferProps) {
     }
   })();
   const policyElement = (() => {
-    if (props.actionToStatistics == undefined) {
-      return <></>;
-    } else if (policyValue == undefined) {
-      return <div style={{ width: "16ch" }}></div>;
-    } else {
-      return (
-        <div style={{ width: "16ch", alignContent: "center" }}>
-          <ClaimStatistics statistics={policyValue}></ClaimStatistics>
-        </div>
-      );
-    }
+    return (
+      <div style={{ width: "16ch", alignContent: "center" }}>
+        {policyValue == undefined ? (
+          <></>
+        ) : (
+          <ClaimStatistics statistics={policyValue} />
+        )}
+      </div>
+    );
   })();
   return (
     <div className={styles.horizontalFlex} style={{ padding: s_spacing }}>
@@ -406,7 +395,10 @@ function TileOfferComponent(props: TileOfferProps) {
 
 type ClaimStatisticsProps = { statistics: ActionStatistics };
 
-function ifDefined<T, U>(t: T | undefined, f: (t: T) => U): U | undefined {
+export function ifDefined<T, U>(
+  t: T | undefined,
+  f: (t: T) => U
+): U | undefined {
   if (t == undefined) {
     return undefined;
   }

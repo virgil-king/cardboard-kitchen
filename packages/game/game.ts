@@ -250,6 +250,8 @@ export interface Game<
    */
   newEpisode(config: EpisodeConfiguration): EpisodeSnapshot<C, S>;
 
+  legalActions(snapshot: EpisodeSnapshot<C, S>): Iterable<A>;
+
   isLegalAction(snapshot: EpisodeSnapshot<C, S>, action: A): boolean;
 
   apply(snapshot: EpisodeSnapshot<C, S>, action: A): [S, ChanceKey];

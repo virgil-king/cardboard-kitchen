@@ -6,10 +6,6 @@ import { evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
 
-// const decimalFormat = Intl.NumberFormat(undefined, {
-//   maximumFractionDigits: 0,
-// });
-
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let modelNumber = 0;

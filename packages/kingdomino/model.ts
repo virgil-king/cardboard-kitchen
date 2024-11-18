@@ -713,6 +713,10 @@ export class KingdominoInferenceModel
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
   ): Promise<ReadonlyArray<InferenceResult<KingdominoAction>>> {
+    if (snapshots.length == 0) {
+      throw new Error(`infer called with no snapshots`);
+    }
+
     const encodedInputs = snapshots.map((snapshot) =>
       this.model.encodeState(snapshot)
     );

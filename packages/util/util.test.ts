@@ -42,7 +42,7 @@ test("weightedMerge: key only in b: uses b value", () => {
   assert.equal(requireDefined(result.get("b")), 783);
 });
 
-test("driveGenerators: answers questions and returns final results", () => {
+test("driveGenerators: answers questions and returns final results", async () => {
   function* generate(numbers: number[]) {
     const result = new Array<number>();
     for (const n of numbers) {
@@ -56,8 +56,8 @@ test("driveGenerators: answers questions and returns final results", () => {
     generate([5, 23, 89, 2]),
   ];
 
-  const result = driveGenerators(generators, (questions: readonly number[]) =>
-    questions.map((n) => n + 1)
+  const result = await driveGenerators(generators, (questions: readonly number[]) =>
+    Promise.resolve(questions.map((n) => n + 1))
   );
 
   // Results are returned in the same order as the corresponding generators

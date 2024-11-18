@@ -26,7 +26,7 @@ export function Replay(props: ReplayProps): JSX.Element {
       return (
         <GameComponent
           snapshot={dataPoint.snapshot}
-          predictedValues={dataPoint.predictedValues}
+          modelValues={dataPoint.predictedValues}
           terminalValues={dataPoint.terminalValues}
           actionToStatistics={dataPoint.actionToStatistics}
         ></GameComponent>

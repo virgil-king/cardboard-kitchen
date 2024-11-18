@@ -13,8 +13,8 @@ import {
 
 import { Map, Range, Set } from "immutable";
 import { Tensor, Rank } from "@tensorflow/tfjs";
-import { decodeOrThrow, requireDefined } from "studio-util";
-import { InferenceModel, TrainingModel } from "./model.js";
+import { decodeOrThrow, requireDefined, SettablePromise } from "studio-util";
+import { InferenceModel, InferenceResult, TrainingModel } from "./model.js";
 import * as io from "io-ts";
 import { StateTrainingData } from "training-data";
 
@@ -124,6 +124,14 @@ export class PickANumber
     return snapshot.state.remainingNumbers.contains(action.number);
   }
 
+  legalActions(
+    snapshot: EpisodeSnapshot<PickANumberConfiguration, PickANumberState>
+  ): Iterable<NumberAction> {
+    return snapshot.state.remainingNumbers.map(
+      (number) => new NumberAction(number)
+    );
+  }
+
   apply(
     snapshot: PickANumberEpisodeSnapshot,
     action: NumberAction
@@ -178,13 +186,15 @@ export class PickANumber
  * The policy function uses the move number itself as the probability.
  *
  * The value function acts as if the game will end up tied.
+ *
+ * Results are delivered as already-fulfilled Promises.
  */
-export class PickANumberModel
+export class PickANumberImmediateModel
   implements
     InferenceModel<GameConfiguration, PickANumberState, NumberAction>,
     TrainingModel<GameConfiguration, PickANumberState, NumberAction, any>
 {
-  static INSTANCE = new PickANumberModel();
+  static INSTANCE = new PickANumberImmediateModel();
 
   static STATE_VALUE = 0.5;
 
@@ -224,7 +234,12 @@ export class PickANumberModel
       console.log(`Value function called on finished game`);
     }
     return new PlayerValues(
-      Map(players.map((player) => [player.id, PickANumberModel.STATE_VALUE]))
+      Map(
+        players.map((player) => [
+          player.id,
+          PickANumberImmediateModel.STATE_VALUE,
+        ])
+      )
     );
   }
 
@@ -244,3 +259,12 @@ export class PickANumberModel
     throw new Error("Method not implemented.");
   }
 }
+
+type InferenceRequest<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> = {
+  snapshots: ReadonlyArray<EpisodeSnapshot<C, S>>;
+  results: SettablePromise<ReadonlyArray<InferenceResult<A>>>;
+};

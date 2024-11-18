@@ -24,14 +24,7 @@ import {
   requireDefined,
 } from "studio-util";
 import _ from "lodash";
-import {
-  InferenceModel,
-  InferenceResult,
-  MctsConfig,
-  MctsContext,
-  MctsStats,
-  NonTerminalStateNode,
-} from "mcts";
+import { InferenceModel, InferenceResult, mcts } from "mcts";
 import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 
@@ -206,11 +199,11 @@ class MctsBatchAgent implements BatchAgent {
       KingdominoState,
       KingdominoAction
     >,
-    readonly mctsConfig: MctsConfig<
+    readonly mctsConfig: mcts.MctsConfig<
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    > = new MctsConfig({
+    > = new mcts.MctsConfig({
       simulationCount: 32,
       randomPlayoutConfig: {
         weight: 1,
@@ -224,7 +217,12 @@ class MctsBatchAgent implements BatchAgent {
     >
   ): Promise<ReadonlyArray<KingdominoAction>> {
     const generators = snapshots.map((snapshot) => {
-      return mcts(Kingdomino.INSTANCE, this.model, snapshot, this.mctsConfig);
+      return selectAction(
+        Kingdomino.INSTANCE,
+        this.model,
+        snapshot,
+        this.mctsConfig
+      );
     });
     return driveAsyncGenerators(generators, (snapshots) => {
       return this.model.infer(snapshots);
@@ -238,7 +236,7 @@ class MctsBatchAgent implements BatchAgent {
  *
  * @returns the greedily selected best action according to the MCTS results
  */
-async function* mcts<
+async function* selectAction<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
@@ -246,16 +244,20 @@ async function* mcts<
   game: Game<C, S, A>,
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
-  mctsConfig: MctsConfig<C, S, A>
+  mctsConfig: mcts.MctsConfig<C, S, A>
 ): AsyncGenerator<EpisodeSnapshot<C, S>, A, InferenceResult<A>> {
-  const mctsContext: MctsContext<C, S, A> = {
+  const mctsContext: mcts.MctsContext<C, S, A> = {
     config: mctsConfig,
     game: game,
     model: model,
-    stats: new MctsStats(),
+    stats: new mcts.MctsStats(),
   };
   const inferenceResult = yield snapshot;
-  const root = new NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
+  const root = new mcts.NonTerminalStateNode(
+    mctsContext,
+    snapshot,
+    inferenceResult
+  );
   const currentPlayer = requireDefined(game.currentPlayer(snapshot));
   // Run simulationCount steps or enough to try every possible action once
   if (root.actionToChild.size == 1) {

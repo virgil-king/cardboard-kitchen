@@ -1,12 +1,6 @@
-import { Map, Range, Seq } from "immutable";
+import { Map, Range } from "immutable";
 import {
-  Action,
-  Agent,
   EpisodeConfiguration,
-  EpisodeSnapshot,
-  Game,
-  GameConfiguration,
-  GameState,
   generateEpisode,
   Player,
   Players,
@@ -21,14 +15,8 @@ import {
   KingdominoState,
   RandomKingdominoAgent,
 } from "kingdomino";
-import { driveGenerators, requireDefined } from "studio-util";
-import {
-  MctsAgent,
-  MctsConfig,
-  MctsContext,
-  MctsStats,
-  NonTerminalStateNode,
-} from "mcts";
+import { requireDefined } from "studio-util";
+import { mcts, MctsAgent } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 
 // Script to run eval episodes on a saved model
@@ -44,7 +32,7 @@ console.log(`Loaded model from ${modelPath}`);
 const episodeCount = parseInt(process.argv[2]);
 console.log(`episodeCount is ${episodeCount}`);
 
-const mctsConfig = new MctsConfig<
+const mctsConfig = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction
@@ -70,7 +58,7 @@ async function main() {
     config: mctsConfig,
     game: Kingdomino.INSTANCE,
     model: (await model).inferenceModel,
-    stats: new MctsStats(),
+    stats: new mcts.MctsStats(),
   };
   const randomAgent = new RandomKingdominoAgent();
   const mctsAgent = new MctsAgent(Kingdomino.INSTANCE, mctsContext);

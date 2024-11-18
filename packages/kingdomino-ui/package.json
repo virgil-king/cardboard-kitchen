@@ -11,6 +11,7 @@
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
+    "@types/react-split-pane": "^0.1.67",
     "effection": "^3.0.3",
     "game": "workspace:^",
     "immutable": "5.0.0-beta.5",

@@ -4,7 +4,7 @@ import { assert } from "chai";
 import { List } from "immutable";
 import { requireDefined } from "studio-util";
 import { MctsConfig, mcts } from "./mcts.js";
-import { NumberAction, PickANumber, PickANumberModel } from "./testgame.js";
+import { NumberAction, PickANumber, PickANumberImmediateModel } from "./testgame.js";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -20,7 +20,7 @@ test("mcts: single-step deterministic game: one step per first action: expected 
   const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
+    PickANumberImmediateModel.INSTANCE,
     PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
   );
 
@@ -31,7 +31,7 @@ test("mcts: single-step deterministic game: one step per first action: expected 
     for (const player of players.players) {
       assert.equal(
         actionResult.playerIdToValue.get(player.id),
-        PickANumberModel.STATE_VALUE
+        PickANumberImmediateModel.STATE_VALUE
       );
     }
   }
@@ -46,7 +46,7 @@ test("mcts: single-step deterministic game: one more step than first actions: la
   const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
+    PickANumberImmediateModel.INSTANCE,
     PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
   );
 
@@ -69,7 +69,7 @@ test("mcts: single-step deterministic game: many simulations: best move has high
   const result = await mcts(
     mctsConfig,
     PickANumber.INSTANCE,
-    PickANumberModel.INSTANCE,
+    PickANumberImmediateModel.INSTANCE,
     PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
   );
 

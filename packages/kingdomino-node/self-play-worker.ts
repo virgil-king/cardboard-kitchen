@@ -11,7 +11,7 @@ import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { Range } from "immutable";
-import { MctsStats } from "mcts";
+import { mcts } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import {
   SELF_PLAY_MCTS_CONFIG,
@@ -55,7 +55,7 @@ async function main() {
       config: SELF_PLAY_MCTS_CONFIG,
       game: Kingdomino.INSTANCE,
       model: localModel.inferenceModel,
-      stats: new MctsStats(),
+      stats: new mcts.MctsStats(),
     };
 
     const generators = Range(0, SELF_PLAY_EPISODES_PER_BATCH)

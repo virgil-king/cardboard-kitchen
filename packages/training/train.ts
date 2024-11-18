@@ -13,7 +13,7 @@ import {
   GameState,
   PlayerValues,
 } from "game";
-import { MctsContext, NonTerminalStateNode } from "mcts";
+import { mcts } from "mcts";
 import { List, Map, Range, Seq } from "immutable";
 import { InferenceResult, Model } from "../mcts/model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
@@ -253,7 +253,7 @@ export async function* selfPlayEpisode<
   A extends Action
 >(
   game: Game<C, S, A>,
-  mctsContext: MctsContext<C, S, A>,
+  mctsContext: mcts.MctsContext<C, S, A>,
   episodeConfig: EpisodeConfiguration
 ): AsyncGenerator<
   EpisodeSnapshot<C, S>,
@@ -266,7 +266,7 @@ export async function* selfPlayEpisode<
     throw new Error(`episode called on completed state`);
   }
   const inferenceResult = yield snapshot;
-  let root = new NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
+  let root = new mcts.NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
   const nonTerminalStates = new Array<StateSearchData<S, A>>();
   while (game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(game.currentPlayer(snapshot));
@@ -321,14 +321,14 @@ export async function* selfPlayEpisode<
       .get(requireDefined(selectedAction))
       ?.chanceKeyToChild.get(chanceKey);
     if (existingStateNode != undefined) {
-      if (!(existingStateNode instanceof NonTerminalStateNode)) {
+      if (!(existingStateNode instanceof mcts.NonTerminalStateNode)) {
         throw new Error(
           `Node for non-terminal state was not NonTerminalStateNode`
         );
       }
       root = existingStateNode;
     } else {
-      root = new NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
+      root = new mcts.NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
     }
   }
   const elapsedMs = performance.now() - startMs;
