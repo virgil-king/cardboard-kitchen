@@ -1,21 +1,20 @@
 import fs from "fs";
 import { Kingdomino } from "kingdomino";
 import { Replay } from "./replay";
-// import { EpisodeTrainingData } from "training-data";
 
-export default function ReplayPage({
+export default async function ReplayPage({
   params,
 }: {
-  params: { name: string };
-}): JSX.Element {
+  params: Promise<{ name: string }>;
+}): Promise<JSX.Element> {
+  const replayName = (await params).name;
   const episodeJsonString = fs.readFileSync(
-    `${Kingdomino.GAMES_DIR}/${decodeURIComponent(params.name)}`,
+    `${Kingdomino.GAMES_DIR}/${decodeURIComponent(replayName)}`,
     { encoding: "utf8" }
   );
-  // const episodeJson = JSON.parse(episodeJsonString);
   return (
     <>
-      {decodeURIComponent(params.name)}
+      {decodeURIComponent(replayName)}
       <br></br>
       <Replay episodeJsonString={episodeJsonString}></Replay>
     </>

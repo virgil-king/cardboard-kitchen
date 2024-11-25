@@ -10,23 +10,22 @@
     "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.1",
-    "@vitest/coverage-v8": "^1.6.0",
-    "chai": "^5.1.1",
+    "@types/lodash": "^4.17.13",
+    "@vitest/coverage-v8": "^2.1.5",
+    "chai": "^5.1.2",
     "long": "^5.2.3",
     "tsconfig": "workspace:*",
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.5"
   },
   "dependencies": {
-    "@tensorflow/tfjs-core": "^4.20.0",
-    "@tensorflow/tfjs": "^4.19.0",
-    "immutable": "5.0.0-beta.5",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-core": "^4.22.0",
+    "game": "workspace:*",
+    "immutable": "5.0.3",
     "io-ts": "^2.2.21",
     "lodash": "^4.17.21",
-    "lru-cache": "^10.2.2",
-    "pnpm": "^9.1.1",
-    "studio-util": "workspace:*",
-    "game": "workspace:*"
+    "pnpm": "^9.14.2",
+    "studio-util": "workspace:*"
   }
 }
