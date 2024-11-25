@@ -6,8 +6,6 @@ import { useState, useSyncExternalStore } from "react";
 import * as tf from "@tensorflow/tfjs";
 import { SinglePlayerEpisodeController } from "./controller";
 import { Controls } from "./controls";
-import SplitPane from "react-split-pane";
-import { ResizablePanes } from "resizable-panes-react";
 
 export default function SinglePlayerEpisodePage(): JSX.Element {
   // TODO use useQuery
@@ -16,10 +14,8 @@ export default function SinglePlayerEpisodePage(): JSX.Element {
     console.log(tf.backend());
     async function fetch() {
       console.log("Loading model...");
-      const result = await KingdominoModel.loadFromUrl(
-        "http://localhost:3000/kingdomino/models/conv6/2024-11-10T02:11:42.841Z",
-        tf
-      );
+      const modelUrl = `http://${window.location.host}/kingdomino/model`;
+      const result = await KingdominoModel.loadFromUrl(modelUrl, tf);
       console.log(`Loaded model`);
       setModel(result);
     }
