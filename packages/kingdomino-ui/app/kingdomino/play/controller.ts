@@ -33,17 +33,6 @@ const episodeConfig = new EpisodeConfiguration(players);
 
 const kingdominoConfig = new KingdominoConfiguration(players.players.count());
 
-const mctsConfig = new mcts2.MctsConfig<
-  KingdominoConfiguration,
-  KingdominoState,
-  KingdominoAction
->({
-  simulationCount: 512,
-  modelValueWeight: 1,
-});
-
-const batchSize = 64;
-
 type ControllerState = {
   viewData: GameProps;
   pendingAction: KingdominoAction | undefined;
@@ -56,7 +45,16 @@ export class SinglePlayerEpisodeController {
 
   private autoAdvance = false;
 
-  constructor(private readonly model: KingdominoModel, autoAdvance: boolean) {
+  constructor(
+    private readonly model: KingdominoModel,
+    autoAdvance: boolean,
+    public mctsConfig: mcts2.MctsConfig<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction
+    >,
+    public mctsBatchSize: number
+  ) {
     const state = KingdominoState.newGame(episodeConfig, kingdominoConfig);
     const snapshot = new EpisodeSnapshot(
       episodeConfig,
@@ -186,8 +184,8 @@ export class SinglePlayerEpisodeController {
     const mctsAgent = new MctsAgent2(
       Kingdomino.INSTANCE,
       this.model.inferenceModel,
-      mctsConfig,
-      batchSize,
+      this.mctsConfig,
+      this.mctsBatchSize,
       mctsStats
     );
     const start = performance.now();

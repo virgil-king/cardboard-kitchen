@@ -3,6 +3,16 @@ import { ifDefined, s_spacing } from "@/components";
 type ControlProps = {
   autoAdvanceEnabled: boolean;
   onAutoAdvanceChanged: () => void;
+
+  simulationCount: number;
+  onSimulationCountChanged: (it: number) => void;
+
+  inferenceBatchSize: number;
+  onInferenceBatchSizeChanged: (it: number) => void;
+
+  explorationBias: number;
+  onExplorationBiasChanged: (it: number) => void;
+
   onAdvance?: () => void;
 };
 
@@ -15,7 +25,7 @@ export function Controls(props: ControlProps): JSX.Element {
         flexDirection: "column",
         gap: s_spacing,
         width: "16em",
-        minWidth: "16em"
+        minWidth: "16em",
       }}
     >
       <label>
@@ -28,6 +38,7 @@ export function Controls(props: ControlProps): JSX.Element {
           }}
         />
       </label>
+
       <div>
         <button
           onClick={ifDefined(props.onAdvance, (it) => () => it())}
@@ -36,6 +47,44 @@ export function Controls(props: ControlProps): JSX.Element {
           Advance
         </button>
       </div>
+
+      <label>
+        Simulation count
+        <input
+          type="text"
+          value={props.simulationCount}
+          onChange={(target) => {
+            const newValue = parseInt(target.target.value);
+            props.onSimulationCountChanged(newValue);
+          }}
+        />
+      </label>
+
+      <label>
+        Inference batch size
+        <input
+          type="text"
+          value={props.inferenceBatchSize}
+          onChange={(target) => {
+            const newValue = parseInt(target.target.value);
+            props.onInferenceBatchSizeChanged(newValue);
+          }}
+        />
+      </label>
+
+
+      <label>
+        Exploration bias
+        <input
+          type="text"
+          value={props.explorationBias}
+          onChange={(target) => {
+            const newValue = parseFloat(target.target.value);
+            props.onExplorationBiasChanged(newValue);
+          }}
+        />
+      </label>
+
     </div>
   );
 }
