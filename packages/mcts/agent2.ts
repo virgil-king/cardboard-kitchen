@@ -7,10 +7,9 @@ import {
   GameState,
   PlayerValues,
 } from "game";
-import { Map, Range, Seq } from "immutable";
+import { Map, Range } from "immutable";
 import {
   requireDefined,
-  driveAsyncGenerators,
   throwFirstRejection,
 } from "studio-util";
 import {
@@ -60,7 +59,8 @@ export class MctsAgent2<
    */
   async mcts(snapshot: EpisodeSnapshot<C, S>): Promise<MctsResult<A>> {
     const root = new NonTerminalStateNode(this.context, snapshot);
-    const visitResults = new Array<Promise<PlayerValues>>();
+    const visitResults = new Array<Promise<unknown>>();
+    visitResults.push(root.inference);
 
     // When root has exactly one child, visit it once to populate the
     // action statistics, but no further visits are necessary. Otherwise
