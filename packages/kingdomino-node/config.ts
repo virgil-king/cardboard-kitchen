@@ -11,7 +11,10 @@ import {
 // Defaults for self-play and eval
 const mctsConfigDefaults = {
   simulationCount: 256,
-  explorationBias: 4,
+  // This value is tailored to four-player episodes, where the maximum
+  // value for one player is 3. It should be updated when episodes with
+  // other player counts are included.
+  explorationBias: 3 * Math.sqrt(2),
   maxChanceBranches: 1,
 };
 
