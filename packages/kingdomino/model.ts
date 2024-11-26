@@ -399,8 +399,6 @@ export class KingdominoModel
       outputs: [valueOutput, policyOutput],
     });
 
-    model.summary(200);
-
     return new KingdominoModel(model, tfRuntime);
   }
 
@@ -446,7 +444,9 @@ export class KingdominoModel
   constructor(
     readonly model: tfTypes.LayersModel,
     readonly tfRuntime: TfModule
-  ) {}
+  ) {
+    model.summary(200);
+  }
 
   save(path: string): Promise<void> {
     return new Promise((r) => {
