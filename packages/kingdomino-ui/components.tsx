@@ -424,8 +424,20 @@ type PolicyProps = {
 
 function PolicyComponent(props: PolicyProps) {
   const sortedEntries = [...props.policy.entries()].sort(
-    ([action1, stats1], [action2, stats2]) =>
-      stats2.visitCount - stats1.visitCount
+    ([, stats1], [, stats2]) => {
+      const visitDiff = stats2.visitCount - stats1.visitCount;
+      if (visitDiff != 0) {
+        return visitDiff;
+      }
+      return (
+        requireDefined(
+          stats2.expectedValues.playerIdToValue.get(props.currentPlayerId)
+        ) -
+        requireDefined(
+          stats1.expectedValues.playerIdToValue.get(props.currentPlayerId)
+        )
+      );
+    }
   );
   return (
     <div className={styles.horizontalFlex}>
