@@ -70,9 +70,9 @@ import { TfModule } from "./tf.js";
  *
  * Can be used to scale model size across multiple axes.
  */
-const SIZE_FACTOR = 16;
+const SIZE_FACTOR = 32;
 
-const HIDDEN_LAYER_WIDTH = 64;
+const HIDDEN_LAYER_WIDTH = 128;
 
 class TerrainTypeCodec implements VectorCodec<Terrain> {
   private readonly oneHotCodec = new OneHotCodec(terrainValues.length);
@@ -281,7 +281,7 @@ export class KingdominoModel
 
   /**
    * Registers custom table types with {@link tfRuntime}.
-   * 
+   *
    * Must be called on each thread before loading or creating a TF model.
    */
   static registerCustomTableTypes(tfRuntime: TfModule) {
@@ -291,11 +291,11 @@ export class KingdominoModel
   static fresh(tfRuntime: TfModule): KingdominoModel {
     this.registerCustomTableTypes(tfRuntime);
 
-    const linearInputLayer = tfRuntime.input({
+    const linearInput = tfRuntime.input({
       shape: [linearStateCodec.columnCount],
       name: "linear_input",
     });
-    console.log(`Linear input shape is ${linearInputLayer.shape}`);
+    console.log(`Linear input shape is ${linearInput.shape}`);
 
     const broadcastLayerFactory = getBroadcastLayerFactory(tfRuntime);
 
@@ -323,7 +323,7 @@ export class KingdominoModel
     // Analysis board outputs are a 1x1xN vectors. Flatten them and concatenate
     // them with with the linear input as the input to the dense layers stack.
     const boardAnalysisOutputs = boardInputs.map((input) => {
-      const boardModuleOutput = boardModule.apply(linearInputLayer, input);
+      const boardModuleOutput = boardModule.apply(linearInput, input);
       return tfRuntime.layers
         .flatten()
         .apply(boardModuleOutput) as tfTypes.SymbolicTensor;
@@ -331,10 +331,7 @@ export class KingdominoModel
 
     const concat = tfRuntime.layers
       .concatenate({ name: "concat_linear_input_with_board_analysis" })
-      .apply([
-        linearInputLayer,
-        ...boardAnalysisOutputs,
-      ]) as tfTypes.SymbolicTensor;
+      .apply([linearInput, ...boardAnalysisOutputs]) as tfTypes.SymbolicTensor;
     console.log(`Concat shape is ${concat.shape}`);
 
     let hiddenOutput = concat;
@@ -371,13 +368,18 @@ export class KingdominoModel
       })
       .apply(hiddenOutput) as tfTypes.SymbolicTensor;
 
-    // Placement policy module input is dense stack output plus policy board input
+    const linearInputPlusHiddenOutput = tfRuntime.layers
+      .concatenate({ name: "concat_linear_input_with_hidden_output" })
+      .apply([linearInput, hiddenOutput]) as tfTypes.SymbolicTensor;
+
+    // Placement policy module input is linear input plus dense stack output
+    // plus policy board input
     const placementPolicyModule = new PlacementPolicyModule(
       broadcastLayerFactory,
       tfRuntime
     );
     const placementPolicyOutput = placementPolicyModule.apply(
-      hiddenOutput,
+      linearInputPlusHiddenOutput,
       policyBoardInput
     );
 
@@ -395,7 +397,7 @@ export class KingdominoModel
       ]) as tfTypes.SymbolicTensor;
 
     const model = tfRuntime.model({
-      inputs: [linearInputLayer, ...boardInputs, policyBoardInput],
+      inputs: [linearInput, ...boardInputs, policyBoardInput],
       outputs: [valueOutput, policyOutput],
     });
 
@@ -427,7 +429,10 @@ export class KingdominoModel
   /**
    * @param url path to the directory containing the model files
    */
-  static async loadFromUrl(url: string, tfRuntime: TfModule): Promise<KingdominoModel> {
+  static async loadFromUrl(
+    url: string,
+    tfRuntime: TfModule
+  ): Promise<KingdominoModel> {
     console.log(`Loading model from ${url}`);
     this.registerCustomTableTypes(tfRuntime);
     const layersModel = await tfRuntime.loadLayersModel(`${url}/model.json`);
@@ -1005,7 +1010,7 @@ class BoardInputMerger {
   });
 
   /**
-   * Takes a batch of linear inputs and board inputs {@link boardCodec}.
+   * Takes a batch of linear inputs and board inputs encoded using {@link boardCodec}.
    *
    * Returns a {@link tfTypes.SymbolicTensor} defined by tiling the linear inputs
    * to match the spatial dimensions of the board inputs and then stacking

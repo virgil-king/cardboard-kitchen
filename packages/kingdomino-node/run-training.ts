@@ -20,7 +20,7 @@ import {
 
 // Top-level script for Kingdomino training
 
-const modelName = "conv6";
+const modelName = "conv7";
 const home = process.env.HOME;
 
 async function main() {
