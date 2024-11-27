@@ -14,6 +14,8 @@ type ControlProps = {
   onExplorationBiasChanged: (it: number) => void;
 
   onAdvance?: () => void;
+
+  onNewGame: () => void;
 };
 
 export function Controls(props: ControlProps): JSX.Element {
@@ -72,7 +74,6 @@ export function Controls(props: ControlProps): JSX.Element {
         />
       </label>
 
-
       <label>
         Exploration bias
         <input
@@ -85,6 +86,9 @@ export function Controls(props: ControlProps): JSX.Element {
         />
       </label>
 
+      <div>
+        <button onClick={() => props.onNewGame()}>New game</button>
+      </div>
     </div>
   );
 }

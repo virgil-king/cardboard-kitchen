@@ -8,10 +8,7 @@ import {
   PlayerValues,
 } from "game";
 import { Map, Range } from "immutable";
-import {
-  requireDefined,
-  throwFirstRejection,
-} from "studio-util";
+import { requireDefined, throwFirstRejection } from "studio-util";
 import {
   MctsConfig,
   MctsContext,
@@ -57,7 +54,10 @@ export class MctsAgent2<
    * Performs MCTS starting from {@link snapshot} and returns a map from
    * valid action to expected values for all players
    */
-  async mcts(snapshot: EpisodeSnapshot<C, S>): Promise<MctsResult<A>> {
+  async mcts(
+    snapshot: EpisodeSnapshot<C, S>,
+    abortController?: AbortController
+  ): Promise<MctsResult<A>> {
     const root = new NonTerminalStateNode(this.context, snapshot);
     const visitResults = new Array<Promise<unknown>>();
     visitResults.push(root.inference);
@@ -80,6 +80,9 @@ export class MctsAgent2<
       if (this.batchingModel.requests.length >= this.batchSize) {
         this.batchingModel.fulfillRequests();
         await throwFirstRejection(visitResults);
+        if (abortController?.signal?.aborted) {
+          throw new Error("Canceled");
+        }
         console.log(
           `Completed batch of ${visitResults.length} inferences in ${
             performance.now() - batchStart
@@ -94,6 +97,9 @@ export class MctsAgent2<
     if (visitResults.length > 0) {
       this.batchingModel.fulfillRequests();
       await throwFirstRejection(visitResults);
+      if (abortController?.signal?.aborted) {
+        throw new Error("Canceled");
+      }
       console.log(
         `Completed batch of ${visitResults.length} inferences in ${
           performance.now() - batchStart

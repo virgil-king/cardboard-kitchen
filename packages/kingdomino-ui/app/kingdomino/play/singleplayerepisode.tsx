@@ -20,7 +20,7 @@ export default function SinglePlayerEpisodePage(): JSX.Element {
     tf.setBackend("webgl");
     console.log(`Using TensorFlow backend ${tf.getBackend()}`);
     async function fetch() {
-      const modelUrl = `http://${window.location.host}/kingdomino/model`;
+      const modelUrl = `${window.location.protocol}//${window.location.host}/kingdomino/model`;
       const result = await KingdominoModel.loadFromUrl(modelUrl, tf);
       console.log(`Loaded model`);
       setModel(result);
@@ -54,6 +54,7 @@ function WithModel(props: { model: KingdominoModel }): JSX.Element {
     >({
       simulationCount: 512,
       modelValueWeight: 1,
+      explorationBias: 8
     })
   );
 
@@ -118,6 +119,7 @@ function WithModel(props: { model: KingdominoModel }): JSX.Element {
           setMctsConfig(newConfig);
           controller.mctsConfig = newConfig;
         }}
+        onNewGame={() => controller.newGame()}
       />
       <div style={{ flex: 1 }}>{GameComponent(controllerState.viewData)}</div>
     </div>

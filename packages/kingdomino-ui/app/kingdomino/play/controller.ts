@@ -17,21 +17,21 @@ import { GameProps, TilePlacementState } from "@/components";
 import { EpisodeConfiguration, EpisodeSnapshot, Player, Players } from "game";
 import { mcts2, MctsAgent2 } from "mcts";
 import { requireDefined } from "studio-util";
+import _ from "lodash";
 
 const playerId = "player";
 const bot1PlayerId = "bot1";
 const bot2PlayerId = "bot2";
 const bot3PlayerId = "bot3";
 
-const players = new Players(
+const playersArray = [
   new Player(playerId, "Player 1"),
   new Player(bot1PlayerId, "Bot 1"),
   new Player(bot2PlayerId, "Bot 2"),
-  new Player(bot3PlayerId, "Bot 3")
-);
-const episodeConfig = new EpisodeConfiguration(players);
+  new Player(bot3PlayerId, "Bot 3"),
+];
 
-const kingdominoConfig = new KingdominoConfiguration(players.players.count());
+const kingdominoConfig = new KingdominoConfiguration(playersArray.length);
 
 type ControllerState = {
   viewData: GameProps;
@@ -45,6 +45,8 @@ export class SinglePlayerEpisodeController {
 
   private autoAdvance = false;
 
+  private moveGenerationAbortController = new AbortController();
+
   constructor(
     private readonly model: KingdominoModel,
     autoAdvance: boolean,
@@ -55,14 +57,8 @@ export class SinglePlayerEpisodeController {
     >,
     public mctsBatchSize: number
   ) {
-    const state = KingdominoState.newGame(episodeConfig, kingdominoConfig);
-    const snapshot = new EpisodeSnapshot(
-      episodeConfig,
-      kingdominoConfig,
-      state
-    );
     this.autoAdvance = autoAdvance;
-    this.state = this.createStateForNewSnapshot(snapshot);
+    this.state = this.newGame();
   }
 
   subscribe(listener: () => void): () => void {
@@ -91,6 +87,21 @@ export class SinglePlayerEpisodeController {
         this.generateBotActionIfNeeded();
       }
     }
+  }
+
+  newGame(): ControllerState {
+    const episodeConfig = new EpisodeConfiguration(
+      new Players(..._.shuffle(playersArray))
+    );
+    const state = KingdominoState.newGame(episodeConfig, kingdominoConfig);
+    const snapshot = new EpisodeSnapshot(
+      episodeConfig,
+      kingdominoConfig,
+      state
+    );
+    this.updateState(this.createStateForNewSnapshot(snapshot));
+    this.generateBotActionIfNeeded();
+    return this.state;
   }
 
   private createStateForNewSnapshot(
@@ -177,6 +188,9 @@ export class SinglePlayerEpisodeController {
   }
 
   private async generateBotActionIfNeeded() {
+    this.moveGenerationAbortController.abort();
+    this.moveGenerationAbortController = new AbortController();
+
     if (!this.isBotTurn(this.state.viewData.snapshot)) {
       return;
     }
@@ -189,26 +203,33 @@ export class SinglePlayerEpisodeController {
       mctsStats
     );
     const start = performance.now();
-    const mctsResult = await mctsAgent.mcts(this.state.viewData.snapshot);
-    const action = mctsAgent.greedyAction(
-      this.state.viewData.snapshot,
-      mctsResult.actionToStatistics
-    );
-    console.log(`Generating move took ${performance.now() - start} ms`);
-    console.log(`MCTS stats: ${JSON.stringify(mctsStats)}`);
+    try {
+      const mctsResult = await mctsAgent.mcts(
+        this.state.viewData.snapshot,
+        this.moveGenerationAbortController
+      );
+      const action = mctsAgent.greedyAction(
+        this.state.viewData.snapshot,
+        mctsResult.actionToStatistics
+      );
+      console.log(`Generating move took ${performance.now() - start} ms`);
+      console.log(`MCTS stats: ${JSON.stringify(mctsStats)}`);
 
-    if (this.autoAdvance) {
-      this.act(action);
-    } else {
-      const viewData = {
-        ...this.state.viewData,
-        modelValues: mctsResult.stateValues,
-        actionToStatistics: mctsResult.actionToStatistics,
-      } satisfies GameProps;
-      this.updateState({
-        viewData: viewData,
-        pendingAction: action,
-      } satisfies ControllerState);
+      if (this.autoAdvance) {
+        this.act(action);
+      } else {
+        const viewData = {
+          ...this.state.viewData,
+          modelValues: mctsResult.stateValues,
+          actionToStatistics: mctsResult.actionToStatistics,
+        } satisfies GameProps;
+        this.updateState({
+          viewData: viewData,
+          pendingAction: action,
+        } satisfies ControllerState);
+      }
+    } catch (e) {
+      console.log(e);
     }
   }
 
