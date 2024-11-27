@@ -14,11 +14,12 @@ const mctsConfigDefaults = {
   // This value is tailored to four-player episodes, where the maximum
   // value for one player is 3. It should be updated when episodes with
   // other player counts are included.
-  explorationBias: 3 * Math.sqrt(2),
+  explorationBias: 8, // 3 * Math.sqrt(2),
   maxChanceBranches: 1,
 };
 
 const randomAgent = new RandomKingdominoAgent();
+
 export const SELF_PLAY_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
@@ -26,14 +27,15 @@ export const SELF_PLAY_MCTS_CONFIG = new mcts.MctsConfig<
 >({
   ...mctsConfigDefaults,
   modelValueWeight: 1,
+  randomPlayoutConfig: undefined,
 });
-export const SELF_PLAY_EPISODES_PER_BATCH = 32;
+export const SELF_PLAY_EPISODES_PER_BATCH = 64;
 export const SELF_PLAY_WORKER_COUNT = 8;
 
 /** Number of samples per training batch */
 export const TRAINING_BATCH_SIZE = 128;
 /** Number of samples to retain in memory */
-export const TRAINING_SAMPLE_BUFFER_SIZE = 1024 * 1024;
+export const TRAINING_SAMPLE_BUFFER_SIZE = 1024 * 512; // 1024;
 const gbBytes = 1024 * 1024 * 1024;
 /** Cap on disk space used for models */
 export const TRAINING_MAX_MODEL_BYTES = 16 * gbBytes;
