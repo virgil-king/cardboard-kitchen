@@ -43,7 +43,7 @@ export const TRAINING_MAX_MODEL_BYTES = 16 * gbBytes;
 export const TRAINING_MAX_EPISODE_BYTES = 64 * gbBytes;
 
 /** Number of episodes per evaluation batch */
-export const EVAL_EPISODES_PER_BATCH = 32;
+export const EVAL_EPISODES_PER_BATCH = 64;
 /** Number of evaluation batches per model */
 export const EVAL_BATCHES = 1;
 /** MCTS config used by the baseline agent during eval */
