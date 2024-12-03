@@ -26,6 +26,8 @@ const home = process.env.HOME;
 async function main() {
   const model = await createModel();
 
+  model.logSummary();
+
   const modelsDirPath = modelsDirectory("kingdomino", modelName);
   const modelsDir = new LogDirectory(modelsDirPath, TRAINING_MAX_MODEL_BYTES);
 

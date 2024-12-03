@@ -30,6 +30,9 @@ export interface Model<
   toJson(): Promise<tfcore.io.ModelArtifacts>;
 
   save(path: string): Promise<void>;
+
+  /** Logs a model summary to the console */
+  logSummary(): void;
 }
 
 export interface InferenceModel<

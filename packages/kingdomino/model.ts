@@ -436,7 +436,6 @@ export class KingdominoModel
     console.log(`Loading model from ${url}`);
     this.registerCustomTableTypes(tfRuntime);
     const layersModel = await tfRuntime.loadLayersModel(`${url}/model.json`);
-    // console.log(layersModel.getWeights().toString());
     console.log(
       `Input shape is ${(layersModel.input as tfTypes.SymbolicTensor[]).map(
         (t) => t.shape
@@ -449,8 +448,10 @@ export class KingdominoModel
   constructor(
     readonly model: tfTypes.LayersModel,
     readonly tfRuntime: TfModule
-  ) {
-    model.summary(200);
+  ) {}
+
+  logSummary() {
+    this.model.summary(200);
   }
 
   save(path: string): Promise<void> {
