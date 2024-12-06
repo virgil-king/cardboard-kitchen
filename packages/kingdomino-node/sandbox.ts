@@ -13,6 +13,7 @@ import { EpisodeTrainingData } from "training-data";
 import { EpisodeSnapshot } from "game";
 import { Model } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
+import { loadModelFromFile } from "./model.js";
 
 const modelName = "conv3";
 const home = process.env.HOME;
@@ -102,7 +103,7 @@ async function createModel(): Promise<
   if (modelPath == undefined) {
     return freshModel();
   }
-  const result = await KingdominoModel.loadFromFile(modelPath, tf);
+  const result = await loadModelFromFile(modelPath);
   console.log(`Loaded model from ${modelPath}`);
   return result;
 }

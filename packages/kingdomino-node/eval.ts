@@ -11,13 +11,12 @@ import {
   Kingdomino,
   KingdominoAction,
   KingdominoConfiguration,
-  KingdominoModel,
   KingdominoState,
   RandomKingdominoAgent,
 } from "kingdomino";
 import { requireDefined } from "studio-util";
 import { mcts, MctsAgent } from "mcts";
-import * as tf from "@tensorflow/tfjs-node-gpu";
+import { loadModelFromFile } from "./model.js";
 
 // Script to run eval episodes on a saved model
 
@@ -26,7 +25,7 @@ if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
 
-const model = KingdominoModel.loadFromFile(modelPath, tf);
+const model = loadModelFromFile(modelPath);
 console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);

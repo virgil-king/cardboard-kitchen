@@ -6,13 +6,26 @@ import {
   PlayerValues,
 } from "game";
 import { Map } from "immutable";
-import * as tfcore from "@tensorflow/tfjs-core";
 import { StateTrainingData } from "training-data";
+import * as io from "io-ts";
 
 export type InferenceResult<A extends Action> = {
   value: PlayerValues;
   policy: Map<A, number>;
 };
+
+export const modelMetadataCodec = io.type({
+  trainingSampleCount: io.number,
+});
+
+export type ModelMetadata = io.TypeOf<typeof modelMetadataCodec>;
+
+export const modelCodec = io.type({
+  modelArtifacts: io.any,
+  metadata: io.union([modelMetadataCodec, io.undefined]),
+});
+
+export type ModelCodecType = io.TypeOf<typeof modelCodec>;
 
 export interface Model<
   C extends GameConfiguration,
@@ -21,15 +34,16 @@ export interface Model<
   EncodedSampleT
 > {
   inferenceModel: InferenceModel<C, S, A>;
+
+  metadata: ModelMetadata | undefined;
+
   /**
    * Returns a training view of the model. {@link batchSize} is only used the
    * first time this method is called per model instance.
    */
   trainingModel(batchSize: number): TrainingModel<C, S, A, EncodedSampleT>;
 
-  toJson(): Promise<tfcore.io.ModelArtifacts>;
-
-  save(path: string): Promise<void>;
+  toJson(): Promise<ModelCodecType>;
 
   /** Logs a model summary to the console */
   logSummary(): void;

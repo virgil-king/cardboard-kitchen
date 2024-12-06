@@ -17,7 +17,14 @@ import {
 } from "./base.js";
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
-import { InferenceModel, InferenceResult, Model, TrainingModel } from "mcts";
+import {
+  InferenceModel,
+  InferenceResult,
+  Model,
+  ModelCodecType,
+  ModelMetadata,
+  TrainingModel,
+} from "mcts";
 import { Map, Range, Seq } from "immutable";
 import tfTypes from "@tensorflow/tfjs";
 import { Kingdomino } from "./kingdomino.js";
@@ -401,29 +408,9 @@ export class KingdominoModel
       outputs: [valueOutput, policyOutput],
     });
 
-    return new KingdominoModel(model, tfRuntime);
-  }
+    const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
 
-  /**
-   * @param path path to the directory containing the model files
-   */
-  static async loadFromFile(
-    path: string,
-    tfRuntime: TfModule
-  ): Promise<KingdominoModel> {
-    console.log(`Loading model from ${path}`);
-    this.registerCustomTableTypes(tfRuntime);
-    const layersModel = await tfRuntime.loadLayersModel(
-      `file://${path}/model.json`
-    );
-    // console.log(layersModel.getWeights().toString());
-    console.log(
-      `Input shape is ${(layersModel.input as tfTypes.SymbolicTensor[]).map(
-        (t) => t.shape
-      )}`
-    );
-
-    return new KingdominoModel(layersModel, tfRuntime);
+    return new KingdominoModel(model, tfRuntime, metadata);
   }
 
   /**
@@ -442,23 +429,22 @@ export class KingdominoModel
       )}`
     );
 
-    return new KingdominoModel(layersModel, tfRuntime);
+    // Loading metadata from URLs is not supported
+    const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
+
+    return new KingdominoModel(layersModel, tfRuntime, metadata);
   }
 
   constructor(
     readonly model: tfTypes.LayersModel,
-    readonly tfRuntime: TfModule
-  ) {}
+    readonly tfRuntime: TfModule,
+    readonly metadata: ModelMetadata | undefined
+  ) {
+    console.log(`Constructor metadata is ${JSON.stringify(metadata)}`);
+  }
 
   logSummary() {
     this.model.summary(200);
-  }
-
-  save(path: string): Promise<void> {
-    return new Promise((r) => {
-      this.model.save(`file://${path}`);
-      r();
-    });
   }
 
   trainingModel(batchSize: number = 128): KingdominoTrainingModel {
@@ -677,11 +663,16 @@ export class KingdominoModel
     };
   }
 
-  toJson(): Promise<tfTypes.io.ModelArtifacts> {
+  toJson(): Promise<ModelCodecType> {
     return new Promise((resolve) =>
       this.model.save({
         save: (modelArtifacts: tfTypes.io.ModelArtifacts) => {
-          resolve(modelArtifacts);
+          console.log(
+            `Resolving toJson result with metadata ${JSON.stringify(
+              this.metadata
+            )}`
+          );
+          resolve({ modelArtifacts: modelArtifacts, metadata: this.metadata });
 
           return Promise.resolve({
             modelArtifactsInfo: {
@@ -695,16 +686,16 @@ export class KingdominoModel
   }
 
   static async fromJson(
-    artifacts: tfTypes.io.ModelArtifacts,
+    encoded: ModelCodecType,
     tfRuntime: TfModule
   ): Promise<KingdominoModel> {
     this.registerCustomTableTypes(tfRuntime);
     const model = await tfRuntime.loadLayersModel({
       load: () => {
-        return Promise.resolve(artifacts);
+        return Promise.resolve(encoded.modelArtifacts);
       },
     });
-    return new KingdominoModel(model, tfRuntime);
+    return new KingdominoModel(model, tfRuntime, encoded.metadata);
   }
 }
 
@@ -1274,6 +1265,12 @@ export class KingdominoTrainingModel
     valueOutputTensor.dispose();
     policyOutputTensor.dispose();
     console.log(fitResult);
+
+    const metadata = this.model.metadata;
+    if (metadata != undefined) {
+      metadata.trainingSampleCount += dataPoints.length;
+    }
+
     return (fitResult as number[])[0];
   }
 

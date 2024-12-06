@@ -2,14 +2,8 @@ import { train_parallel, modelsDirectory } from "training";
 import _ from "lodash";
 import {
   Kingdomino,
-  KingdominoAction,
-  KingdominoConfiguration,
-  KingdominoModel,
-  KingdominoState,
 } from "kingdomino";
-import { newestModelPath, LogDirectory } from "training";
-import { Model } from "mcts";
-import * as tf from "@tensorflow/tfjs-node-gpu";
+import { LogDirectory } from "training";
 import {
   SELF_PLAY_WORKER_COUNT,
   TRAINING_BATCH_SIZE,
@@ -17,14 +11,15 @@ import {
   TRAINING_MAX_MODEL_BYTES,
   TRAINING_SAMPLE_BUFFER_SIZE,
 } from "./config.js";
+import { createModel, saveModel } from "./model.js";
 
 // Top-level script for Kingdomino training
 
-const modelName = "conv7";
+const modelName = "test";
 const home = process.env.HOME;
 
 async function main() {
-  const model = await createModel();
+  const model = await createModel(modelName);
 
   model.logSummary();
 
@@ -46,26 +41,9 @@ async function main() {
     SELF_PLAY_WORKER_COUNT,
     "./out/eval-worker.js",
     modelsDir,
+    saveModel,
     episodesDir
   );
-}
-
-async function createModel(): Promise<
-  Model<KingdominoConfiguration, KingdominoState, KingdominoAction, any>
-> {
-  const modelPath = newestModelPath("kingdomino", modelName);
-  if (modelPath == undefined) {
-    return freshModel();
-  }
-  const result = await KingdominoModel.loadFromFile(modelPath, tf);
-  console.log(`Loaded model from ${modelPath}`);
-  return result;
-}
-
-function freshModel() {
-  const result = KingdominoModel.fresh(tf);
-  console.log("Created randomly initialized model");
-  return result;
 }
 
 main();

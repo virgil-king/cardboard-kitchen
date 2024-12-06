@@ -18,7 +18,7 @@ import { List, Map, Range, Seq } from "immutable";
 import { InferenceResult, Model } from "../mcts/model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
-import * as fs from "fs";
+import fs from "node:fs/promises";
 import {
   ActionStatistics,
   EpisodeTrainingData,
@@ -37,7 +37,7 @@ const textEncoder = new TextEncoder();
 // be saved to persistent storage
 const testing = false;
 
-const timeBetweenModelSavesMs = 15 * 60 * 1_000;
+const timeBetweenModelSavesMs = 1 * 60 * 1_000;
 
 /**
  * How many self-play episode batches to receive from all self-play
@@ -54,20 +54,22 @@ export async function train_parallel<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action,
-  EncodedSampleT
+  EncodedSampleT,
+  ModelT extends Model<C, S, A, EncodedSampleT>
 >(
   game: Game<C, S, A>,
-  model: Model<C, S, A, EncodedSampleT>,
+  model: ModelT,
   batchSize: number,
   sampleBufferSize: number,
   selfPlayWorkerScript: string,
   selfPlayWorkerCount: number,
   evalWorkerScript: string,
   modelsDir: LogDirectory,
+  saveModel: (model: ModelT, path: string) => Promise<void>,
   episodesDir?: LogDirectory
 ) {
   const trainingModel = model.trainingModel(batchSize);
-  const modelArtifacts = await model.toJson();
+  const encodedModel = await model.toJson();
 
   const buffer = new EpisodeBuffer<
     StateTrainingData<C, S, A>,
@@ -87,7 +89,7 @@ export async function train_parallel<
 
   let initialEpisodeCount = 0;
   if (episodesDir != undefined) {
-    for (const encodedEpisode of loadEpisodesJson(episodesDir.path)) {
+    for await (const encodedEpisode of loadEpisodesJson(episodesDir.path)) {
       addEpisodeToBuffer(encodedEpisode);
       initialEpisodeCount++;
       if (buffer.sampleCount() >= sampleBufferSize) {
@@ -130,7 +132,7 @@ export async function train_parallel<
       workerData: channel.port2,
       transferList: [channel.port2],
     });
-    channel.port1.postMessage(modelArtifacts);
+    channel.port1.postMessage(encodedModel);
     workers.push(worker);
     workerPorts.push(channel.port1);
   }
@@ -142,9 +144,9 @@ export async function train_parallel<
     transferList: [evalWorkerChannel.port2],
   });
   evalWorkerChannel.port1.on("message", async (_) => {
-    console.log(`Received completion from eval worker; sending new model`)
-    const modelArtifacts = await model.toJson();
-    evalWorkerChannel.port1.postMessage(modelArtifacts);
+    console.log(`Received completion from eval worker; sending new model`);
+    const encodedModel = await model.toJson();
+    evalWorkerChannel.port1.postMessage(encodedModel);
   });
 
   await bufferReady.promise;
@@ -197,9 +199,9 @@ export async function train_parallel<
         `Broadcasting updated model after ${episodeBatchesReceived} episode batches`
       );
       episodeBatchesReceivedAtLastModelUpdate = episodeBatchesReceived;
-      const modelArtifacts = await model.toJson();
+      const encodedModel = await model.toJson();
       for (const port of workerPorts) {
-        port.postMessage(modelArtifacts);
+        port.postMessage(encodedModel);
       }
     }
     const now = performance.now();
@@ -209,9 +211,9 @@ export async function train_parallel<
       timeSinceLastSave > timeBetweenModelSavesMs &&
       !testing
     ) {
-      modelsDir.write((path) => {
-        fs.mkdirSync(path);
-        return model.save(path);
+      await modelsDir.write(async (path) => {
+        await fs.mkdir(path);
+        return saveModel(model, path);
       });
       lastSaveTime = now;
       console.log(
@@ -221,11 +223,11 @@ export async function train_parallel<
   }
 }
 
-function* loadEpisodesJson(episodesDir: string): Generator<any> {
-  const files = fs.readdirSync(episodesDir);
+async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
+  const files = await fs.readdir(episodesDir);
   let filenameToModeTime = Map<string, number>();
   for (const filename of files) {
-    const stat = fs.statSync(episodesDir + "/" + filename);
+    const stat = await fs.stat(episodesDir + "/" + filename);
     filenameToModeTime = filenameToModeTime.set(filename, stat.mtimeMs);
   }
   const filesByDescendingModTime = files.sort(
@@ -236,7 +238,7 @@ function* loadEpisodesJson(episodesDir: string): Generator<any> {
   for (const filename of filesByDescendingModTime) {
     const path = episodesDir + "/" + filename;
     console.log(`Loading episode ${path}`);
-    const episodeString = fs.readFileSync(path, {
+    const episodeString = await fs.readFile(path, {
       encoding: "utf8",
     });
     yield JSON.parse(episodeString);
@@ -266,7 +268,11 @@ export async function* selfPlayEpisode<
     throw new Error(`episode called on completed state`);
   }
   const inferenceResult = yield snapshot;
-  let root = new mcts.NonTerminalStateNode(mctsContext, snapshot, inferenceResult);
+  let root = new mcts.NonTerminalStateNode(
+    mctsContext,
+    snapshot,
+    inferenceResult
+  );
   const nonTerminalStates = new Array<StateSearchData<S, A>>();
   while (game.result(snapshot) == undefined) {
     const currentPlayer = requireDefined(game.currentPlayer(snapshot));
@@ -328,7 +334,11 @@ export async function* selfPlayEpisode<
       }
       root = existingStateNode;
     } else {
-      root = new mcts.NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
+      root = new mcts.NonTerminalStateNode(
+        mctsContext,
+        snapshot,
+        yield snapshot
+      );
     }
   }
   const elapsedMs = performance.now() - startMs;

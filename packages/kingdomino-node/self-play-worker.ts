@@ -10,7 +10,7 @@ import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { Range } from "immutable";
-import { mcts } from "mcts";
+import { mcts, ModelCodecType } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import {
   SELF_PLAY_MCTS_CONFIG,
@@ -31,10 +31,15 @@ const episodeConfig = new EpisodeConfiguration(players);
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  const newModel = await KingdominoModel.fromJson(message, tf);
+  const typedMessage = message as ModelCodecType;
+  const newModel = await KingdominoModel.fromJson(typedMessage, tf);
   model?.model.dispose();
   model = newModel;
-  console.log(`Self-play worker received new model`);
+  console.log(
+    `Self-play worker received new model with metadata ${JSON.stringify(
+      newModel.metadata
+    )}`
+  );
   ready.fulfill(undefined);
 });
 

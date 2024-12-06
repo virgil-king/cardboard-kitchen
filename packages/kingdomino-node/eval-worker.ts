@@ -5,6 +5,7 @@ import { Range } from "immutable";
 import { evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
+import { ModelCodecType, ModelMetadata } from "mcts";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -19,6 +20,7 @@ type EvalLogEntry = {
   time: string;
   subjectPoints: number;
   baselinePoints: number;
+  modelMetadata?: ModelMetadata;
 };
 
 const log = new Array<EvalLogEntry>();
@@ -28,9 +30,14 @@ let evalsInProgress = 0;
 messagePort.on("message", async (message: any) => {
   evalsInProgress++;
   const date = new Date();
-  const newModel = await KingdominoModel.fromJson(message, tf);
+  const typedMessage = message as ModelCodecType;
+  const newModel = await KingdominoModel.fromJson(typedMessage, tf);
   modelNumber++;
-  console.log(`Eval worker received model #${modelNumber}`);
+  console.log(
+    `Eval worker model #${modelNumber} with metadata ${JSON.stringify(
+      newModel.metadata
+    )}`
+  );
 
   let subjectPoints = 0;
   let baselinePoints = 0;
@@ -59,6 +66,7 @@ messagePort.on("message", async (message: any) => {
     time: date.toISOString(),
     subjectPoints: subjectPoints,
     baselinePoints: baselinePoints,
+    modelMetadata: newModel.metadata,
   } satisfies EvalLogEntry;
   log.push(logEntry);
   const logString = JSON.stringify(log, undefined, 4);
