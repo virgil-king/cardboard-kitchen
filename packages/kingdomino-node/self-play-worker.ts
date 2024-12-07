@@ -8,14 +8,10 @@ import { EpisodeConfiguration, Player, Players } from "game";
 import { selfPlayEpisode } from "training";
 import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
-import * as fs from "fs";
 import { Range } from "immutable";
 import { mcts, ModelCodecType } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
-import {
-  SELF_PLAY_MCTS_CONFIG,
-  SELF_PLAY_EPISODES_PER_BATCH,
-} from "./config.js";
+import { SELF_PLAY_MCTS_CONFIG, kingdominoConv7 } from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -43,10 +39,6 @@ messagePort.on("message", async (message: any) => {
   ready.fulfill(undefined);
 });
 
-const home = process.env.HOME;
-const gamesDir = `${home}/ckdata/kingdomino/games`;
-fs.mkdirSync(gamesDir, { recursive: true });
-
 async function main() {
   await ready.promise;
 
@@ -62,7 +54,7 @@ async function main() {
       stats: new mcts.MctsStats(),
     };
 
-    const generators = Range(0, SELF_PLAY_EPISODES_PER_BATCH)
+    const generators = Range(0, kingdominoConv7.selfPlayEpisodesPerBatch)
       .map((i) => {
         return selfPlayEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
       })

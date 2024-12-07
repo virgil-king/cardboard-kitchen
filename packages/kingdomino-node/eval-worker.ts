@@ -4,17 +4,14 @@ import { KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
 import { evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
-import { EVAL_BATCHES, EVAL_EPISODES_PER_BATCH } from "./config.js";
+import { kingdominoConv7 } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "mcts";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let modelNumber = 0;
 
-const home = process.env.HOME;
-const logsDir = `${home}/ckdata/kingdomino/logs`;
-fs.mkdirSync(logsDir, { recursive: true });
-const logFilePath = `${logsDir}/${new Date().toISOString()}`;
+const logFilePath = await kingdominoConv7.logFile();
 
 type EvalLogEntry = {
   time: string;
@@ -41,10 +38,10 @@ messagePort.on("message", async (message: any) => {
 
   let subjectPoints = 0;
   let baselinePoints = 0;
-  for (const i of Range(0, EVAL_BATCHES)) {
+  for (const i of Range(0, kingdominoConv7.evalBatchCount)) {
     const batchResult = await evalEpisodeBatch(
       newModel.inferenceModel,
-      EVAL_EPISODES_PER_BATCH
+      kingdominoConv7.evalEpisodesPerBatch
     );
     subjectPoints += batchResult.subjectPoints;
     baselinePoints += batchResult.baselinePoints;

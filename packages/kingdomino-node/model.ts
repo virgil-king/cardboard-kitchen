@@ -3,10 +3,12 @@ import * as tf from "@tensorflow/tfjs-node-gpu";
 import fs from "node:fs/promises";
 import { decodeOrThrow } from "studio-util";
 import { ModelMetadata, modelMetadataCodec } from "mcts";
-import { newestModelPath } from "training";
+import { Experiment } from "training";
 
-export async function createModel(name: string): Promise<KingdominoModel> {
-  const modelPath = newestModelPath("kingdomino", name);
+export async function createModel(
+  experiment: Experiment
+): Promise<KingdominoModel> {
+  const modelPath = await experiment.newestModelPath();
   if (modelPath == undefined) {
     return freshModel();
   }

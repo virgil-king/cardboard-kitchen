@@ -37,7 +37,7 @@ const textEncoder = new TextEncoder();
 // be saved to persistent storage
 const testing = false;
 
-const timeBetweenModelSavesMs = 1 * 60 * 1_000;
+const timeBetweenModelSavesMs = 15 * 60 * 1_000;
 
 /**
  * How many self-play episode batches to receive from all self-play
@@ -66,7 +66,7 @@ export async function train_parallel<
   evalWorkerScript: string,
   modelsDir: LogDirectory,
   saveModel: (model: ModelT, path: string) => Promise<void>,
-  episodesDir?: LogDirectory
+  episodesDir: LogDirectory
 ) {
   const trainingModel = model.trainingModel(batchSize);
   const encodedModel = await model.toJson();
@@ -88,18 +88,16 @@ export async function train_parallel<
   }
 
   let initialEpisodeCount = 0;
-  if (episodesDir != undefined) {
-    for await (const encodedEpisode of loadEpisodesJson(episodesDir.path)) {
-      addEpisodeToBuffer(encodedEpisode);
-      initialEpisodeCount++;
-      if (buffer.sampleCount() >= sampleBufferSize) {
-        break;
-      }
+  for await (const encodedEpisode of loadEpisodesJson(episodesDir.path)) {
+    addEpisodeToBuffer(encodedEpisode);
+    initialEpisodeCount++;
+    if (buffer.sampleCount() >= sampleBufferSize) {
+      break;
     }
-    console.log(
-      `Loaded ${initialEpisodeCount} episodes; sample buffer size is ${buffer.sampleCount()} with maximum ${sampleBufferSize}`
-    );
   }
+  console.log(
+    `Loaded ${initialEpisodeCount} episodes; sample buffer size is ${buffer.sampleCount()} with maximum ${sampleBufferSize}`
+  );
 
   let episodesReceived = 0;
   let episodeBatchesReceived = 0;
@@ -107,7 +105,7 @@ export async function train_parallel<
   function receiveEpisodeBatch(episodes: Array<any>) {
     for (const episodeJson of episodes) {
       addEpisodeToBuffer(episodeJson);
-      if (episodesDir != undefined && !testing) {
+      if (!testing) {
         episodesDir.writeData(
           textEncoder.encode(JSON.stringify(episodeJson, undefined, 1))
         );

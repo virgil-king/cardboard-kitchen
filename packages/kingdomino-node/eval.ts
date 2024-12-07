@@ -1,11 +1,6 @@
 import { Map, Range } from "immutable";
-import {
-  EpisodeConfiguration,
-  generateEpisode,
-  Player,
-  Players,
-} from "game";
-import { newestModelPath } from "training";
+import { EpisodeConfiguration, generateEpisode, Player, Players } from "game";
+import {} from "training";
 
 import {
   Kingdomino,
@@ -17,10 +12,11 @@ import {
 import { requireDefined } from "studio-util";
 import { mcts, MctsAgent } from "mcts";
 import { loadModelFromFile } from "./model.js";
+import { kingdominoConv7 } from "./config.js";
 
 // Script to run eval episodes on a saved model
 
-const modelPath = newestModelPath("kingdomino", "conv3");
+const modelPath = await kingdominoConv7.newestModelPath();
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }

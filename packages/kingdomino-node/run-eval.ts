@@ -1,10 +1,9 @@
-import { newestModelPath } from "training";
-import { KingdominoModel } from "kingdomino";
+import {} from "training";
 import { evalEpisodeBatch } from "./eval-concurrent.js";
-import * as tf from "@tensorflow/tfjs-node-gpu";
 import { loadModelFromFile } from "./model.js";
+import { kingdominoConv7 } from "./config.js";
 
-const modelPath = newestModelPath("kingdomino", "conv3");
+const modelPath = await kingdominoConv7.newestModelPath();
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
@@ -14,7 +13,6 @@ console.log(`Loaded model from ${modelPath}`);
 
 const episodeCount = parseInt(process.argv[2]);
 console.log(`episodeCount is ${episodeCount}`);
-
 
 async function main() {
   evalEpisodeBatch((await model).inferenceModel, episodeCount);
