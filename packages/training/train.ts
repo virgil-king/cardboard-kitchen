@@ -19,6 +19,7 @@ import {
   StateTrainingData,
 } from "training-data";
 import { LogDirectory } from "./logdirectory.js";
+import * as tf from "@tensorflow/tfjs";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
@@ -158,6 +159,7 @@ export async function train_parallel<
     const beforeTrain = performance.now();
     const loss = await trainingModel.train(batch);
     const afterTrain = performance.now();
+    console.log(JSON.stringify(tf.memory(), undefined, 2));
     const totalBatchTime = afterTrain - beforeBatch;
     console.log(
       `Batch time ${decimalFormat.format(
