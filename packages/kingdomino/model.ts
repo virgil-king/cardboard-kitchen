@@ -77,9 +77,9 @@ import { TfModule } from "./tf.js";
  *
  * Can be used to scale model size across multiple axes.
  */
-const SIZE_FACTOR = 32;
+const SIZE_FACTOR = 16;
 
-const HIDDEN_LAYER_WIDTH = 128;
+const HIDDEN_LAYER_WIDTH = 64;
 
 class TerrainTypeCodec implements VectorCodec<Terrain> {
   private readonly oneHotCodec = new OneHotCodec(terrainValues.length);

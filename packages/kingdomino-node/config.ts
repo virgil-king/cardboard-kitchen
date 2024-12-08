@@ -10,9 +10,9 @@ import { Experiment } from "training";
 // This file contains configuration for self-play, training, and eval
 
 export const kingdominoConv7 = new Experiment({
-  name: "kingdomino-conv7-1-self-play",
+  name: "kingdomino-conv8",
   selfPlayEpisodesPerBatch: 64,
-  selfPlayWorkerCount: 1,
+  selfPlayWorkerCount: 2,
 
   trainingBatchSize: 128,
 
