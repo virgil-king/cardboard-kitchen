@@ -368,10 +368,10 @@ export class NonTerminalStateNode<
    * Selects an action, visits the corresponding action node, updates this node's
    * expected values based on that visit, and returns this node's new expected values
    */
-  async visit(): Promise<PlayerValues> {
+  async visit(selectUnvisitedActionsFirst: boolean = false): Promise<PlayerValues> {
     this.incompleteVisitCount++;
 
-    const action = this.selectAction();
+    const action = this.selectAction(selectUnvisitedActionsFirst);
     let child = this.actionToChild.get(action);
     if (child == undefined) {
       throw new Error(
@@ -392,7 +392,7 @@ export class NonTerminalStateNode<
     );
   }
 
-  selectAction(): A {
+  selectAction(selectUnvisitedActionsFirst: boolean): A {
     let maxUcb = Number.NEGATIVE_INFINITY;
     let maxUcbAction: A | undefined = undefined;
     const currentPlayer = requireDefined(
@@ -400,7 +400,7 @@ export class NonTerminalStateNode<
     );
     const ucbs = [];
     for (const [action, child] of this.actionToChild) {
-      if (child.combinedVisitCount == 0) {
+      if (selectUnvisitedActionsFirst && child.combinedVisitCount == 0) {
         debugLog(
           () => `Selecting ${JSON.stringify(action)} because it is unvisited`
         );
@@ -430,8 +430,8 @@ export class NonTerminalStateNode<
         (childEv ?? 0) +
         (child.prior *
           this.context.config.explorationBias *
-          Math.sqrt(Math.log(this.combinedVisitCount))) /
-          child.combinedVisitCount;
+          Math.sqrt(Math.log(1 + this.combinedVisitCount))) /
+          (1 + child.combinedVisitCount);
       ucbs.push(ucb);
       if (ucb > maxUcb) {
         debugLog(

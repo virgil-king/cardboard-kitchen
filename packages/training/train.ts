@@ -1,28 +1,21 @@
 import {
   SettablePromise,
-  proportionalRandom,
   requireDefined,
   sleep,
 } from "studio-util";
 import {
   Action,
-  EpisodeConfiguration,
-  EpisodeSnapshot,
   Game,
   GameConfiguration,
   GameState,
-  PlayerValues,
 } from "game";
-import { mcts } from "mcts";
-import { List, Map, Range, Seq } from "immutable";
-import { InferenceResult, Model } from "../mcts/model.js";
+import { List, Map } from "immutable";
+import { Model } from "../mcts/model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
 import {
-  ActionStatistics,
   EpisodeTrainingData,
-  StateSearchData,
   StateTrainingData,
 } from "training-data";
 import { LogDirectory } from "./logdirectory.js";
@@ -241,113 +234,4 @@ async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
     });
     yield JSON.parse(episodeString);
   }
-}
-
-/**
- * Generator function for self-play episodes. Yields snapshots, receives inference
- * results, and returns episode training data.
- */
-export async function* selfPlayEpisode<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
->(
-  game: Game<C, S, A>,
-  mctsContext: mcts.MctsContext<C, S, A>,
-  episodeConfig: EpisodeConfiguration
-): AsyncGenerator<
-  EpisodeSnapshot<C, S>,
-  EpisodeTrainingData<C, S, A>,
-  InferenceResult<A>
-> {
-  const startMs = performance.now();
-  let snapshot = game.newEpisode(episodeConfig);
-  if (game.result(snapshot) != undefined) {
-    throw new Error(`episode called on completed state`);
-  }
-  const inferenceResult = yield snapshot;
-  let root = new mcts.NonTerminalStateNode(
-    mctsContext,
-    snapshot,
-    inferenceResult
-  );
-  const nonTerminalStates = new Array<StateSearchData<S, A>>();
-  while (game.result(snapshot) == undefined) {
-    const currentPlayer = requireDefined(game.currentPlayer(snapshot));
-    // Run simulationCount steps or enough to try every possible action once
-    let selectedAction: A | undefined = undefined;
-    if (root.actionToChild.size == 1) {
-      // When root has exactly one child, visit it once to populate the
-      // action statistics, but no further visits are necessary
-      yield* root.visit();
-      selectedAction = root.actionToChild.keys().next().value;
-    } else {
-      for (let _i of Range(
-        0,
-        Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
-      )) {
-        yield* root.visit();
-      }
-      // TODO incorporate noise
-      const actionToVisitCount = Seq.Keyed(root.actionToChild).map(
-        (node) => node.visitCount
-      );
-      selectedAction = proportionalRandom(actionToVisitCount);
-    }
-    const stateSearchData = new StateSearchData(
-      snapshot.state,
-      root.inferenceResult.value,
-      Map(
-        Seq(root.actionToChild.entries()).map(([action, child]) => [
-          action,
-          new ActionStatistics(
-            child.prior,
-            child.visitCount,
-            new PlayerValues(child.playerExpectedValues.playerIdToValue)
-          ),
-        ])
-      )
-    );
-    nonTerminalStates.push(stateSearchData);
-    const [newState, chanceKey] = game.apply(
-      snapshot,
-      requireDefined(selectedAction)
-    );
-    snapshot = snapshot.derive(newState);
-    if (game.result(snapshot) != undefined) {
-      break;
-    }
-
-    // Reuse the node for newState from the previous search tree if it exists.
-    // It might not exist if there was non-determinism in the application of the
-    // latest action.
-    const existingStateNode = root.actionToChild
-      .get(requireDefined(selectedAction))
-      ?.chanceKeyToChild.get(chanceKey);
-    if (existingStateNode != undefined) {
-      if (!(existingStateNode instanceof mcts.NonTerminalStateNode)) {
-        throw new Error(
-          `Node for non-terminal state was not NonTerminalStateNode`
-        );
-      }
-      root = existingStateNode;
-    } else {
-      root = new mcts.NonTerminalStateNode(
-        mctsContext,
-        snapshot,
-        yield snapshot
-      );
-    }
-  }
-  const elapsedMs = performance.now() - startMs;
-  console.log(
-    `Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`
-  );
-  return new EpisodeTrainingData(
-    episodeConfig,
-    snapshot.gameConfiguration,
-    nonTerminalStates,
-    snapshot.state,
-    requireDefined(game.result(snapshot))
-  );
 }

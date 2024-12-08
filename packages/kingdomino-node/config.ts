@@ -10,19 +10,19 @@ import { Experiment } from "training";
 // This file contains configuration for self-play, training, and eval
 
 export const kingdominoConv7 = new Experiment({
-  name: "kingdomino-conv7",
-  selfPlayEpisodesPerBatch: 128,
+  name: "kingdomino-conv7-1-self-play",
+  selfPlayEpisodesPerBatch: 64,
   selfPlayWorkerCount: 1,
 
   trainingBatchSize: 128,
 
-  evalEpisodesPerBatch: 128,
+  evalEpisodesPerBatch: 32,
   evalBatchCount: 1,
 });
 
 // Defaults for self-play and eval
 const mctsConfigDefaults = {
-  simulationCount: 256,
+  simulationCount: 128,
   // This value is tailored to four-player episodes, where the maximum
   // value for one player is 3. It should be updated when episodes with
   // other player counts are included.

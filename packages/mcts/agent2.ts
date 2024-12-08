@@ -76,7 +76,7 @@ export class MctsAgent2<
 
     let batchStart = performance.now();
     for (let _ of Range(0, simulationCount)) {
-      visitResults.push(root.visit());
+      visitResults.push(root.visit(true));
       if (this.batchingModel.requests.length >= this.batchSize) {
         this.batchingModel.fulfillRequests();
         await throwFirstRejection(visitResults);

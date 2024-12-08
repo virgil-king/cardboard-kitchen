@@ -12,7 +12,6 @@ import {
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
 import {
-  driveAsyncGenerator,
   requireDefined,
   weightedMerge,
 } from "studio-util";
@@ -343,11 +342,9 @@ export class NonTerminalStateNode<
    * this node's expected values based on that visit, and returns this node's
    * new expected values
    */
-  async *visit(): AsyncGenerator<
-    EpisodeSnapshot<C, S>,
-    PlayerValues,
-    InferenceResult<A>
-  > {
+  async *visit(
+    selectUnvisitedActionsFirst: boolean = false
+  ): AsyncGenerator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     this.visitCount++;
 
     const episodeResult = this.context.game.result(this.snapshot);
@@ -357,7 +354,7 @@ export class NonTerminalStateNode<
       return episodeResult;
     }
 
-    const action = this.selectAction();
+    const action = this.selectAction(selectUnvisitedActionsFirst);
     let child = this.actionToChild.get(action);
     if (child == undefined) {
       throw new Error(
@@ -375,7 +372,7 @@ export class NonTerminalStateNode<
     return childResult;
   }
 
-  selectAction(): A {
+  selectAction(selectUnvisitedActionsFirst: boolean): A {
     let maxUcb = Number.NEGATIVE_INFINITY;
     let maxUcbAction: A | undefined = undefined;
     const currentPlayer = requireDefined(
@@ -384,12 +381,25 @@ export class NonTerminalStateNode<
     const childEvs = [];
     const ucbs = [];
     for (const [action, child] of this.actionToChild) {
-      if (child.visitCount == 0) {
+      if (selectUnvisitedActionsFirst && child.visitCount == 0) {
         debugLog(
           () => `Selecting ${JSON.stringify(action)} because it is unvisited`
         );
         return action;
       }
+
+      const childEv = child.playerExpectedValues.playerIdToValue.get(
+        currentPlayer.id
+      );
+      childEvs.push(childEv);
+      // TODO move child.visitCount inside the sqrt?
+      const ucb =
+        (childEv ?? 0) +
+        (child.prior *
+          this.context.config.explorationBias *
+          Math.sqrt(Math.log(1 + this.visitCount))) /
+          (1 + child.visitCount);
+      ucbs.push(ucb);
 
       debugLog(
         () =>
@@ -397,20 +407,11 @@ export class NonTerminalStateNode<
             action
           )} with current value ${child.playerExpectedValues.playerIdToValue.get(
             currentPlayer.id
-          )}, prior ${child.prior}, and visit count ${child.visitCount}`
+          )}, prior ${child.prior}, visit count ${
+            child.visitCount
+          }, and UCB score ${ucb}`
       );
-      const childEv = child.playerExpectedValues.playerIdToValue.get(
-        currentPlayer.id
-      );
-      childEvs.push(childEv);
-      // TODO move child.visitCount inside the sqrt?
-      const ucb =
-        requireDefined(childEv) +
-        (child.prior *
-          this.context.config.explorationBias *
-          Math.sqrt(Math.log(this.visitCount))) /
-          child.visitCount;
-      ucbs.push(ucb);
+
       // console.log(`ucb is ${ucb}`);
       if (ucb > maxUcb) {
         debugLog(
@@ -473,62 +474,6 @@ export class TerminalStateNode<
     this.visitCount++;
     return this.result;
   }
-}
-
-/**
- * Returns a map from possible actions from {@link snapshot} to their predicted
- * values for all players.
- *
- * This function is not currently used in production since it doesn't support
- * batch inference.
- *
- * @param config MCTS configuration
- * @param game game with which to simulate episodes
- * @param model model to use to guide MCTS
- * @param snapshot game state from which to search
- * @returns map from valid actions to their expected values
- */
-export async function mcts<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
->(
-  config: MctsConfig<C, S, A>,
-  game: Game<C, S, A>,
-  model: InferenceModel<C, S, A>,
-  snapshot: EpisodeSnapshot<C, S>
-): Promise<ImmutableMap<A, PlayerValues>> {
-  const context: MctsContext<C, S, A> = {
-    config: config,
-    game: game,
-    model: model,
-    stats: new MctsStats(),
-  };
-  const inferenceResult = (await model.infer([snapshot]))[0];
-  const root = new NonTerminalStateNode(context, snapshot, inferenceResult);
-  for (let step = 0; step < config.simulationCount; step++) {
-    debugLog(() => `New simulation`);
-
-    await driveAsyncGenerator(root.visit(), async (snapshot) => {
-      const batchResult = await model.infer([snapshot]);
-      return batchResult[0];
-    });
-  }
-  const result = ImmutableMap(
-    Seq(root.actionToChild.entries()).map(([action, node]) => [
-      action,
-      new PlayerValues(node.playerExpectedValues.playerIdToValue),
-    ])
-  );
-  debugLog(
-    () =>
-      `Result is ${JSON.stringify(
-        result.toArray().map(([key, value]) => [JSON.stringify(key), value]),
-        null,
-        2
-      )}`
-  );
-  return result;
 }
 
 /**

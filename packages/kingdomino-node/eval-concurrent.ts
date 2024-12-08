@@ -270,7 +270,7 @@ async function* selectAction<
       0,
       Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
     )) {
-      yield* root.visit();
+      yield* root.visit(true);
     }
     // Greedily select action with greatest expected value
     const [selectedAction] = requireDefined(
