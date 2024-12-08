@@ -15,15 +15,33 @@ import { Map } from "immutable";
 import { decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
 
+/**
+ * Interface for sequences that allows values to be instantiated lazily
+ */
 export interface ReadonlyArrayLike<T> {
   count(): number;
   get(index: number): T;
 }
 
-export class ActionStatistics {
+// The following two interfaces allow multiple concrete types to be used
+// as inputs to logic that computes derived properties of search trees
+
+export interface StateNodeInfo<A extends Action> {
+  readonly visitCount: number;
+  readonly predictedValues: PlayerValues;
+  readonly actionToNodeInfo: Map<A, ActionNodeInfo>;
+}
+
+export interface ActionNodeInfo {
+  readonly visitCount: number;
+  readonly priorProbability: number;
+  readonly expectedValues: PlayerValues;
+}
+
+export class ActionStatistics implements ActionNodeInfo {
   constructor(
     /** Predicted probability that the current player would select this action */
-    readonly prior: number,
+    readonly priorProbability: number,
     /** Number of times the action was visited by MCTS */
     readonly visitCount: number,
     /** Player values assigned by MCTS for the action */
@@ -31,7 +49,7 @@ export class ActionStatistics {
   ) {}
   toJson(): EncodedActionStatistics {
     return {
-      prior: this.prior,
+      prior: this.priorProbability,
       visitCount: this.visitCount,
       expectedValues: this.expectedValues.toJson(),
     };
@@ -57,6 +75,7 @@ const stateSearchDataJson = io.type({
   state: io.any,
   predictedValues: playerValuesJson,
   actionToStatistics: io.array(io.tuple([io.any, actionStatisticsJson])),
+  visitCount: io.number,
 });
 
 type EncodedStateSearchData = io.TypeOf<typeof stateSearchDataJson>;
@@ -65,14 +84,20 @@ type EncodedStateSearchData = io.TypeOf<typeof stateSearchDataJson>;
  * Record of data associated with state search from one state
  */
 export class StateSearchData<S extends GameState, A extends Action>
-  implements JsonSerializable
+  implements JsonSerializable, StateNodeInfo<A>
 {
   constructor(
     readonly state: S,
     /** Model-predicted values for this state, for diagnostic purposes only */
     readonly predictedValues: PlayerValues,
-    readonly actionToStatistics: Map<A, ActionStatistics>
+    readonly actionToStatistics: Map<A, ActionStatistics>,
+    readonly visitCount: number
   ) {}
+
+  get actionToNodeInfo(): Map<A, ActionNodeInfo> {
+    return this.actionToStatistics;
+  }
+
   toJson(): EncodedStateSearchData {
     return {
       state: this.state.toJson(),
@@ -84,6 +109,7 @@ export class StateSearchData<S extends GameState, A extends Action>
           value.toJson(),
         ])
         .toArray(),
+      visitCount: this.visitCount,
     };
   }
   static decode<S extends GameState, A extends Action>(
@@ -99,18 +125,18 @@ export class StateSearchData<S extends GameState, A extends Action>
           game.decodeAction(encodedAction),
           ActionStatistics.decode(encodedValue),
         ])
-      )
+      ),
+      decoded.visitCount
     );
   }
 }
-
-const StateTrainingDataJson = io.type({});
 
 export class StateTrainingData<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> {
+> implements StateNodeInfo<A>
+{
   constructor(
     /** Game state */
     // Consider pre-encoding as vectors to move work from the training thread to
@@ -120,8 +146,9 @@ export class StateTrainingData<
     readonly actionToStatistics: Map<A, ActionStatistics>,
     /** Used to train the value function */
     readonly terminalValues: PlayerValues,
-    /** Predicted player values for the state, for diagnostic purposes only */
-    readonly predictedValues: PlayerValues
+    /** Predicted player values for the state */
+    readonly predictedValues: PlayerValues,
+    readonly visitCount: number
   ) {
     if (
       snapshot.episodeConfiguration.players.players.count() !=
@@ -131,6 +158,10 @@ export class StateTrainingData<
         "Different player counts between config and terminal values"
       );
     }
+  }
+
+  get actionToNodeInfo(): Map<A, ActionNodeInfo> {
+    return this.actionToStatistics;
   }
 }
 
@@ -174,7 +205,8 @@ export class EpisodeTrainingData<
       ),
       stateSearchData.actionToStatistics,
       this.terminalValues,
-      stateSearchData.predictedValues
+      stateSearchData.predictedValues,
+      stateSearchData.visitCount
     );
   }
 

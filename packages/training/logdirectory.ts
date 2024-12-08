@@ -50,7 +50,6 @@ export class LogDirectory {
         throw new Error(`Bug: unknown file ${filename}`);
       }
       const path = `${this.path}/${filename}`;
-      console.log(`Deleting ${path}`);
       fs.rmSync(path, { recursive: true });
       this.filenameToSizeBytes.delete(filename);
       this.sizeBytes -= sizeBytes;
@@ -90,7 +89,6 @@ export class LogDirectory {
     this.newestFilenameDate = filenameDate;
     const filenameString = filenameDate.toISOString();
     const path = `${this.path}/${filenameString}`;
-    console.log(`Writing ${path}`);
 
     fs.writeFileSync(path, data);
 
@@ -115,7 +113,6 @@ export class LogDirectory {
     this.newestFilenameDate = filenameDate;
     const filenameString = filenameDate.toISOString();
     const path = `${this.path}/${filenameString}`;
-    console.log(`Writing ${path}`);
 
     await writer(path);
 

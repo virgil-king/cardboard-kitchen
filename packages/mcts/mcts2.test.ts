@@ -11,8 +11,8 @@ import {
 } from "game";
 import { test } from "vitest";
 import { assert } from "chai";
-import { List, Map as ImmutableMap, Seq } from "immutable";
-import { requireDefined, throwFirstRejection } from "studio-util";
+import { Map as ImmutableMap, Seq } from "immutable";
+import { throwFirstRejection } from "studio-util";
 import {
   ActionNode,
   MctsConfig,
@@ -118,80 +118,6 @@ test("NonTerminalStateNode.visit: results fulfilled after multiple calls: differ
     (child) => child.visitCount > 0
   );
   assert.equal(visitedActionCount, 2);
-});
-
-test("Synchronous MTCS: one step per first action: expected values come from model", async () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({
-    simulationCount: 9,
-    modelValueWeight: 1,
-  });
-  const result = await synchronousMcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberImmediateModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  assert.equal(result.count(), 9);
-  console.log(`Results are ${[...result.entries()]}`);
-  for (const actionResult of result.values()) {
-    for (const player of players.players) {
-      assert.equal(
-        actionResult.playerIdToValue.get(player.id),
-        PickANumberImmediateModel.STATE_VALUE
-      );
-    }
-  }
-});
-
-test("Synchronous MTCS: one more step than first actions: last step selects action with greatest prior", async () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({
-    simulationCount: 10,
-    modelValueWeight: 1,
-  });
-  const result = await synchronousMcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberImmediateModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  const actionWithGreatestExpectedValue = requireDefined(
-    List(result.entries()).max(
-      ([, values1], [, values2]) =>
-        requireDefined(values1.playerIdToValue.get(alice.id)) -
-        requireDefined(values2.playerIdToValue.get(alice.id))
-    )
-  )[0];
-  console.log(
-    `Selected action is ${JSON.stringify(actionWithGreatestExpectedValue)}`
-  );
-  assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
-});
-
-test("Synchronous MTCS: many simulations: best move has highest expected value", async () => {
-  const players = new Players(alice, bob);
-  const mctsConfig = new MctsConfig({
-    simulationCount: 100,
-    modelValueWeight: 1,
-  });
-  const result = await synchronousMcts(
-    mctsConfig,
-    PickANumber.INSTANCE,
-    PickANumberImmediateModel.INSTANCE,
-    PickANumber.INSTANCE.newEpisode(new EpisodeConfiguration(players))
-  );
-
-  const actionWithGreatestExpectedValue = requireDefined(
-    List(result.entries()).max(
-      ([, values1], [, values2]) =>
-        requireDefined(values1.playerIdToValue.get(alice.id)) -
-        requireDefined(values2.playerIdToValue.get(alice.id))
-    )
-  )[0];
-  assert.isTrue(actionWithGreatestExpectedValue.equals(new NumberAction(9)));
 });
 
 test("Batch MTCS: one step per first action: expected values come from model", async () => {

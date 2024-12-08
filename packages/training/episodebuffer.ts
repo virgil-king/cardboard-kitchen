@@ -1,5 +1,4 @@
 import { List } from "immutable";
-import { Action, GameConfiguration, GameState } from "game";
 import { randomBelow, requireDefined } from "studio-util";
 import { ReadonlyArrayLike } from "training-data";
 
@@ -40,7 +39,6 @@ export class EpisodeBuffer<
     }
 
     if (purgedEpisodeCount > 0) {
-      console.log(`Purged ${purgedEpisodeCount} episodes from buffer`);
     }
   }
 

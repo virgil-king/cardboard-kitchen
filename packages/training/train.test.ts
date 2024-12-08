@@ -55,7 +55,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             )
           ),
         ],
-      ])
+      ]),
+      2
     )
   );
   let [state] = PickANumber.INSTANCE.apply(snapshot, new NumberAction(3));
@@ -95,7 +96,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             )
           ),
         ],
-      ])
+      ]),
+      3
     )
   );
   const trainingData = new EpisodeTrainingData(

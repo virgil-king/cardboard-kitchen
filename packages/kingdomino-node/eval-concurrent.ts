@@ -23,11 +23,7 @@ import {
   requireDefined,
 } from "studio-util";
 import _ from "lodash";
-import {
-  InferenceModel,
-  InferenceResult,
-  mcts,
-} from "mcts";
+import { InferenceModel, InferenceResult, mcts } from "mcts";
 import {
   EVAL_RANDOM_PLAYOUT_MCTS_CONFIG,
   EVAL_MODEL_VALUE_CONFIG as EVAL_MODEL_VALUE_CONFIG,
@@ -81,19 +77,18 @@ class NeutralPolicyInferenceModel<
 > implements InferenceModel<C, S, A>
 {
   constructor(readonly delegate: InferenceModel<C, S, A>) {}
-  infer(
+  async infer(
     snapshots: readonly EpisodeSnapshot<C, S>[]
   ): Promise<readonly InferenceResult<A>[]> {
-    return this.delegate.infer(snapshots).then((results) => {
-      return results.map((result) => {
-        const policySize = result.policy.count();
-        const policyValue = 1 / policySize;
-        const policy = result.policy.map(() => policyValue);
-        return {
-          value: result.value,
-          policy: policy,
-        } satisfies InferenceResult<A>;
-      });
+    const results = await this.delegate.infer(snapshots);
+    return results.map((result) => {
+      const policySize = result.policyLogits.count();
+      const policyValue = 1 / policySize;
+      const policy = result.policyLogits.map(() => policyValue);
+      return {
+        value: result.value,
+        policyLogits: policy,
+      } satisfies InferenceResult<A>;
     });
   }
 }
@@ -218,6 +213,16 @@ export async function evalEpisodeBatch(
   } satisfies EvalResult;
 
   for (const snapshot of terminalSnapshots) {
+    console.log(
+      `Scores: ${JSON.stringify(
+        snapshot.state.props.playerIdToState
+          .valueSeq()
+          .map((state) => state.score)
+          .sort()
+          .toArray()
+          .reverse()
+      )}`
+    );
     const episodeResult = requireDefined(Kingdomino.INSTANCE.result(snapshot));
     for (const player of snapshot.episodeConfiguration.players.players) {
       const value = requireDefined(
@@ -311,12 +316,15 @@ async function* selectAction<
       0,
       Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
     )) {
-      yield* root.visit(true);
+      yield* root.visit();
     }
     // Greedily select action with greatest expected value
     const [selectedAction] = requireDefined(
-      Seq(root.actionToChild.entries()).maxBy(([, actionNode]) =>
-        actionNode.requirePlayerValue(currentPlayer)
+      Seq(root.actionToChild.entries()).maxBy(
+        ([, actionNode]) =>
+          actionNode.playerExpectedValues.playerIdToValue.get(
+            currentPlayer.id
+          ) ?? 0
       )
     );
     return selectedAction;

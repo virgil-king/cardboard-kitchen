@@ -97,7 +97,7 @@ export async function train_parallel<
     episodeBatchesReceived++;
     const sinceWorkersStartedMs = performance.now() - workersStartedMs;
     console.log(
-      `Seconds per episode: ${decimalFormat.format(
+      `Received self-play batch; seconds per episode: ${decimalFormat.format(
         sinceWorkersStartedMs / 1_000 / episodesReceived
       )}`
     );

@@ -96,7 +96,7 @@ export class PickANumberState implements GameState {
   }
 }
 
-type PickANumberEpisodeSnapshot = EpisodeSnapshot<
+export type PickANumberEpisodeSnapshot = EpisodeSnapshot<
   PickANumberConfiguration,
   PickANumberState
 >;
@@ -183,7 +183,7 @@ export class PickANumber
 /**
  * Fake model for {@link PickANumber}.
  *
- * The policy function uses the move number itself as the probability.
+ * The policy function uses the move number itself as the policy logit.
  *
  * The value function acts as if the game will end up tied.
  *
@@ -196,21 +196,20 @@ export class PickANumberImmediateModel
 {
   static INSTANCE = new PickANumberImmediateModel();
 
+  /** Value returned for all players and states */
   static STATE_VALUE = 0.5;
 
   infer(
     snapshots: ReadonlyArray<
       EpisodeSnapshot<GameConfiguration, PickANumberState>
     >
-  ): Promise<
-    ReadonlyArray<{
-      value: PlayerValues;
-      policy: Map<NumberAction, number>;
-    }>
-  > {
+  ): Promise<ReadonlyArray<InferenceResult<NumberAction>>> {
     return Promise.resolve(
       snapshots.map((snapshot) => {
-        return { value: this.value(snapshot), policy: this.policy(snapshot) };
+        return {
+          value: this.value(snapshot),
+          policyLogits: this.policy(snapshot),
+        };
       })
     );
   }

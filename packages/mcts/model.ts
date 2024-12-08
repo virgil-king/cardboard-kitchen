@@ -10,8 +10,10 @@ import { StateTrainingData } from "training-data";
 import * as io from "io-ts";
 
 export type InferenceResult<A extends Action> = {
+  /** Predicted values for each player from the input state */
   value: PlayerValues;
-  policy: Map<A, number>;
+  /** Logits (not a probability distribution) for the valid actions from the input state */
+  policyLogits: Map<A, number>;
 };
 
 export const modelMetadataCodec = io.type({

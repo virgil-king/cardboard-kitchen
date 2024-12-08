@@ -8,7 +8,7 @@ import {
   PlayerValues,
 } from "game";
 import { Map, Range, Seq } from "immutable";
-import { mcts, InferenceResult } from "mcts";
+import { mcts, InferenceResult, gumbelSequentialHalving } from "mcts";
 import { requireDefined, proportionalRandom } from "studio-util";
 import {
   EpisodeTrainingData,
@@ -57,36 +57,20 @@ export async function* selfPlayEpisode<
     if (root.actionToChild.size == 1) {
       // When root has exactly one child, visit it once to populate the
       // action statistics, but no further visits are necessary
+      // TODO this visit might not be necessary now that we don't necessarily
+      // visit all children in the other branch
       yield* root.visit();
       selectedAction = root.actionToChild.keys().next().value;
     } else {
-      for (let _i of Range(
-        0,
-        Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
-      )) {
+      for (let _i of Range(0, mctsContext.config.simulationCount)) {
         yield* root.visit();
       }
-      // TODO incorporate noise
       const actionToVisitCount = Seq.Keyed(root.actionToChild).map(
         (node) => node.visitCount
       );
       selectedAction = proportionalRandom(actionToVisitCount);
     }
-    const stateSearchData = new StateSearchData(
-      snapshot.state,
-      root.inferenceResult.value,
-      Map(
-        Seq(root.actionToChild.entries()).map(([action, child]) => [
-          action,
-          new ActionStatistics(
-            child.prior,
-            child.visitCount,
-            new PlayerValues(child.playerExpectedValues.playerIdToValue)
-          ),
-        ])
-      )
-    );
-    nonTerminalStates.push(stateSearchData);
+    nonTerminalStates.push(root.stateSearchData());
     const [newState, chanceKey] = game.apply(
       snapshot,
       requireDefined(selectedAction)
@@ -118,9 +102,80 @@ export async function* selfPlayEpisode<
     }
   }
   const elapsedMs = performance.now() - startMs;
-  console.log(
-    `Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`
+  return new EpisodeTrainingData(
+    episodeConfig,
+    snapshot.gameConfiguration,
+    nonTerminalStates,
+    snapshot.state,
+    requireDefined(game.result(snapshot))
   );
+}
+
+/**
+ * Generator function for self-play episodes. Yields snapshots, receives inference
+ * results, and returns episode training data.
+ */
+export async function* gumbelSelfPlayEpisode<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+>(
+  game: Game<C, S, A>,
+  mctsContext: mcts.MctsContext<C, S, A>,
+  episodeConfig: EpisodeConfiguration,
+  simulationCount: number,
+  initialActionCount: number
+): AsyncGenerator<
+  EpisodeSnapshot<C, S>,
+  EpisodeTrainingData<C, S, A>,
+  InferenceResult<A>
+> {
+  const startMs = performance.now();
+  let snapshot = game.newEpisode(episodeConfig);
+  if (game.result(snapshot) != undefined) {
+    throw new Error(`episode called on completed state`);
+  }
+  const inferenceResult = yield snapshot;
+  let root = new mcts.NonTerminalStateNode(
+    mctsContext,
+    snapshot,
+    inferenceResult,
+    /* addExplorationNoise = */ false
+  );
+  const nonTerminalStates = new Array<StateSearchData<S, A>>();
+  while (game.result(snapshot) == undefined) {
+    const currentPlayer = requireDefined(game.currentPlayer(snapshot));
+    // Run simulationCount steps or enough to try every possible action once
+    let selectedAction: A | undefined = undefined;
+    if (root.actionToChild.size == 1) {
+      // When root has exactly one child, visit it once to populate the
+      // action statistics, but no further visits are necessary
+      // TODO this visit might not be necessary now that we don't necessarily
+      // visit all children in the other branch
+      yield* root.visit();
+      selectedAction = root.actionToChild.keys().next().value;
+    } else {
+      const selectedChild = yield* gumbelSequentialHalving<C, S, A>(
+        root,
+        simulationCount,
+        initialActionCount
+      );
+      selectedAction = selectedChild.action;
+    }
+    nonTerminalStates.push(root.stateSearchData());
+    const [newState, chanceKey] = game.apply(
+      snapshot,
+      requireDefined(selectedAction)
+    );
+    snapshot = snapshot.derive(newState);
+    if (game.result(snapshot) != undefined) {
+      break;
+    }
+
+    // Don't reuse nodes during Gumbel self-play
+    root = new mcts.NonTerminalStateNode(mctsContext, snapshot, yield snapshot);
+  }
+  const elapsedMs = performance.now() - startMs;
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,

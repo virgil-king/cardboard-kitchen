@@ -5,7 +5,7 @@ import { ProbabilityDistribution } from "./probabilitydistribution.js";
 import { requireDefined } from "./util.js";
 
 test("create: size is preserved", () => {
-  const pd = ProbabilityDistribution.create(
+  const pd = ProbabilityDistribution.fromLogits(
     ImmutableMap([
       ["a", 2],
       ["b", 1],
@@ -16,7 +16,7 @@ test("create: size is preserved", () => {
 });
 
 test("create: max is preserved", () => {
-  const pd = ProbabilityDistribution.create(
+  const pd = ProbabilityDistribution.fromLogits(
     ImmutableMap([
       ["a", 2],
       ["b", 1],
@@ -30,7 +30,7 @@ test("create: max is preserved", () => {
 });
 
 test("create: zero logit gets non-zero probability", () => {
-  const pd = ProbabilityDistribution.create(
+  const pd = ProbabilityDistribution.fromLogits(
     ImmutableMap([
       ["a", 2],
       ["b", 0],

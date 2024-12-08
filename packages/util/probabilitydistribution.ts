@@ -4,19 +4,30 @@ import * as util from "./util.js";
 export class ProbabilityDistribution<T> {
   private constructor(readonly itemToProbability: ImmutableMap<T, number>) {}
 
-  static create<T>(
+  /**
+   * Returns a probability distribution by exponentiating and normalizing
+   * {@link logits}
+   */
+  static fromLogits<T>(
     logits: ImmutableMap<T, number>
   ): ProbabilityDistribution<T> {
-    if (logits.isEmpty()) {
+    return this.normalize(logits.map((logit) => Math.exp(logit)));
+  }
+
+  /**
+   * Returns a probability distribution by normalizing {@link values}
+   */
+  static normalize<T>(
+    values: ImmutableMap<T, number>
+  ): ProbabilityDistribution<T> {
+    if (values.isEmpty()) {
       throw new Error(`Probability distribution created with no values`);
     }
-    if (logits.find((it) => it < 0) != undefined) {
+    if (values.find((it) => it < 0) != undefined) {
       throw new Error(`Probability distribution created with negative value`);
     }
-    const exponentiated = logits.map((logit) => Math.exp(logit));
-    const sum = util.sum(exponentiated.valueSeq());
-    const itemToProbability = exponentiated.map((value) => value / sum);
-    return new ProbabilityDistribution(itemToProbability);
+    const sum = util.sum(values.valueSeq());
+    return new ProbabilityDistribution(values.map((value) => value / sum));
   }
 
   get(key: T): number | undefined {

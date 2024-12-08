@@ -1,4 +1,4 @@
-import { mcts } from "mcts";
+import { mcts, selectChildAtIntermediateNode } from "mcts";
 import {
   KingdominoAction,
   KingdominoConfiguration,
@@ -10,13 +10,13 @@ import { Experiment } from "training";
 // This file contains configuration for self-play, training, and eval
 
 export const kingdominoConv7 = new Experiment({
-  name: "kingdomino-conv8",
+  name: "kingdomino-gumbel",
   selfPlayEpisodesPerBatch: 64,
-  selfPlayWorkerCount: 2,
+  selfPlayWorkerCount: 8,
 
   trainingBatchSize: 128,
 
-  evalEpisodesPerBatch: 32,
+  evalEpisodesPerBatch: 64,
   evalBatchCount: 1,
 });
 
@@ -40,6 +40,7 @@ export const SELF_PLAY_MCTS_CONFIG = new mcts.MctsConfig<
   ...mctsConfigDefaults,
   modelValueWeight: 1,
   randomPlayoutConfig: undefined,
+  selectChild: selectChildAtIntermediateNode,
 });
 
 export const EVAL_RANDOM_PLAYOUT_MCTS_CONFIG = new mcts.MctsConfig<

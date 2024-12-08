@@ -35,7 +35,7 @@ export class NeutralKingdominoModel
         );
         return {
           value: playerValues,
-          policy: policy,
+          policyLogits: policy,
         };
       })
     );

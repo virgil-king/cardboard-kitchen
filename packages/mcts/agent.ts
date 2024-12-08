@@ -41,10 +41,7 @@ export class MctsAgent<
       return requireDefined(root.actionToChild.keys().next().value);
     }
 
-    for (let i of Range(
-      0,
-      Math.max(this.mctsContext.config.simulationCount, root.actionToChild.size)
-    )) {
+    for (let i of Range(0, this.mctsContext.config.simulationCount)) {
       await this.visit(root);
     }
     const currentPlayer = requireDefined(this.game.currentPlayer(snapshot));

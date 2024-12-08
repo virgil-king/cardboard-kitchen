@@ -18,6 +18,7 @@ import {
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
 import {
+  improvedPolicyLogits,
   InferenceModel,
   InferenceResult,
   Model,
@@ -29,10 +30,12 @@ import { Map, Range, Seq } from "immutable";
 import tfTypes from "@tensorflow/tfjs";
 import { Kingdomino } from "./kingdomino.js";
 import {
+  ProbabilityDistribution,
   randomBelow,
   randomBoolean,
   requireDefined,
   requireNotDone,
+  sum,
 } from "studio-util";
 import _ from "lodash";
 import { Terrain, Tile, terrainValues } from "./tile.js";
@@ -55,7 +58,7 @@ import {
   NO_TRANSFORM,
   Vector2,
 } from "./util.js";
-import { ActionStatistics, StateTrainingData } from "training-data";
+import { StateTrainingData } from "training-data";
 import { Linearization } from "./linearization.js";
 import { BroadcastLayer } from "./broadcastlayer.js";
 import { ExpandDimsLayer } from "./expanddims.js";
@@ -261,6 +264,14 @@ export class EncodedSample {
   ) {}
 }
 
+type SamplePolicyFunction = (
+  sample: StateTrainingData<
+    KingdominoConfiguration,
+    KingdominoState,
+    KingdominoAction
+  >
+) => ProbabilityDistribution<KingdominoAction>;
+
 // TODOS:
 // - add linear input to placement policy module?
 // - include raw location data in the board internal layers instead of
@@ -283,7 +294,9 @@ export class KingdominoModel
   inferenceModel = new KingdominoInferenceModel(this);
   private _trainingModel: KingdominoTrainingModel | undefined;
 
-  static fresh(): KingdominoModel {
+  static fresh(
+    sampleToNewPolicy: SamplePolicyFunction = sampleToCompletedActionValuePolicy
+  ): KingdominoModel {
     const linearInput = tf.input({
       shape: [linearStateCodec.columnCount],
       name: "linear_input",
@@ -411,10 +424,9 @@ export class KingdominoModel
 
   constructor(
     readonly model: tfTypes.LayersModel,
-    readonly metadata: ModelMetadata | undefined
-  ) {
-    console.log(`Constructor metadata is ${JSON.stringify(metadata)}`);
-  }
+    readonly metadata: ModelMetadata | undefined,
+    readonly sampleToNewPolicy: SamplePolicyFunction = sampleToCompletedActionValuePolicy
+  ) {}
 
   logSummary() {
     this.model.summary(200);
@@ -754,7 +766,7 @@ export class KingdominoInferenceModel
       }
       result.push({
         value: playerValues,
-        policy: policy,
+        policyLogits: policy,
       });
     }
     return result;
@@ -1147,7 +1159,7 @@ export class KingdominoTrainingModel
     const currentPlayerBoardTransform =
       innerPlayerToBoardTransform(currentPlayer);
     const linearPolicy = encodePolicy(
-      sample.actionToStatistics,
+      this.model.sampleToNewPolicy(sample),
       currentPlayerBoardTransform
     );
     return new EncodedSample(state, value, linearPolicy);
@@ -1260,54 +1272,43 @@ export class KingdominoTrainingModel
  */
 // Visible for testing
 export function encodePolicy(
-  visitCounts: Map<KingdominoAction, ActionStatistics>,
+  policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const claimProbabilities = new Float32Array(
     claimProbabilitiesCodec.columnCount
   ).fill(0);
   let discardProbability = 0;
-  let placeProbability = 0;
-  for (const [action, statistics] of visitCounts.entries()) {
+  for (const [action, probability] of policy.itemToProbability) {
     switch (action.data.case) {
       case ActionCase.CLAIM: {
-        claimProbabilities[action.data.claim.offerIndex] =
-          statistics.visitCount;
-        break;
-      }
-      case ActionCase.PLACE: {
-        // Place probability is the sum of visits for all placement actions
-        placeProbability += statistics.visitCount;
+        claimProbabilities[action.data.claim.offerIndex] = probability;
         break;
       }
       case ActionCase.DISCARD: {
-        discardProbability = statistics.visitCount;
+        discardProbability = probability;
         break;
       }
     }
   }
 
-  const placementProbabilities = encodePlacementPolicy(
-    visitCounts,
-    boardTransform
-  );
+  const placementProbabilities = encodePlacementPolicy(policy, boardTransform);
 
   const result = new Float32Array(policyCodec.columnCount);
-  const policy = {
+  const policyCodecInput = {
     linearPolicy: {
       claimProbabilities: claimProbabilities,
       discardProbability: discardProbability,
     },
     placeProbabilities: placementProbabilities,
   } satisfies PolicyOutput;
-  policyCodec.encode(policy, result, 0);
+  policyCodec.encode(policyCodecInput, result, 0);
 
-  const sum = result.reduce((reduction, next) => reduction + next, 0);
-  return result.map((x) => x / sum);
+  return result;
 }
 
 /**
- * Encodes the placement action statistics in {@link visitCounts},
+ * Encodes the placement action statistics in {@link policy},
  * transformed by {@link boardTransform}, into a new
  * {@link Float32Array} in the format associated with
  * {@link placeProbabilitiesCodec}.
@@ -1316,16 +1317,16 @@ export function encodePolicy(
  */
 // Visible for testing
 export function encodePlacementPolicy(
-  visitCounts: Map<KingdominoAction, ActionStatistics>,
+  policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const result = new Float32Array(placeProbabilitiesCodec.columnCount);
 
-  for (const [action, statistics] of visitCounts.entries()) {
+  for (const [action, probability] of policy.itemToProbability) {
     if (action.data.case == ActionCase.PLACE) {
       setPlacementVisitCount(
         action.data.place.transform(boardTransform),
-        statistics.visitCount,
+        probability,
         result
       );
     }
@@ -1345,5 +1346,35 @@ export function setPlacementVisitCount(
     placeTile.location.x + playAreaRadius,
     placeTile.location.y + playAreaRadius,
     placeTile.direction.index
+  );
+}
+
+export function sampleToCompletedActionValuePolicy(
+  sample: StateTrainingData<
+    KingdominoConfiguration,
+    KingdominoState,
+    KingdominoAction
+  >
+): ProbabilityDistribution<KingdominoAction> {
+  const currentPlayer = requireDefined(
+    Kingdomino.INSTANCE.currentPlayer(sample.snapshot)
+  );
+  const actionToNewLogits = improvedPolicyLogits(sample, currentPlayer);
+  return ProbabilityDistribution.fromLogits(actionToNewLogits);
+}
+
+export function sampleToVisitCountPolicy(
+  sample: StateTrainingData<
+    KingdominoConfiguration,
+    KingdominoState,
+    KingdominoAction
+  >
+): ProbabilityDistribution<KingdominoAction> {
+  const actionToVisitCount = sample.actionToStatistics.map(
+    (stats) => stats.visitCount
+  );
+  const totalVisitCount = sum(actionToVisitCount.valueSeq());
+  return ProbabilityDistribution.normalize(
+    actionToVisitCount.map((visitCount) => visitCount / totalVisitCount)
   );
 }

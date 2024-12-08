@@ -5,7 +5,7 @@ import {
   sleep,
 } from "studio-util";
 import { EpisodeConfiguration, Player, Players } from "game";
-import { selfPlayEpisode } from "training";
+import { gumbelSelfPlayEpisode } from "training";
 import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
@@ -55,8 +55,14 @@ async function main() {
     };
 
     const generators = Range(0, kingdominoConv7.selfPlayEpisodesPerBatch)
-      .map((i) => {
-        return selfPlayEpisode(Kingdomino.INSTANCE, mctsContext, episodeConfig);
+      .map(() => {
+        return gumbelSelfPlayEpisode(
+          Kingdomino.INSTANCE,
+          mctsContext,
+          episodeConfig,
+          32,
+          4
+        );
       })
       .toArray();
 
@@ -79,7 +85,9 @@ async function main() {
       }% of total`
     );
 
-    console.log(`Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`);
+    console.log(
+      `Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
+    );
 
     messagePort.postMessage(episodes.map((episode) => episode.toJson()));
 

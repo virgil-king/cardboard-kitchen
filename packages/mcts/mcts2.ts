@@ -277,10 +277,11 @@ export class NonTerminalStateNode<
     this.inference = context.model.infer([snapshot]).then((resultBatch) => {
       const inferenceResult = resultBatch[0];
       debugLog(
-        () => `policy is ${JSON.stringify(inferenceResult.policy.toArray())}`
+        () =>
+          `policy is ${JSON.stringify(inferenceResult.policyLogits.toArray())}`
       );
-      const actionToModelPrior = ProbabilityDistribution.create(
-        inferenceResult.policy
+      const actionToModelPrior = ProbabilityDistribution.fromLogits(
+        inferenceResult.policyLogits
       );
 
       debugLog(
@@ -291,7 +292,7 @@ export class NonTerminalStateNode<
       );
 
       const maxPolicyLogit = requireDefined(
-        inferenceResult.policy.valueSeq().max()
+        inferenceResult.policyLogits.valueSeq().max()
       );
       const currentPlayer = requireDefined(
         context.game.currentPlayer(snapshot)
@@ -316,7 +317,9 @@ export class NonTerminalStateNode<
         // Estimate the value of this action for the acting player as the
         // estimated value of the parent node times the ratio between the
         // action's logit and the best action's logit
-        const policyLogit = requireDefined(inferenceResult.policy.get(action));
+        const policyLogit = requireDefined(
+          inferenceResult.policyLogits.get(action)
+        );
         const actionPredictedValue =
           (policyLogit / maxPolicyLogit) * statePredictedValue;
 

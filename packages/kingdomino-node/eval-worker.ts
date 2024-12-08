@@ -13,7 +13,7 @@ let modelNumber = 0;
 
 const logFilePath = await kingdominoConv7.logFile();
 
-type EvalLogEntry = {
+export type EvalLogEntry = {
   time: string;
   results: [string, AgentResult][];
   modelMetadata?: ModelMetadata;

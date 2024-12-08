@@ -10,7 +10,7 @@ import {
   Player,
   Agent,
 } from "game";
-import { Map as ImmutableMap, Range, Seq } from "immutable";
+import { Map as ImmutableMap, Seq } from "immutable";
 import {
   ProbabilityDistribution,
   requireDefined,
@@ -18,6 +18,12 @@ import {
 } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
 import gamma from "@stdlib/random-base-gamma";
+import {
+  ActionNodeInfo,
+  ActionStatistics,
+  StateNodeInfo,
+  StateSearchData,
+} from "training-data";
 
 const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
@@ -46,6 +52,9 @@ export class MctsConfig<
   readonly modelValueWeight: number | undefined;
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
+  readonly selectChild: (
+    node: NonTerminalStateNode<C, S, A>
+  ) => ActionNode<C, S, A>;
   constructor(params: {
     simulationCount?: number;
     explorationBias?: number;
@@ -53,6 +62,7 @@ export class MctsConfig<
     randomPlayoutConfig?: RandomPlayoutConfig<C, S, A>;
     maxChanceBranches?: number;
     minPolicyValue?: number;
+    selectChild?: (node: NonTerminalStateNode<C, S, A>) => ActionNode<C, S, A>;
   }) {
     this.simulationCount = params.simulationCount ?? 32;
     this.explorationBias = params.explorationBias ?? Math.sqrt(2);
@@ -67,6 +77,7 @@ export class MctsConfig<
       );
     }
     this.maxChanceBranches = params.maxChanceBranches ?? 4;
+    this.selectChild = params.selectChild ?? ((node) => node.selectChildUcb());
   }
 }
 
@@ -95,11 +106,12 @@ export interface MctsContext<
  * previous state. Action nodes' children correspond to possible chance outcomes
  * following that action.
  */
-class ActionNode<
+export class ActionNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> {
+> implements ActionNodeInfo
+{
   chanceKeyToChild = ImmutableMap<ChanceKey, StateNode<C, S, A>>();
   /**
    * Weighted average values across the possible states resulting from this
@@ -108,21 +120,26 @@ class ActionNode<
    */
   readonly playerExpectedValues = new NodeValues();
   /**
-   * @param prior probability of selecting this action from the previous state
+   * @param priorProbability probability of selecting this action from the previous state
    * according to {@link Model.policy}
    */
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
-    readonly prior: number,
     /** Predicted value for the acting player */
-    readonly predictedValue: number
+    readonly predictedValue: number,
+    readonly priorProbability: number,
+    readonly priorLogit: number
   ) {
     this.context.stats.actionNodesCreated++;
   }
 
   get visitCount(): number {
     return this.playerExpectedValues.visitCount;
+  }
+
+  get expectedValues(): PlayerValues {
+    return new PlayerValues(this.playerExpectedValues.playerIdToValue);
   }
 
   /**
@@ -159,7 +176,7 @@ class ActionNode<
       }
       this.addToCache(chanceKey, stateNode);
       // Use the new node's initial predicted values
-      result = await stateNode.predictedValues();
+      result = await stateNode.expectedValues();
     } else {
       // Existing child: continue the search into a grandchild node
       // debugLog(
@@ -209,7 +226,15 @@ interface StateNode<
   A extends Action
 > {
   visitCount: number;
-  predictedValues(): Promise<PlayerValues>;
+  /**
+   * Returns an initial prediction of the player values for the node
+   */
+  expectedValues(): Promise<PlayerValues>;
+  /**
+   * Visits the node, selects a child using the configured function,
+   * yields a snapshot for inference if needed, and returns
+   * player values updated based on the new visit.
+   */
   visit(): AsyncGenerator<
     EpisodeSnapshot<C, S>,
     PlayerValues,
@@ -228,21 +253,30 @@ export class NonTerminalStateNode<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements StateNode<C, S, A>
+> implements StateNode<C, S, A>, StateNodeInfo<A>
 {
   visitCount = 0;
   actionToChild: ImmutableMap<A, ActionNode<C, S, A>>;
   readonly playerValues = new NodeValues();
+  readonly policy: ProbabilityDistribution<A>;
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly snapshot: EpisodeSnapshot<C, S>,
     readonly inferenceResult: InferenceResult<A>,
+    /** Whether to add noise to child priors. Used at the root node only in AlphaZero. */
     addExplorationNoise: boolean = false
   ) {
-    context.stats.stateNodesCreated++;
+    const episodeResult = this.context.game.result(this.snapshot);
+    if (episodeResult != undefined) {
+      throw new Error(`NonTerminalStateNode created with terminal state`);
+    }
 
-    let policy = ProbabilityDistribution.create(inferenceResult.policy);
-    let itemToPrior = policy.itemToProbability;
+    this.context.stats.stateNodesCreated++;
+
+    this.policy = ProbabilityDistribution.fromLogits(
+      this.inferenceResult.policyLogits
+    );
+    let itemToPrior = this.policy.itemToProbability;
 
     if (addExplorationNoise) {
       itemToPrior = itemToPrior.map((prior) => {
@@ -252,7 +286,7 @@ export class NonTerminalStateNode<
     }
 
     const maxPolicyLogit = requireDefined(
-      inferenceResult.policy.valueSeq().max()
+      inferenceResult.policyLogits.valueSeq().max()
     );
     const currentPlayer = requireDefined(context.game.currentPlayer(snapshot));
     const statePredictedValue = requireDefined(
@@ -260,34 +294,38 @@ export class NonTerminalStateNode<
     );
 
     this.actionToChild = ImmutableMap(
-      itemToPrior.map((prior, action) => {
+      itemToPrior.map((priorProbability, action) => {
         // Estimate the value of this action for the acting player as the
         // estimated value of the parent node times the ratio between the
         // action's logit and the best action's logit
-        const policyLogit = requireDefined(inferenceResult.policy.get(action));
+        const policyLogit = requireDefined(
+          inferenceResult.policyLogits.get(action)
+        );
         const actionPredictedValue =
           (policyLogit / maxPolicyLogit) * statePredictedValue;
-        return new ActionNode(context, action, prior, actionPredictedValue);
+        return new ActionNode(
+          context,
+          action,
+          actionPredictedValue,
+          priorProbability,
+          requireDefined(this.inferenceResult.policyLogits.get(action))
+        );
       })
     );
+  }
+
+  get predictedValues(): PlayerValues {
+    return this.inferenceResult.value;
+  }
+
+  get actionToNodeInfo(): ImmutableMap<A, ActionNodeInfo> {
+    return this.actionToChild;
   }
 
   /**
    * Returns expected values computed using all enabled prediction methods
    */
-  async predictedValues(): Promise<PlayerValues> {
-    const episodeResult = this.context.game.result(this.snapshot);
-    if (episodeResult != undefined) {
-      debugLog(
-        () =>
-          `Using final result ${JSON.stringify(
-            episodeResult
-          )} for state ${JSON.stringify(this.snapshot.state)}`
-      );
-      this.context.stats.terminalStatesReached++;
-      return episodeResult;
-    }
-
+  async expectedValues(): Promise<PlayerValues> {
     const modelValues = this.inferenceResult.value;
 
     const config = this.context.config;
@@ -343,71 +381,42 @@ export class NonTerminalStateNode<
     }
   }
 
-  /**
-   * Returns final player values if this node corresponds to a terminal state or
-   * otherwise selects an action, visits the corresponding action node, updates
-   * this node's expected values based on that visit, and returns this node's
-   * new expected values
-   */
-  async *visit(
-    selectUnvisitedActionsFirst: boolean = false
+  visit(): AsyncGenerator<
+    EpisodeSnapshot<C, S>,
+    PlayerValues,
+    InferenceResult<A>
+  > {
+    const child = this.context.config.selectChild(this);
+    return this.visitChild(child);
+  }
+
+  async *visitChild(
+    child: ActionNode<C, S, A>
   ): AsyncGenerator<EpisodeSnapshot<C, S>, PlayerValues, InferenceResult<A>> {
     this.visitCount++;
-
-    const episodeResult = this.context.game.result(this.snapshot);
-    if (episodeResult != undefined) {
-      // Don't bother merging values in this case; our values will always be
-      // just the same episode result
-      return episodeResult;
-    }
-
-    const action = this.selectAction(selectUnvisitedActionsFirst);
-    let child = this.actionToChild.get(action);
-    if (child == undefined) {
-      throw new Error(
-        "An action was visited which was not reported by the policy"
-      );
-    }
     const childResult = yield* child.visit(this.snapshot);
     this.playerValues.merge(childResult);
-    // debugLog(
-    //   () =>
-    //     `State node ${JSON.stringify(
-    //       this.snapshot.state
-    //     )} new values are ${this.playerValues.toString()}`
-    // );
     return childResult;
   }
 
-  selectAction(selectUnvisitedActionsFirst: boolean): A {
+  selectChildUcb(): ActionNode<C, S, A> {
     let maxUcb = Number.NEGATIVE_INFINITY;
     let maxUcbAction: A | undefined = undefined;
+    let maxUcbChild: ActionNode<C, S, A> | undefined = undefined;
     const currentPlayer = requireDefined(
       this.context.game.currentPlayer(this.snapshot)
     );
     const childEvs = [];
     const ucbs = [];
 
-    // const pb_c_base = 19652;
-    // const pb_c_init = 1.25 * 3; // 3 is the max value in four-player games
-
     for (const [action, child] of this.actionToChild) {
-      if (selectUnvisitedActionsFirst && child.visitCount == 0) {
-        debugLog(
-          () => `Selecting ${JSON.stringify(action)} because it is unvisited`
-        );
-        return action;
-      }
-
       const childEv = child.playerExpectedValues.playerIdToValue.get(
         currentPlayer.id
       );
       childEvs.push(childEv);
-      // const explorationBonus =
-      // pb_c_init + Math.log((this.visitCount + pb_c_base + 1) / pb_c_base);
       const ucb =
         (childEv ?? child.predictedValue) +
-        (child.prior *
+        (child.priorProbability *
           this.context.config.explorationBias *
           Math.sqrt(1 + this.visitCount)) /
           (1 + child.visitCount);
@@ -419,7 +428,7 @@ export class NonTerminalStateNode<
             action
           )} with current value ${child.playerExpectedValues.playerIdToValue.get(
             currentPlayer.id
-          )}, prior ${child.prior}, visit count ${
+          )}, prior ${child.priorProbability}, visit count ${
             child.visitCount
           }, and UCB score ${ucb}`
       );
@@ -431,27 +440,46 @@ export class NonTerminalStateNode<
         );
         maxUcb = ucb;
         maxUcbAction = action;
+        maxUcbChild = child;
       }
     }
-    if (maxUcbAction == undefined) {
+    if (maxUcbChild == undefined) {
       throw new Error(
         `No action to select from state ${JSON.stringify(
           this.snapshot.state,
           undefined,
           2
         )}; policy ${JSON.stringify(
-          this.inferenceResult.policy.toArray(),
+          this.inferenceResult.policyLogits.toArray(),
           undefined,
           2
         )}; child priors ${[...this.actionToChild.entries()].map(
-          (entry) => entry[1].prior
+          (entry) => entry[1].priorProbability
         )}; ucbs = ${ucbs}; child evs = ${childEvs}`
       );
     }
     debugLog(
       () => `Selecting ${JSON.stringify(maxUcbAction)} with max UCB ${maxUcb}`
     );
-    return maxUcbAction;
+    return maxUcbChild;
+  }
+
+  stateSearchData(): StateSearchData<S, A> {
+    return new StateSearchData(
+      this.snapshot.state,
+      this.inferenceResult.value,
+      ImmutableMap(
+        Seq(this.actionToChild.entries()).map(([action, child]) => [
+          action,
+          new ActionStatistics(
+            child.priorProbability,
+            child.visitCount,
+            new PlayerValues(child.playerExpectedValues.playerIdToValue)
+          ),
+        ])
+      ),
+      this.visitCount
+    );
   }
 }
 
@@ -474,7 +502,7 @@ export class TerminalStateNode<
     this.result = gameResult;
   }
 
-  async predictedValues(): Promise<PlayerValues> {
+  async expectedValues(): Promise<PlayerValues> {
     return this.result;
   }
 
