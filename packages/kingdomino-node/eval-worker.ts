@@ -26,22 +26,35 @@ let evalsInProgress = 0;
 
 messagePort.on("message", async (message: any) => {
   evalsInProgress++;
-  const date = new Date();
   const typedMessage = message as ModelCodecType;
-  const newModel = await KingdominoModel.fromJson(typedMessage, tf);
+  const model = await KingdominoModel.fromJson(typedMessage);
   modelNumber++;
   console.log(
     `Eval worker model #${modelNumber} with metadata ${JSON.stringify(
-      newModel.metadata
+      model.metadata
     )}`
   );
 
+  try {
+    await evaluate(model);
+  } finally {
+    model.dispose();
+  }
+
+  messagePort.postMessage(undefined);
+});
+
+async function evaluate(model: KingdominoModel) {
+  const date = new Date();
   let subjectPoints = 0;
   let baselinePoints = 0;
   for (const i of Range(0, kingdominoConv7.evalBatchCount)) {
     const batchResult = await evalEpisodeBatch(
-      newModel.inferenceModel,
+      model.inferenceModel,
       kingdominoConv7.evalEpisodesPerBatch
+    );
+    console.log(
+      `Eval thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
     );
     subjectPoints += batchResult.subjectPoints;
     baselinePoints += batchResult.baselinePoints;
@@ -63,7 +76,7 @@ messagePort.on("message", async (message: any) => {
     time: date.toISOString(),
     subjectPoints: subjectPoints,
     baselinePoints: baselinePoints,
-    modelMetadata: newModel.metadata,
+    modelMetadata: model.metadata,
   } satisfies EvalLogEntry;
   log.push(logEntry);
   const logString = JSON.stringify(log, undefined, 4);
@@ -77,6 +90,4 @@ messagePort.on("message", async (message: any) => {
   if (evalsInProgress > 0) {
     console.log(`${evalsInProgress} evals in progress`);
   }
-
-  messagePort.postMessage(undefined);
-});
+}

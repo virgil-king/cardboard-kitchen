@@ -110,7 +110,7 @@ async function createModel(): Promise<
 }
 
 function freshModel() {
-  const result = KingdominoModel.fresh(tf);
+  const result = KingdominoModel.fresh();
   console.log("Created randomly initialized model");
   return result;
 }

@@ -18,7 +18,7 @@ export async function createModel(
 }
 
 function freshModel() {
-  const result = KingdominoModel.fresh(tf);
+  const result = KingdominoModel.fresh();
   console.log("Created randomly initialized model");
   return result;
 }
@@ -30,7 +30,6 @@ export async function loadModelFromFile(
   path: string
 ): Promise<KingdominoModel> {
   console.log(`Loading model from ${path}`);
-  KingdominoModel.registerCustomTableTypes(tf);
   const layersModel = await tf.loadLayersModel(`file://${path}/model.json`);
   console.log(
     `Input shape is ${(layersModel.input as tf.SymbolicTensor[]).map(
@@ -39,7 +38,7 @@ export async function loadModelFromFile(
   );
 
   const metadata = await loadMetadata(path);
-  return new KingdominoModel(layersModel, tf, metadata);
+  return new KingdominoModel(layersModel, metadata);
 }
 
 async function loadMetadata(dir: string): Promise<ModelMetadata | undefined> {

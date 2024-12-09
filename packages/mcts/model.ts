@@ -47,6 +47,9 @@ export interface Model<
 
   /** Logs a model summary to the console */
   logSummary(): void;
+
+  /** Frees underlying resources */
+  dispose(): void;
 }
 
 export interface InferenceModel<

@@ -28,8 +28,8 @@ const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
   const typedMessage = message as ModelCodecType;
-  const newModel = await KingdominoModel.fromJson(typedMessage, tf);
-  model?.model.dispose();
+  const newModel = await KingdominoModel.fromJson(typedMessage);
+  model?.dispose();
   model = newModel;
   console.log(
     `Self-play worker received new model with metadata ${JSON.stringify(
@@ -78,6 +78,8 @@ async function main() {
         mctsContext.stats.randomPlayoutTimeMs / elapsedMs
       }% of total`
     );
+
+    console.log(`Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`);
 
     for (const episode of episodes) {
       console.log(

@@ -1,23 +1,11 @@
-import {
-  SettablePromise,
-  requireDefined,
-  sleep,
-} from "studio-util";
-import {
-  Action,
-  Game,
-  GameConfiguration,
-  GameState,
-} from "game";
+import { SettablePromise, requireDefined, sleep } from "studio-util";
+import { Action, Game, GameConfiguration, GameState } from "game";
 import { List, Map } from "immutable";
 import { Model } from "../mcts/model.js";
 import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
-import {
-  EpisodeTrainingData,
-  StateTrainingData,
-} from "training-data";
+import { EpisodeTrainingData, StateTrainingData } from "training-data";
 import { LogDirectory } from "./logdirectory.js";
 import * as tf from "@tensorflow/tfjs";
 
@@ -139,6 +127,9 @@ export async function train_parallel<
     console.log(`Received completion from eval worker; sending new model`);
     const encodedModel = await model.toJson();
     evalWorkerChannel.port1.postMessage(encodedModel);
+    console.log(
+      `Main thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
+    );
   });
 
   await bufferReady.promise;
@@ -159,7 +150,6 @@ export async function train_parallel<
     const beforeTrain = performance.now();
     const loss = await trainingModel.train(batch);
     const afterTrain = performance.now();
-    console.log(JSON.stringify(tf.memory(), undefined, 2));
     const totalBatchTime = afterTrain - beforeBatch;
     console.log(
       `Batch time ${decimalFormat.format(
