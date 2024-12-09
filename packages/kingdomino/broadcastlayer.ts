@@ -67,7 +67,7 @@ function createBroadcastLayerFactory(
     override call(
       inputs: tfTypes.Tensor | tfTypes.Tensor[]
     ): tfTypes.Tensor | tfTypes.Tensor[] {
-      return tfRuntime.tidy(() => {
+      return tfTypes.tidy(() => {
         const derivedInput = this.getSingleTensor(inputs);
         const inputShape = derivedInput.shape;
         const nonNullShape = this.shape.map((value, index) => {

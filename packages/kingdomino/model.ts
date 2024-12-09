@@ -722,25 +722,48 @@ export class KingdominoInferenceModel
       this.model.tfRuntime
     );
 
-    let outputTensor = this.model.model.predict([
-      tensors.linearTensor,
-      ...tensors.boardAnalysisTensors,
-      tensors.boardPolicyTensor,
-    ]);
-    tensors.linearTensor.dispose();
-    for (const boardTensor of tensors.boardAnalysisTensors) {
-      boardTensor.dispose();
-    }
-    tensors.boardPolicyTensor.dispose();
-    if (!Array.isArray(outputTensor)) {
-      throw new Error("Expected tensor array but received single tensor");
-    }
-    if (outputTensor.length != 2) {
-      throw new Error(`Expected 2 tensors but received ${outputTensor.length}`);
-    }
+    try {
+      let outputTensors = this.model.model.predict([
+        tensors.linearTensor,
+        ...tensors.boardAnalysisTensors,
+        tensors.boardPolicyTensor,
+      ]) as tfTypes.Tensor[];
+      try {
+        if (!Array.isArray(outputTensors)) {
+          throw new Error("Expected tensor array but received single tensor");
+        }
+        if (outputTensors.length != 2) {
+          throw new Error(
+            `Expected 2 tensors but received ${outputTensors.length}`
+          );
+        }
 
-    const valuesArray = await outputTensor[0].data<"float32">();
-    const policyArray = await outputTensor[1].data<"float32">();
+        return this.inferenceTensorsToInferenceResults(
+          snapshots,
+          outputTensors
+        );
+      } finally {
+        for (const tensor of outputTensors) {
+          tensor.dispose();
+        }
+      }
+    } finally {
+      tensors.linearTensor.dispose();
+      for (const boardTensor of tensors.boardAnalysisTensors) {
+        boardTensor.dispose();
+      }
+      tensors.boardPolicyTensor.dispose();
+    }
+  }
+
+  private async inferenceTensorsToInferenceResults(
+    snapshots: ReadonlyArray<
+      EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
+    >,
+    outputTensors: ReadonlyArray<tfTypes.Tensor>
+  ): Promise<ReadonlyArray<InferenceResult<KingdominoAction>>> {
+    const valuesArray = await outputTensors[0].data<"float32">();
+    const policyArray = await outputTensors[1].data<"float32">();
 
     const valuesGenerator = decodeAsGenerator(
       playerValuesCodec,
@@ -771,9 +794,6 @@ export class KingdominoInferenceModel
         value: playerValues,
         policy: policy,
       });
-    }
-    for (const tensor of outputTensor) {
-      tensor.dispose();
     }
     return result;
   }
@@ -1253,25 +1273,29 @@ export class KingdominoTrainingModel
     ]);
     const valueOutputTensor = this.tfRuntime.tensor(valuesMatrix);
     const policyOutputTensor = this.tfRuntime.tensor(policyMatrix);
-    const fitResult = await this.model.model.trainOnBatch(
-      [linearInputTensor, ...boardTensors, policyBoardTensor],
-      [valueOutputTensor, policyOutputTensor]
-    );
-    linearInputTensor.dispose();
-    for (const boardTensor of boardTensors) {
-      boardTensor.dispose();
-    }
-    policyBoardTensor.dispose();
-    valueOutputTensor.dispose();
-    policyOutputTensor.dispose();
-    console.log(fitResult);
 
-    const metadata = this.model.metadata;
-    if (metadata != undefined) {
-      metadata.trainingSampleCount += dataPoints.length;
-    }
+    try {
+      const fitResult = await this.model.model.trainOnBatch(
+        [linearInputTensor, ...boardTensors, policyBoardTensor],
+        [valueOutputTensor, policyOutputTensor]
+      );
+      console.log(fitResult);
 
-    return (fitResult as number[])[0];
+      const metadata = this.model.metadata;
+      if (metadata != undefined) {
+        metadata.trainingSampleCount += dataPoints.length;
+      }
+
+      return (fitResult as number[])[0];
+    } finally {
+      linearInputTensor.dispose();
+      for (const boardTensor of boardTensors) {
+        boardTensor.dispose();
+      }
+      policyBoardTensor.dispose();
+      valueOutputTensor.dispose();
+      policyOutputTensor.dispose();
+    }
   }
 
   encodeValues(players: Players, terminalValues: PlayerValues): Float32Array {
