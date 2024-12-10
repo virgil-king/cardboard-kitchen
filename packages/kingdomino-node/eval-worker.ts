@@ -2,10 +2,7 @@ import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
-import {
-  AgentResult,
-  evalEpisodeBatch,
-} from "./eval-concurrent.js";
+import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoConv7 } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "mcts";
@@ -22,7 +19,19 @@ type EvalLogEntry = {
   modelMetadata?: ModelMetadata;
 };
 
-const log = new Array<EvalLogEntry>();
+let log: Array<EvalLogEntry>;
+
+try {
+  log = JSON.parse(
+    fs.readFileSync(logFilePath, {
+      encoding: "utf-8",
+    })
+  );
+  console.log(`Loaded ${log.length} existing logs`);
+} catch (e) {
+  console.log(`Error loading prior logs: ${e}`);
+  log = new Array<EvalLogEntry>();
+}
 
 let evalsInProgress = 0;
 
