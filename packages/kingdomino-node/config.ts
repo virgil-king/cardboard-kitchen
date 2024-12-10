@@ -42,7 +42,7 @@ export const SELF_PLAY_MCTS_CONFIG = new mcts.MctsConfig<
   randomPlayoutConfig: undefined,
 });
 
-export const EVAL_BASELINE_MCTS_CONFIG = new mcts.MctsConfig<
+export const EVAL_RANDOM_PLAYOUT_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction
@@ -53,8 +53,9 @@ export const EVAL_BASELINE_MCTS_CONFIG = new mcts.MctsConfig<
     agent: randomAgent,
   },
 });
+
 /** MCTS config used by the subject agent during eval */
-export const EVAL_MCTS_CONFIG = new mcts.MctsConfig<
+export const EVAL_MODEL_VALUE_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction

@@ -2,7 +2,10 @@ import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
-import { evalEpisodeBatch } from "./eval-concurrent.js";
+import {
+  AgentResult,
+  evalEpisodeBatch,
+} from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoConv7 } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "mcts";
@@ -15,8 +18,7 @@ const logFilePath = await kingdominoConv7.logFile();
 
 type EvalLogEntry = {
   time: string;
-  subjectPoints: number;
-  baselinePoints: number;
+  results: [string, AgentResult][];
   modelMetadata?: ModelMetadata;
 };
 
@@ -46,43 +48,38 @@ messagePort.on("message", async (message: any) => {
 
 async function evaluate(model: KingdominoModel) {
   const date = new Date();
-  let subjectPoints = 0;
-  let baselinePoints = 0;
+  const agentIdToResult = new Map<string, AgentResult>();
   for (const i of Range(0, kingdominoConv7.evalBatchCount)) {
     const batchResult = await evalEpisodeBatch(
       model.inferenceModel,
       kingdominoConv7.evalEpisodesPerBatch
     );
+    for (const [agentId, result] of batchResult.agentIdToResult.entries()) {
+      let cumulativeResult = agentIdToResult.get(agentId);
+      if (cumulativeResult == undefined) {
+        cumulativeResult = { value: 0, timeMs: 0 };
+        agentIdToResult.set(agentId, cumulativeResult);
+      }
+      cumulativeResult.value += result.value;
+      cumulativeResult.timeMs += result.timeMs;
+    }
     console.log(
       `Eval thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
-    );
-    subjectPoints += batchResult.subjectPoints;
-    baselinePoints += batchResult.baselinePoints;
-    console.log(`Eval completed batch ${i}`);
-    const totalTimeMs = batchResult.subjectTimeMs + batchResult.baselineTimeMs;
-    console.log(
-      `Subject time: ${Math.round(batchResult.subjectTimeMs)}ms (${Math.round(
-        (100 * batchResult.subjectTimeMs) / totalTimeMs
-      )}%)`
-    );
-    console.log(
-      `Baseline time: ${Math.round(batchResult.baselineTimeMs)}ms (${Math.round(
-        (100 * batchResult.baselineTimeMs) / totalTimeMs
-      )}%)`
     );
   }
 
   const logEntry = {
     time: date.toISOString(),
-    subjectPoints: subjectPoints,
-    baselinePoints: baselinePoints,
+    results: [...agentIdToResult.entries()],
     modelMetadata: model.metadata,
   } satisfies EvalLogEntry;
   log.push(logEntry);
   const logString = JSON.stringify(log, undefined, 4);
   console.log(
     `Eval worker completed batch for ${modelNumber}: ${JSON.stringify(
-      logEntry
+      logEntry,
+      undefined,
+      2
     )}`
   );
   fs.writeFileSync(logFilePath, logString);

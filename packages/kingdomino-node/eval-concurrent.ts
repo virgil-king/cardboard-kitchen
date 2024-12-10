@@ -16,7 +16,6 @@ import {
   KingdominoConfiguration,
   KingdominoInferenceModel,
   KingdominoState,
-  RandomKingdominoAgent,
 } from "kingdomino";
 import {
   driveAsyncGenerators,
@@ -24,25 +23,80 @@ import {
   requireDefined,
 } from "studio-util";
 import _ from "lodash";
-import { InferenceModel, InferenceResult, mcts } from "mcts";
-import { EVAL_BASELINE_MCTS_CONFIG, EVAL_MCTS_CONFIG } from "./config.js";
+import {
+  InferenceModel,
+  InferenceResult,
+  mcts,
+} from "mcts";
+import {
+  EVAL_RANDOM_PLAYOUT_MCTS_CONFIG,
+  EVAL_MODEL_VALUE_CONFIG as EVAL_MODEL_VALUE_CONFIG,
+} from "./config.js";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 
-const subjectPlayer1 = new Player("model-1", "Model 1");
-const subjectPlayer2 = new Player("model-2", "Model 2");
-const baselinePlayer1 = new Player("baseline-1", "Baseline 1");
-const baselinePlayer2 = new Player("baseline-2", "Baseline 2");
+// Agents:
+// 1. Policy + value
+// 2. Policy + random playout
+// 3. Neutral policy + value
+// 4. Neutral policy + random playout
+
+const modelPolicyModelValue = new Player(
+  "model-policy-model-value",
+  "model-policy-model-value"
+);
+const modelPolicyRandomPlayout = new Player(
+  "model-policy-random-playout",
+  "model-policy-random-playout"
+);
+const neutralPolicyModelValue = new Player(
+  "neutral-policy-model-value",
+  "neutral-policy-model-value"
+);
+const neutralPolicyRandomPlayout = new Player(
+  "neutral-policy-random-playout",
+  "neutral-policy-random-playout"
+);
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 });
 
-export type EvalResult = {
-  subjectPoints: number;
-  subjectTimeMs: number;
-  baselinePoints: number;
-  baselineTimeMs: number;
+export type AgentResult = {
+  value: number;
+  timeMs: number;
 };
+
+export type EvalResult = {
+  agentIdToResult: Map<string, AgentResult>;
+};
+
+/**
+ * InferenceModel wrapper that neutralizes the policy of the delegate
+ * but retains its value function
+ */
+class NeutralPolicyInferenceModel<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> implements InferenceModel<C, S, A>
+{
+  constructor(readonly delegate: InferenceModel<C, S, A>) {}
+  infer(
+    snapshots: readonly EpisodeSnapshot<C, S>[]
+  ): Promise<readonly InferenceResult<A>[]> {
+    return this.delegate.infer(snapshots).then((results) => {
+      return results.map((result) => {
+        const policySize = result.policy.count();
+        const policyValue = 1 / policySize;
+        const policy = result.policy.map(() => policyValue);
+        return {
+          value: result.value,
+          policy: policy,
+        } satisfies InferenceResult<A>;
+      });
+    });
+  }
+}
 
 /**
  * Performs `episodeCount` eval episodes with four players.
@@ -60,30 +114,43 @@ export async function evalEpisodeBatch(
   model: KingdominoInferenceModel,
   episodeCount: number
 ): Promise<EvalResult> {
-  const baselineAgent = new MctsBatchAgent(
-    new NeutralKingdominoModel(),
-    EVAL_BASELINE_MCTS_CONFIG
+  const modelPolicyModelValueAgent = new MctsBatchAgent(
+    model,
+    EVAL_MODEL_VALUE_CONFIG
   );
-  const model1Agent = new MctsBatchAgent(model, EVAL_MCTS_CONFIG);
+  const modelPolicyRandomPlayoutAgent = new MctsBatchAgent(
+    model,
+    EVAL_RANDOM_PLAYOUT_MCTS_CONFIG
+  );
+  const neutralPolicyModelValueAgent = new MctsBatchAgent(
+    new NeutralPolicyInferenceModel(model),
+    EVAL_MODEL_VALUE_CONFIG
+  );
+  const neutralPolicyRandomPlayoutAgent = new MctsBatchAgent(
+    new NeutralKingdominoModel(),
+    EVAL_RANDOM_PLAYOUT_MCTS_CONFIG
+  );
   const agentIdToAgent = Map<string, BatchAgent>([
-    ["baseline", baselineAgent],
-    ["model", model1Agent],
+    ["model-policy-model-value", modelPolicyModelValueAgent],
+    ["model-policy-random-playout", modelPolicyRandomPlayoutAgent],
+    ["neutral-policy-model-value", neutralPolicyModelValueAgent],
+    ["neutral-policy-random-playout", neutralPolicyRandomPlayoutAgent],
   ]);
 
   const playerIdToAgentId = Map([
-    [subjectPlayer1.id, "model"],
-    [subjectPlayer2.id, "model"],
-    [baselinePlayer1.id, "baseline"],
-    [baselinePlayer2.id, "baseline"],
+    [modelPolicyModelValue.id, "model-policy-model-value"],
+    [modelPolicyRandomPlayout.id, "model-policy-random-playout"],
+    [neutralPolicyModelValue.id, "neutral-policy-model-value"],
+    [neutralPolicyRandomPlayout.id, "neutral-policy-random-playout"],
   ]);
 
   const players = [
-    subjectPlayer1,
-    subjectPlayer2,
-    baselinePlayer1,
-    baselinePlayer2,
+    modelPolicyModelValue,
+    modelPolicyRandomPlayout,
+    neutralPolicyModelValue,
+    neutralPolicyRandomPlayout,
   ];
-  let playerIdToValue = Map<string, number>();
+
   const generators = Range(0, episodeCount)
     .map(() => {
       const shuffledPlayers = _.shuffle(players);
@@ -94,8 +161,14 @@ export async function evalEpisodeBatch(
     })
     .toArray();
 
-  let subjectTimeMs = 0;
-  let baselineTimeMs = 0;
+  const agentIdToResult = Map(
+    players
+      .map((player) => player.id)
+      .map((playerId) => [
+        playerId,
+        { value: 0, timeMs: 0 } satisfies AgentResult,
+      ])
+  );
 
   const start = performance.now();
   const terminalSnapshots = await driveGenerators(
@@ -111,26 +184,17 @@ export async function evalEpisodeBatch(
           ).id;
           return requireDefined(playerIdToAgentId.get(currentPlayerId));
         });
-      const agentIdToResponses = agentIdToRequests.map((requests, agentId) => {
-        const actStart = performance.now();
-        const result = requireDefined(agentIdToAgent.get(agentId)).act(
-          requests.map((request) => request.snapshot).toArray()
-        );
-        const elapsed = performance.now() - actStart;
-        switch (agentId) {
-          case "model": {
-            subjectTimeMs += elapsed;
-            break;
-          }
-          case "baseline": {
-            baselineTimeMs += elapsed;
-            break;
-          }
-          default:
-            throw new Error(`Unexpected agent ID ${agentId}`);
+      const agentIdToResponses = agentIdToRequests.map(
+        async (requests, agentId) => {
+          const actStart = performance.now();
+          const result = await requireDefined(agentIdToAgent.get(agentId)).act(
+            requests.map((request) => request.snapshot).toArray()
+          );
+          const elapsedMs = performance.now() - actStart;
+          requireDefined(agentIdToResult.get(agentId)).timeMs += elapsedMs;
+          return result;
         }
-        return result;
-      });
+      );
       const actions = new Array<KingdominoAction>(snapshots.length);
       for (const [agentId, requests] of agentIdToRequests) {
         const responses = await requireDefined(agentIdToResponses.get(agentId));
@@ -150,10 +214,7 @@ export async function evalEpisodeBatch(
   );
 
   const result = {
-    subjectPoints: 0,
-    subjectTimeMs: subjectTimeMs,
-    baselinePoints: 0,
-    baselineTimeMs: baselineTimeMs,
+    agentIdToResult: agentIdToResult,
   } satisfies EvalResult;
 
   for (const snapshot of terminalSnapshots) {
@@ -162,25 +223,11 @@ export async function evalEpisodeBatch(
       const value = requireDefined(
         episodeResult.playerIdToValue.get(player.id)
       );
-      playerIdToValue = playerIdToValue.set(
-        player.id,
-        value + playerIdToValue.get(player.id, 0)
-      );
-      const agentId = playerIdToAgentId.get(player.id);
-      switch (agentId) {
-        case "model":
-          result.subjectPoints += value;
-          break;
-        case "baseline":
-          result.baselinePoints += value;
-          break;
-        default:
-          throw new Error(`Unexpected agent ID ${agentId}`);
-      }
+      const agentId = requireDefined(playerIdToAgentId.get(player.id));
+      requireDefined(agentIdToResult.get(agentId)).value += value;
     }
   }
 
-  console.log(playerIdToValue.toArray());
   return result;
 }
 
@@ -203,13 +250,7 @@ class MctsBatchAgent implements BatchAgent {
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction
-    > = new mcts.MctsConfig({
-      simulationCount: 32,
-      randomPlayoutConfig: {
-        weight: 1,
-        agent: new RandomKingdominoAgent(),
-      },
-    })
+    >
   ) {}
   async act(
     snapshots: ReadonlyArray<
@@ -299,7 +340,6 @@ function* episode<
   game: Game<C, S, A>,
   episodeConfig: EpisodeConfiguration
 ): Generator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, A> {
-  const startMs = performance.now();
   let snapshot = game.newEpisode(episodeConfig);
   if (game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
@@ -311,9 +351,5 @@ function* episode<
     const [newState] = game.apply(snapshot, action);
     snapshot = snapshot.derive(newState);
   }
-  const elapsedMs = performance.now() - startMs;
-  console.log(
-    `Completed episode; elapsed time ${decimalFormat.format(elapsedMs)} ms`
-  );
   return snapshot;
 }
