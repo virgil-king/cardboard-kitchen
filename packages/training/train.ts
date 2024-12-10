@@ -154,9 +154,9 @@ export async function train_parallel<
     console.log(
       `Batch time ${decimalFormat.format(
         (100 * (beforeTrain - beforeBatch)) / totalBatchTime
-      )} data prep, ${decimalFormat.format(
+      )}% data prep, ${decimalFormat.format(
         (100 * (afterTrain - beforeTrain)) / totalBatchTime
-      )} training`
+      )}% training`
     );
     trailingLosses = trailingLosses.push(loss);
     if (trailingLosses.count() > 100) {

@@ -641,11 +641,6 @@ export class KingdominoModel
     return new Promise((resolve) =>
       this.model.save({
         save: (modelArtifacts: tfTypes.io.ModelArtifacts) => {
-          console.log(
-            `Resolving toJson result with metadata ${JSON.stringify(
-              this.metadata
-            )}`
-          );
           resolve({ modelArtifacts: modelArtifacts, metadata: this.metadata });
 
           return Promise.resolve({

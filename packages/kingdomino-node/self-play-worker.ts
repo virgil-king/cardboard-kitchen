@@ -81,16 +81,6 @@ async function main() {
 
     console.log(`Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`);
 
-    for (const episode of episodes) {
-      console.log(
-        `Scores: ${episode.terminalState.props.playerIdToState
-          .valueSeq()
-          .map((state) => state.score)
-          .toArray()
-          .sort((a, b) => a - b)}`
-      );
-    }
-
     messagePort.postMessage(episodes.map((episode) => episode.toJson()));
 
     await sleep(0);
