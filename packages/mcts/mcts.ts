@@ -12,6 +12,7 @@ import {
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
 import {
+  ProbabilityDistribution,
   requireDefined,
   weightedMerge,
 } from "studio-util";
@@ -44,7 +45,6 @@ export class MctsConfig<
   readonly modelValueWeight: number | undefined;
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
-  readonly minPrior: number;
   constructor(params: {
     simulationCount?: number;
     explorationBias?: number;
@@ -66,7 +66,6 @@ export class MctsConfig<
       );
     }
     this.maxChanceBranches = params.maxChanceBranches ?? 4;
-    this.minPrior = params.minPolicyValue ?? 0.01;
   }
 }
 
@@ -237,32 +236,15 @@ export class NonTerminalStateNode<
     readonly inferenceResult: InferenceResult<A>
   ) {
     this.context.stats.stateNodesCreated++;
-    // const inferenceStartMs = performance.now();
-    // this.inferenceResult = context.model.infer([snapshot])[0];
-    // this.context.stats.inferenceTimeMs += performance.now() - inferenceStartMs;
-    // this.context.stats.inferences++;
-    let policy = this.inferenceResult.policy;
-    // console.log(`policy is ${policy.toArray()}`);
 
-    // Shift priors if needed to honor the configured minimum prior
-    const minPrior = requireDefined(Seq(policy.values()).min());
-    if (minPrior < context.config.minPrior) {
-      const delta = context.config.minPrior - minPrior;
-      policy = policy.map((value) => value + delta);
-      // console.log(`Compensated for negative policy values`);
-    }
+    let policy = ProbabilityDistribution.create(this.inferenceResult.policy);
 
-    const priorSum = Array.from(policy.values()).reduce(
-      (sum, next) => sum + next,
-      0
-    );
     this.actionToChild = new Map(
-      policy.mapEntries(([action, prior]) => [
+      policy.itemToProbability.mapEntries(([action, prior]) => [
         action,
-        new ActionNode(context, action, prior / priorSum),
+        new ActionNode(context, action, prior),
       ])
     );
-    // debugLog(() => `actionToChild is ${JSON.stringify(this.actionToChild)}`);
   }
 
   /**

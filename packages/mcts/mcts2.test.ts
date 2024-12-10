@@ -261,7 +261,8 @@ async function synchronousMcts<
   };
   const root = new NonTerminalStateNode(context, snapshot);
   for (let step = 0; step < config.simulationCount; step++) {
-    await root.visit();
+    // TODO update tests not to rely on the legacy 'true' behavior
+    await root.visit(true);
   }
   const result = ImmutableMap(
     Seq(root.actionToChild.entries()).map(([action, node]) => [

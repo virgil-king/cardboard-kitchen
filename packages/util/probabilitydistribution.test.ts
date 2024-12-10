@@ -2,26 +2,28 @@ import { assert, test } from "vitest";
 import { Map as ImmutableMap } from "immutable";
 import _ from "lodash";
 import { ProbabilityDistribution } from "./probabilitydistribution.js";
-import { requireDefined } from "./util.js";
 
-test("withMinimumValue: flattens distribution", () => {
-  const before = ProbabilityDistribution.create(
+test("create: size is preserved", () => {
+  const pd = ProbabilityDistribution.create(
     ImmutableMap([
-      ["a", 0],
-      ["b", 0.5],
-      ["c", 0.5],
+      ["a", 2],
+      ["b", 1],
     ])
   );
 
-  const after = before.withMinimumValue(0.3);
-  assertClose(requireDefined(after.get("a")), 0.1);
-  assertClose(requireDefined(after.get("b")), 0.45);
-  assertClose(requireDefined(after.get("c")), 0.45);
+  assert.equal(pd.itemToProbability.count(), 2);
 });
 
-function assertClose(actual: number, expected: number) {
-  assert.isTrue(
-    Math.abs(actual - expected) < 0.01,
-    `${actual} was not close to ${expected}`
+test("create: max is preserved", () => {
+  const pd = ProbabilityDistribution.create(
+    ImmutableMap([
+      ["a", 2],
+      ["b", 1],
+    ])
   );
-}
+
+  assert.equal(
+    pd.itemToProbability.entrySeq().max((a, b) => a[1] - b[1])?.[0],
+    "a"
+  );
+});

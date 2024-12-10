@@ -59,14 +59,12 @@ export class MctsConfig<
   readonly modelValueWeight: number | undefined;
   readonly randomPlayoutConfig: RandomPlayoutConfig<C, S, A> | undefined;
   readonly maxChanceBranches: number;
-  readonly minPrior: number;
   constructor(params: {
     simulationCount?: number;
     explorationBias?: number;
     modelValueWeight?: number;
     randomPlayoutConfig?: RandomPlayoutConfig<C, S, A>;
     maxChanceBranches?: number;
-    minPolicyValue?: number;
   }) {
     this.simulationCount = params.simulationCount ?? 32;
     this.explorationBias = params.explorationBias ?? Math.sqrt(2);
@@ -81,7 +79,6 @@ export class MctsConfig<
       );
     }
     this.maxChanceBranches = params.maxChanceBranches ?? 4;
-    this.minPrior = params.minPolicyValue ?? 0.01;
   }
 }
 
@@ -273,9 +270,7 @@ export class NonTerminalStateNode<
     this.inference = context.model.infer([snapshot]).then((resultBatch) => {
       const result = resultBatch[0];
       debugLog(() => `policy is ${JSON.stringify(result.policy.toArray())}`);
-      const actionToModelPrior = ProbabilityDistribution.create(
-        result.policy
-      ).withMinimumValue(context.config.minPrior);
+      const actionToModelPrior = ProbabilityDistribution.create(result.policy);
 
       debugLog(
         () =>
@@ -368,7 +363,9 @@ export class NonTerminalStateNode<
    * Selects an action, visits the corresponding action node, updates this node's
    * expected values based on that visit, and returns this node's new expected values
    */
-  async visit(selectUnvisitedActionsFirst: boolean = false): Promise<PlayerValues> {
+  async visit(
+    selectUnvisitedActionsFirst: boolean = false
+  ): Promise<PlayerValues> {
     this.incompleteVisitCount++;
 
     const action = this.selectAction(selectUnvisitedActionsFirst);
