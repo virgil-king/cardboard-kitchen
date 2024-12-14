@@ -19,6 +19,7 @@
     "vitest": "^2.1.5"
   },
   "dependencies": {
+    "@stdlib/random-base-gamma": "^0.2.1",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
     "game": "workspace:*",

@@ -10,13 +10,14 @@ import {
   Player,
   Agent,
 } from "game";
-import { Map as ImmutableMap, Seq } from "immutable";
+import { Map as ImmutableMap, Range, Seq } from "immutable";
 import {
   ProbabilityDistribution,
   requireDefined,
   weightedMerge,
 } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
+import gamma from "@stdlib/random-base-gamma";
 
 const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
@@ -115,9 +116,6 @@ class ActionNode<
     readonly action: A,
     readonly prior: number
   ) {
-    if (prior < 0) {
-      throw new Error(`Negative prior ${prior}`);
-    }
     this.context.stats.actionNodesCreated++;
   }
 
@@ -217,6 +215,9 @@ interface StateNode<
   >;
 }
 
+const gammaFactory = gamma.factory(0.3, 1);
+const explorationFactor = 0.25;
+
 /**
  * A node in a UCT search tree uniquely corresponding to a game state. State
  * nodes' children correspond to possible actions following that state.
@@ -228,22 +229,28 @@ export class NonTerminalStateNode<
 > implements StateNode<C, S, A>
 {
   visitCount = 0;
-  actionToChild: Map<A, ActionNode<C, S, A>>;
+  actionToChild: ImmutableMap<A, ActionNode<C, S, A>>;
   readonly playerValues = new NodeValues();
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly snapshot: EpisodeSnapshot<C, S>,
-    readonly inferenceResult: InferenceResult<A>
+    readonly inferenceResult: InferenceResult<A>,
+    addExplorationNoise: boolean = false
   ) {
     this.context.stats.stateNodesCreated++;
 
     let policy = ProbabilityDistribution.create(this.inferenceResult.policy);
+    let itemToPrior = policy.itemToProbability;
 
-    this.actionToChild = new Map(
-      policy.itemToProbability.mapEntries(([action, prior]) => [
-        action,
-        new ActionNode(context, action, prior),
-      ])
+    if (addExplorationNoise) {
+      itemToPrior = itemToPrior.map((prior) => {
+        const noise = gammaFactory();
+        return explorationFactor * noise + (1 - explorationFactor) * prior;
+      });
+    }
+
+    this.actionToChild = ImmutableMap(
+      itemToPrior.map((prior, action) => new ActionNode(context, action, prior))
     );
   }
 
@@ -362,6 +369,10 @@ export class NonTerminalStateNode<
     );
     const childEvs = [];
     const ucbs = [];
+
+    const pb_c_base = 19652;
+    const pb_c_init = 1.25 * 3; // 3 is the max value in four-player games
+
     for (const [action, child] of this.actionToChild) {
       if (selectUnvisitedActionsFirst && child.visitCount == 0) {
         debugLog(
@@ -374,12 +385,11 @@ export class NonTerminalStateNode<
         currentPlayer.id
       );
       childEvs.push(childEv);
-      // TODO move child.visitCount inside the sqrt?
+      const explorationBonus =
+        pb_c_init + Math.log((this.visitCount + pb_c_base + 1) / pb_c_base);
       const ucb =
         (childEv ?? 0) +
-        (child.prior *
-          this.context.config.explorationBias *
-          Math.sqrt(Math.log(1 + this.visitCount))) /
+        (child.prior * explorationBonus * Math.sqrt(1 + this.visitCount)) /
           (1 + child.visitCount);
       ucbs.push(ucb);
 

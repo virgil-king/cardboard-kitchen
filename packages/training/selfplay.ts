@@ -46,7 +46,8 @@ export async function* selfPlayEpisode<
   let root = new mcts.NonTerminalStateNode(
     mctsContext,
     snapshot,
-    inferenceResult
+    inferenceResult,
+    /* addExplorationNoise = */ true
   );
   const nonTerminalStates = new Array<StateSearchData<S, A>>();
   while (game.result(snapshot) == undefined) {
