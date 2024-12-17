@@ -3,7 +3,7 @@ import { Kingdomino } from "kingdomino";
 import Link from "next/link";
 
 export default function Games(): JSX.Element {
-  const filenames = fs.readdirSync(Kingdomino.GAMES_DIR);
+  const filenames = fs.readdirSync(`${process.env.HOME}/ckdata/experiments/kingdomino-dirichlet-2/episodes`);
   const links = filenames.map((filename) => {
     return (
       <>

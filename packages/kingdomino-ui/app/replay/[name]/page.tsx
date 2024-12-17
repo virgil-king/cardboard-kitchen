@@ -9,7 +9,11 @@ export default async function ReplayPage({
 }): Promise<JSX.Element> {
   const replayName = (await params).name;
   const episodeJsonString = fs.readFileSync(
-    `${Kingdomino.GAMES_DIR}/${decodeURIComponent(replayName)}`,
+    `${
+      process.env.HOME
+    }/ckdata/experiments/kingdomino-dirichlet-2/episodes/${decodeURIComponent(
+      replayName
+    )}`,
     { encoding: "utf8" }
   );
   return (

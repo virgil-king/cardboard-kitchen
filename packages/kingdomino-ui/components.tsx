@@ -429,14 +429,16 @@ function PolicyComponent(props: PolicyProps) {
       if (visitDiff != 0) {
         return visitDiff;
       }
-      return (
-        requireDefined(
-          stats2.expectedValues.playerIdToValue.get(props.currentPlayerId)
-        ) -
-        requireDefined(
-          stats1.expectedValues.playerIdToValue.get(props.currentPlayerId)
-        )
+      const ev1 = stats1.expectedValues.playerIdToValue.get(
+        props.currentPlayerId
       );
+      const ev2 = stats2.expectedValues.playerIdToValue.get(
+        props.currentPlayerId
+      );
+      if (ev1 == undefined || ev2 == undefined) {
+        return 0;
+      }
+      return ev2 - ev1;
     }
   );
   return (
@@ -463,20 +465,22 @@ type ActionPolicyProps = {
 };
 
 function ActionPolicyComponent(props: ActionPolicyProps) {
+  const expectedValue = props.stats.expectedValues.playerIdToValue.get(
+    props.currentPlayerId
+  );
+  const expectedValueString =
+    expectedValue == undefined
+      ? "unknown"
+      : decimalFormat.format(expectedValue);
   return (
     <div style={{ border: "1pt solid gray", padding: s_spacing }}>
       {actionToString(props.action)}
       <br />
-      Prior: {decimalFormat.format(props.stats.prior)}
+      Prior: {props.stats.prior}
       <br />
       Visit count: {props.stats.visitCount}
       <br />
-      Expected value:{" "}
-      {decimalFormat.format(
-        requireDefined(
-          props.stats.expectedValues.playerIdToValue.get(props.currentPlayerId)
-        )
-      )}
+      Expected value: {expectedValueString}
     </div>
   );
 }
