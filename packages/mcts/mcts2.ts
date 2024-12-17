@@ -128,6 +128,8 @@ export class ActionNode<
    * received and processed its inference result.
    */
   prior: number;
+  /** Predicted value of this action for the acting player */
+  predictedValue = 0;
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
@@ -146,6 +148,11 @@ export class ActionNode<
 
   get combinedVisitCount(): number {
     return this.visitCount + this.incompleteVisitCount;
+  }
+
+  initializeFromModel(prior: number, predictedValue: number) {
+    this.prior = prior;
+    this.predictedValue = predictedValue;
   }
 
   /**
@@ -268,15 +275,29 @@ export class NonTerminalStateNode<
 
     this.context.stats.inferences++;
     this.inference = context.model.infer([snapshot]).then((resultBatch) => {
-      const result = resultBatch[0];
-      debugLog(() => `policy is ${JSON.stringify(result.policy.toArray())}`);
-      const actionToModelPrior = ProbabilityDistribution.create(result.policy);
+      const inferenceResult = resultBatch[0];
+      debugLog(
+        () => `policy is ${JSON.stringify(inferenceResult.policy.toArray())}`
+      );
+      const actionToModelPrior = ProbabilityDistribution.create(
+        inferenceResult.policy
+      );
 
       debugLog(
         () =>
           `actionToModelPrior is ${JSON.stringify(
             actionToModelPrior.itemToProbability.toArray()
           )}`
+      );
+
+      const maxPolicyLogit = requireDefined(
+        inferenceResult.policy.valueSeq().max()
+      );
+      const currentPlayer = requireDefined(
+        context.game.currentPlayer(snapshot)
+      );
+      const statePredictedValue = requireDefined(
+        inferenceResult.value.playerIdToValue.get(currentPlayer.id)
       );
 
       for (const [
@@ -291,12 +312,23 @@ export class NonTerminalStateNode<
             )}; actionToChild is ${JSON.stringify(this.actionToChild)}`
           );
         }
+
+        // Estimate the value of this action for the acting player as the
+        // estimated value of the parent node times the ratio between the
+        // action's logit and the best action's logit
+        const policyLogit = requireDefined(inferenceResult.policy.get(action));
+        const actionPredictedValue =
+          (policyLogit / maxPolicyLogit) * statePredictedValue;
+
         debugLog(
-          () => `Updating ${JSON.stringify(action)} prior to ${modelPrior}`
+          () =>
+            `Updating ${JSON.stringify(
+              action
+            )} with prior=${modelPrior} and predictedValue=${actionPredictedValue}`
         );
-        actionNode.prior = modelPrior;
+        actionNode.initializeFromModel(modelPrior, actionPredictedValue);
       }
-      return result;
+      return inferenceResult;
     });
   }
 
@@ -404,9 +436,9 @@ export class NonTerminalStateNode<
         return action;
       }
 
-      const childEv = child.playerExpectedValues.playerIdToValue.get(
-        currentPlayer.id
-      );
+      const childEv =
+        child.playerExpectedValues.playerIdToValue.get(currentPlayer.id) ??
+        child.predictedValue;
 
       debugLog(
         () =>
@@ -417,18 +449,18 @@ export class NonTerminalStateNode<
           }, and incomplete visit count ${child.incompleteVisitCount}`
       );
 
-      // Note we're using the formula from AlphaZero (child visit count
-      // outside of sqrt) rather than standard UCB (inside).
       // Incomplete visits are not counted in child EVs, which are only
       // based on complete visits, but we do count them in the second
       // component of this formula to encourage search to visit different
       // children within a batch
       const ucb =
-        (childEv ?? 0) +
-        (child.prior *
-          this.context.config.explorationBias *
-          Math.sqrt(Math.log(1 + this.combinedVisitCount))) /
-          (1 + child.combinedVisitCount);
+        childEv +
+        child.prior *
+          Math.sqrt(
+            (this.context.config.explorationBias *
+              Math.log(1 + this.combinedVisitCount)) /
+              (1 + child.combinedVisitCount)
+          );
       ucbs.push(ucb);
       if (ucb > maxUcb) {
         debugLog(

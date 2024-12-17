@@ -114,7 +114,9 @@ class ActionNode<
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
-    readonly prior: number
+    readonly prior: number,
+    /** Predicted value for the acting player */
+    readonly predictedValue: number
   ) {
     this.context.stats.actionNodesCreated++;
   }
@@ -237,9 +239,9 @@ export class NonTerminalStateNode<
     readonly inferenceResult: InferenceResult<A>,
     addExplorationNoise: boolean = false
   ) {
-    this.context.stats.stateNodesCreated++;
+    context.stats.stateNodesCreated++;
 
-    let policy = ProbabilityDistribution.create(this.inferenceResult.policy);
+    let policy = ProbabilityDistribution.create(inferenceResult.policy);
     let itemToPrior = policy.itemToProbability;
 
     if (addExplorationNoise) {
@@ -249,8 +251,24 @@ export class NonTerminalStateNode<
       });
     }
 
+    const maxPolicyLogit = requireDefined(
+      inferenceResult.policy.valueSeq().max()
+    );
+    const currentPlayer = requireDefined(context.game.currentPlayer(snapshot));
+    const statePredictedValue = requireDefined(
+      inferenceResult.value.playerIdToValue.get(currentPlayer.id)
+    );
+
     this.actionToChild = ImmutableMap(
-      itemToPrior.map((prior, action) => new ActionNode(context, action, prior))
+      itemToPrior.map((prior, action) => {
+        // Estimate the value of this action for the acting player as the
+        // estimated value of the parent node times the ratio between the
+        // action's logit and the best action's logit
+        const policyLogit = requireDefined(inferenceResult.policy.get(action));
+        const actionPredictedValue =
+          (policyLogit / maxPolicyLogit) * statePredictedValue;
+        return new ActionNode(context, action, prior, actionPredictedValue);
+      })
     );
   }
 
@@ -370,8 +388,8 @@ export class NonTerminalStateNode<
     const childEvs = [];
     const ucbs = [];
 
-    const pb_c_base = 19652;
-    const pb_c_init = 1.25 * 3; // 3 is the max value in four-player games
+    // const pb_c_base = 19652;
+    // const pb_c_init = 1.25 * 3; // 3 is the max value in four-player games
 
     for (const [action, child] of this.actionToChild) {
       if (selectUnvisitedActionsFirst && child.visitCount == 0) {
@@ -385,11 +403,13 @@ export class NonTerminalStateNode<
         currentPlayer.id
       );
       childEvs.push(childEv);
-      const explorationBonus =
-        pb_c_init + Math.log((this.visitCount + pb_c_base + 1) / pb_c_base);
+      // const explorationBonus =
+      // pb_c_init + Math.log((this.visitCount + pb_c_base + 1) / pb_c_base);
       const ucb =
-        (childEv ?? 0) +
-        (child.prior * explorationBonus * Math.sqrt(1 + this.visitCount)) /
+        (childEv ?? child.predictedValue) +
+        (child.prior *
+          this.context.config.explorationBias *
+          Math.sqrt(1 + this.visitCount)) /
           (1 + child.visitCount);
       ucbs.push(ucb);
 
