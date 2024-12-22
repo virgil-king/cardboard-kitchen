@@ -11,7 +11,7 @@ export default async function ReplayPage({
   const episodeJsonString = fs.readFileSync(
     `${
       process.env.HOME
-    }/ckdata/experiments/kingdomino-dirichlet-2/episodes/${decodeURIComponent(
+    }/ckdata/experiments/kingdomino-gumbel/eval_episodes/${decodeURIComponent(
       replayName
     )}`,
     { encoding: "utf8" }

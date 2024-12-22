@@ -21,7 +21,7 @@ export default function SinglePlayerEpisodePage(): JSX.Element {
     console.log(`Using TensorFlow backend ${tf.getBackend()}`);
     async function fetch() {
       const modelUrl = `${window.location.protocol}//${window.location.host}/kingdomino/model`;
-      const result = await KingdominoModel.loadFromUrl(modelUrl, tf);
+      const result = await KingdominoModel.loadFromUrl(modelUrl);
       console.log(`Loaded model`);
       setModel(result);
     }
