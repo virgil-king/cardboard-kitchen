@@ -6,12 +6,24 @@ import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoConv7 } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "mcts";
+import { LogDirectory } from "training";
+
+// No more than one eval worker should run at a time since this code
+// assumes it's the only writer to the log file and eval episodes
+// directory
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let modelNumber = 0;
 
 const logFilePath = await kingdominoConv7.logFile();
+
+const episodesPath = await kingdominoConv7.evalEpisodesDirectory();
+const episodesDir = new LogDirectory(
+  episodesPath,
+  kingdominoConv7.evalMaxEpisodeBytes
+);
+const textEncoder = new TextEncoder();
 
 export type EvalLogEntry = {
   time: string;
@@ -75,6 +87,12 @@ async function evaluate(model: KingdominoModel) {
     console.log(
       `Eval thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
     );
+
+    for (const episode of batchResult.episodeTrainingData) {
+      episodesDir.writeData(
+        textEncoder.encode(JSON.stringify(episode.toJson(), undefined, 2))
+      );
+    }
   }
 
   const logEntry = {
@@ -92,6 +110,7 @@ async function evaluate(model: KingdominoModel) {
     )}`
   );
   fs.writeFileSync(logFilePath, logString);
+
   evalsInProgress--;
   if (evalsInProgress > 0) {
     console.log(`${evalsInProgress} evals in progress`);

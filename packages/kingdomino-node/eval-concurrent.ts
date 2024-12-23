@@ -29,6 +29,7 @@ import {
   EVAL_MODEL_VALUE_CONFIG as EVAL_MODEL_VALUE_CONFIG,
 } from "./config.js";
 import { NeutralKingdominoModel } from "./neutral-model.js";
+import { EpisodeTrainingData, StateSearchData } from "training-data";
 
 // Agents:
 // 1. Policy + value
@@ -57,12 +58,22 @@ const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 3,
 });
 
+/**
+ * Eval result for one agent
+ */
 export type AgentResult = {
+  /** The sum of the values of the players that used the agent */
   value: number;
+  /** The total amount of thinking time used by the agent */
   timeMs: number;
 };
 
-export type EvalResult = {
+export type EvalResult<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> = {
+  episodeTrainingData: ReadonlyArray<EpisodeTrainingData<C, S, A>>;
   agentIdToResult: Map<string, AgentResult>;
 };
 
@@ -108,7 +119,9 @@ class NeutralPolicyInferenceModel<
 export async function evalEpisodeBatch(
   model: KingdominoInferenceModel,
   episodeCount: number
-): Promise<EvalResult> {
+): Promise<
+  EvalResult<KingdominoConfiguration, KingdominoState, KingdominoAction>
+> {
   const modelPolicyModelValueAgent = new MctsBatchAgent(
     model,
     EVAL_MODEL_VALUE_CONFIG
@@ -125,7 +138,7 @@ export async function evalEpisodeBatch(
     new NeutralKingdominoModel(),
     EVAL_RANDOM_PLAYOUT_MCTS_CONFIG
   );
-  const agentIdToAgent = Map<string, BatchAgent>([
+  const agentIdToAgent = Map<string, MctsBatchAgent>([
     ["model-policy-model-value", modelPolicyModelValueAgent],
     ["model-policy-random-playout", modelPolicyRandomPlayoutAgent],
     ["neutral-policy-model-value", neutralPolicyModelValueAgent],
@@ -166,41 +179,40 @@ export async function evalEpisodeBatch(
   );
 
   const start = performance.now();
-  const terminalSnapshots = await driveGenerators(
-    generators,
-    async (snapshots) => {
-      const agentIdToRequests = List(snapshots)
-        .map((snapshot, index) => {
-          return { requestIndex: index, snapshot: snapshot };
-        })
-        .groupBy((request) => {
-          const currentPlayerId = requireDefined(
-            Kingdomino.INSTANCE.currentPlayer(request.snapshot)
-          ).id;
-          return requireDefined(playerIdToAgentId.get(currentPlayerId));
-        });
-      const agentIdToResponses = agentIdToRequests.map(
-        async (requests, agentId) => {
-          const actStart = performance.now();
-          const result = await requireDefined(agentIdToAgent.get(agentId)).act(
-            requests.map((request) => request.snapshot).toArray()
-          );
-          const elapsedMs = performance.now() - actStart;
-          requireDefined(agentIdToResult.get(agentId)).timeMs += elapsedMs;
-          return result;
-        }
-      );
-      const actions = new Array<KingdominoAction>(snapshots.length);
-      for (const [agentId, requests] of agentIdToRequests) {
-        const responses = await requireDefined(agentIdToResponses.get(agentId));
-        for (const [agentRequestIndex, request] of requests.entries()) {
-          const response = responses[agentRequestIndex];
-          actions[request.requestIndex] = response;
-        }
+  const episodeData = await driveGenerators(generators, async (snapshots) => {
+    const agentIdToRequests = List(snapshots)
+      .map((snapshot, index) => {
+        return { requestIndex: index, snapshot: snapshot };
+      })
+      .groupBy((request) => {
+        const currentPlayerId = requireDefined(
+          Kingdomino.INSTANCE.currentPlayer(request.snapshot)
+        ).id;
+        return requireDefined(playerIdToAgentId.get(currentPlayerId));
+      });
+    const agentIdToResponses = agentIdToRequests.map(
+      async (requests, agentId) => {
+        const actStart = performance.now();
+        const result = await requireDefined(agentIdToAgent.get(agentId)).act(
+          requests.map((request) => request.snapshot).toArray()
+        );
+        const elapsedMs = performance.now() - actStart;
+        requireDefined(agentIdToResult.get(agentId)).timeMs += elapsedMs;
+        return result;
       }
-      return actions;
+    );
+    const mctsResults = new Array<
+      MctsResult<KingdominoState, KingdominoAction>
+    >(snapshots.length);
+    for (const [agentId, requests] of agentIdToRequests) {
+      const responses = await requireDefined(agentIdToResponses.get(agentId));
+      for (const [agentRequestIndex, request] of requests.entries()) {
+        const mctsResult = responses[agentRequestIndex];
+        mctsResults[request.requestIndex] = mctsResult;
+      }
     }
-  );
+    return mctsResults;
+  });
   const elapsed = performance.now() - start;
   console.log(
     `Completed ${episodeCount} episodes in ${decimalFormat.format(
@@ -208,14 +220,10 @@ export async function evalEpisodeBatch(
     )} ms (${decimalFormat.format(elapsed / episodeCount)} per episode)`
   );
 
-  const result = {
-    agentIdToResult: agentIdToResult,
-  } satisfies EvalResult;
-
-  for (const snapshot of terminalSnapshots) {
+  for (const episodeTrainingData of episodeData) {
     console.log(
       `Scores: ${JSON.stringify(
-        snapshot.state.props.playerIdToState
+        episodeTrainingData.terminalState.props.playerIdToState
           .valueSeq()
           .map((state) => state.score)
           .sort()
@@ -223,28 +231,27 @@ export async function evalEpisodeBatch(
           .reverse()
       )}`
     );
-    const episodeResult = requireDefined(Kingdomino.INSTANCE.result(snapshot));
-    for (const player of snapshot.episodeConfiguration.players.players) {
+    for (const player of episodeTrainingData.episodeConfig.players.players) {
       const value = requireDefined(
-        episodeResult.playerIdToValue.get(player.id)
+        episodeTrainingData.terminalValues.playerIdToValue.get(player.id)
       );
       const agentId = requireDefined(playerIdToAgentId.get(player.id));
       requireDefined(agentIdToResult.get(agentId)).value += value;
     }
   }
 
-  return result;
+  return {
+    episodeTrainingData: episodeData,
+    agentIdToResult: agentIdToResult,
+  };
 }
 
-interface BatchAgent {
-  act(
-    snapshots: ReadonlyArray<
-      EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-    >
-  ): Promise<ReadonlyArray<KingdominoAction>>;
-}
+type MctsResult<S extends GameState, A extends Action> = {
+  action: A;
+  searchData: StateSearchData<S, A>;
+};
 
-class MctsBatchAgent implements BatchAgent {
+class MctsBatchAgent {
   constructor(
     readonly model: InferenceModel<
       KingdominoConfiguration,
@@ -261,7 +268,7 @@ class MctsBatchAgent implements BatchAgent {
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >
-  ): Promise<ReadonlyArray<KingdominoAction>> {
+  ): Promise<ReadonlyArray<MctsResult<KingdominoState, KingdominoAction>>> {
     const generators = snapshots.map((snapshot) => {
       return selectAction(
         Kingdomino.INSTANCE,
@@ -291,7 +298,7 @@ async function* selectAction<
   model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
   mctsConfig: mcts.MctsConfig<C, S, A>
-): AsyncGenerator<EpisodeSnapshot<C, S>, A, InferenceResult<A>> {
+): AsyncGenerator<EpisodeSnapshot<C, S>, MctsResult<S, A>, InferenceResult<A>> {
   const mctsContext: mcts.MctsContext<C, S, A> = {
     config: mctsConfig,
     game: game,
@@ -306,20 +313,18 @@ async function* selectAction<
   );
   const currentPlayer = requireDefined(game.currentPlayer(snapshot));
   // Run simulationCount steps or enough to try every possible action once
+  let selectedAction: A;
   if (root.actionToChild.size == 1) {
     // When root has exactly one child, visit it once to populate the
     // action statistics, but no further visits are necessary
     yield* root.visit();
-    return requireDefined(root.actionToChild.keys().next().value);
+    selectedAction = requireDefined(root.actionToChild.keys().next().value);
   } else {
-    for (const _ of Range(
-      0,
-      Math.max(mctsContext.config.simulationCount, root.actionToChild.size)
-    )) {
+    for (const _ of Range(0, mctsContext.config.simulationCount)) {
       yield* root.visit();
     }
     // Greedily select action with greatest expected value
-    const [selectedAction] = requireDefined(
+    [selectedAction] = requireDefined(
       Seq(root.actionToChild.entries()).maxBy(
         ([, actionNode]) =>
           actionNode.playerExpectedValues.playerIdToValue.get(
@@ -327,18 +332,16 @@ async function* selectAction<
           ) ?? 0
       )
     );
-    return selectedAction;
   }
+  return { action: selectedAction, searchData: root.stateSearchData() };
 }
 
 /**
- * Runs an episode to completion using a generator, yielding states and
- * receiving actions.
+ * Runs an episode to completion using a generator, yielding states,
+ * receiving {@link MctsResult}, and returning {@link EpisodeTrainingData}.
  *
  * The purpose of this pattern is to allow multiple episodes to run
  * concurrently using batch inference to select next moves.
- *
- * This function does not record search data for training.
  */
 function* episode<
   C extends GameConfiguration,
@@ -347,17 +350,27 @@ function* episode<
 >(
   game: Game<C, S, A>,
   episodeConfig: EpisodeConfiguration
-): Generator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, A> {
+): Generator<
+  EpisodeSnapshot<C, S>,
+  EpisodeTrainingData<C, S, A>,
+  MctsResult<S, A>
+> {
+  const nonTerminalStates = new Array<StateSearchData<S, A>>();
   let snapshot = game.newEpisode(episodeConfig);
   if (game.result(snapshot) != undefined) {
     throw new Error(`episode called on completed state`);
   }
   while (game.result(snapshot) == undefined) {
-    const action = yield snapshot;
-    // Ignore chance keys since we're not building a state search tree in
-    // this case
-    const [newState] = game.apply(snapshot, action);
+    const mctsResult = yield snapshot;
+    const [newState] = game.apply(snapshot, mctsResult.action);
     snapshot = snapshot.derive(newState);
+    nonTerminalStates.push(mctsResult.searchData);
   }
-  return snapshot;
+  return new EpisodeTrainingData(
+    episodeConfig,
+    snapshot.gameConfiguration,
+    nonTerminalStates,
+    snapshot.state,
+    requireDefined(game.result(snapshot))
+  );
 }

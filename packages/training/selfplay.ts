@@ -5,15 +5,13 @@ import {
   Game,
   EpisodeConfiguration,
   EpisodeSnapshot,
-  PlayerValues,
 } from "game";
-import { Map, Range, Seq } from "immutable";
+import { Range, Seq } from "immutable";
 import { mcts, InferenceResult, gumbelSequentialHalving } from "mcts";
 import { requireDefined, proportionalRandom } from "studio-util";
 import {
   EpisodeTrainingData,
   StateSearchData,
-  ActionStatistics,
 } from "training-data";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
@@ -101,7 +99,6 @@ export async function* selfPlayEpisode<
       );
     }
   }
-  const elapsedMs = performance.now() - startMs;
   return new EpisodeTrainingData(
     episodeConfig,
     snapshot.gameConfiguration,

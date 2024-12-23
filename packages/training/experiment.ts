@@ -16,6 +16,7 @@ export class Experiment {
   readonly trainingMaxEpisodeBytes: number;
   readonly evalEpisodesPerBatch: number;
   readonly evalBatchCount: number;
+  readonly evalMaxEpisodeBytes: number;
   constructor(params: {
     /** Must be filename-safe */
     name: string;
@@ -27,6 +28,7 @@ export class Experiment {
     trainingMaxEpisodeBytes?: number;
     evalEpisodesPerBatch?: number;
     evalBatchCount?: number;
+    evalMaxEpisodeBytes?: number;
   }) {
     this.name = params.name;
     this.selfPlayEpisodesPerBatch = params.selfPlayEpisodesPerBatch ?? 64;
@@ -39,6 +41,7 @@ export class Experiment {
       params.trainingMaxEpisodeBytes ?? 64 * gbBytes;
     this.evalEpisodesPerBatch = params.evalEpisodesPerBatch ?? 64;
     this.evalBatchCount = params.evalBatchCount ?? 1;
+    this.evalMaxEpisodeBytes = params.evalMaxEpisodeBytes ?? 1 * gbBytes;
   }
 
   async experimentDirectory() {
@@ -67,9 +70,16 @@ export class Experiment {
     }
   }
 
+  // These are self-play episodes
   async episodesDirectory() {
     return this.createDirectoryIfNeeded(
       `${await this.experimentDirectory()}/episodes`
+    );
+  }
+
+  async evalEpisodesDirectory() {
+    return this.createDirectoryIfNeeded(
+      `${await this.experimentDirectory()}/eval_episodes`
     );
   }
 
