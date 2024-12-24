@@ -409,7 +409,7 @@ function ClaimStatistics(props: ClaimStatisticsProps) {
   const stats = props.statistics;
   return (
     <div>
-      Prior: {decimalFormat.format(stats.prior)}
+      Prior: {decimalFormat.format(stats.priorProbability)}
       <br />
       Visit count: {stats.visitCount}
       <br />
@@ -429,16 +429,7 @@ function PolicyComponent(props: PolicyProps) {
       if (visitDiff != 0) {
         return visitDiff;
       }
-      const ev1 = stats1.expectedValues.playerIdToValue.get(
-        props.currentPlayerId
-      );
-      const ev2 = stats2.expectedValues.playerIdToValue.get(
-        props.currentPlayerId
-      );
-      if (ev1 == undefined || ev2 == undefined) {
-        return 0;
-      }
-      return ev2 - ev1;
+      return stats2.priorProbability - stats1.priorProbability;
     }
   );
   return (
@@ -476,7 +467,7 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
     <div style={{ border: "1pt solid gray", padding: s_spacing }}>
       {actionToString(props.action)}
       <br />
-      Prior: {props.stats.prior}
+      Prior: {props.stats.priorProbability}
       <br />
       Visit count: {props.stats.visitCount}
       <br />

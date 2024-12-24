@@ -3,7 +3,7 @@ import { Kingdomino } from "kingdomino";
 import Link from "next/link";
 
 export default function Games(): JSX.Element {
-  const filenames = fs.readdirSync(`${process.env.HOME}/ckdata/experiments/kingdomino-gumbel/eval_episodes`);
+  const filenames = fs.readdirSync(`${process.env.HOME}/ckdata/experiments/kingdomino-gumbel-2/eval_episodes`);
   const links = filenames.map((filename) => {
     return (
       <>

@@ -3,13 +3,10 @@
 import { GameComponent } from "@/components";
 import {
   Kingdomino,
-  KingdominoAction,
-  KingdominoConfiguration,
-  KingdominoState,
 } from "kingdomino";
 import { EpisodeSnapshot } from "game";
 import { useState } from "react";
-import { EpisodeTrainingData, StateTrainingData } from "training-data";
+import { EpisodeTrainingData } from "training-data";
 
 type ReplayProps = {
   episodeJsonString: string;
