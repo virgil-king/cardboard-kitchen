@@ -27,6 +27,13 @@ export class ProbabilityDistribution<T> {
       throw new Error(`Probability distribution created with negative value`);
     }
     const sum = util.sum(values.valueSeq());
+    if (sum <= 0) {
+      throw new Error(
+        `Non-normalized probability sum was non-positive: ${JSON.stringify([
+          ...values.values(),
+        ])}`
+      );
+    }
     return new ProbabilityDistribution(values.map((value) => value / sum));
   }
 

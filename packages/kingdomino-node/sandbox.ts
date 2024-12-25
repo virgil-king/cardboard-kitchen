@@ -14,7 +14,7 @@ import { EpisodeSnapshot } from "game";
 import { Model } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { loadModelFromFile } from "./model.js";
-import { kingdominoConv7 } from "./config.js";
+import { kingdominoExperiment } from "./config.js";
 
 const modelName = "conv3";
 const home = process.env.HOME;
@@ -100,7 +100,7 @@ function loadEpisode(
 async function createModel(): Promise<
   Model<KingdominoConfiguration, KingdominoState, KingdominoAction, any>
 > {
-  const modelPath = await kingdominoConv7.newestModelPath();
+  const modelPath = await kingdominoExperiment.newestModelPath();
   if (modelPath == undefined) {
     return freshModel();
   }

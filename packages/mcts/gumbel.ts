@@ -9,10 +9,7 @@ import {
 import { ActionNode, NonTerminalStateNode } from "./mcts.js";
 import { Map, Range, Seq } from "immutable";
 import { ProbabilityDistribution, requireDefined } from "studio-util";
-import {
-  StateNodeInfo,
-  StateSearchData,
-} from "training-data";
+import { StateNodeInfo, StateSearchData } from "training-data";
 import { InferenceResult } from "./model.js";
 
 const gumbelFactory = gumbel.factory(0, 1);
@@ -99,7 +96,7 @@ export async function* gumbelSequentialHalving<
 
 /**
  * Returns {@link childCount} children of {@link parent}, or all children
- * if less than {@link childCount exist}, to consider for sequential
+ * if less than {@link childCount} exist, to consider for sequential
  * halving.
  */
 // Exported for testing
@@ -231,17 +228,14 @@ export function improvedPolicyLogits<A extends Action>(
     const completedQ =
       actionNodeInfo.visitCount > 0
         ? sigma(
-            requireDefined(
-              actionNodeInfo.expectedValues.playerIdToValue.get(
-                currentPlayer.id
-              )
-            ),
+            actionNodeInfo.expectedValues.requirePlayerValue(currentPlayer),
             maxActionVisitCount,
             C_VISIT,
             C_SCALE
           )
         : fallbackActionValue;
-    result = result.set(action, actionNodeInfo.priorProbability + completedQ);
+
+    result = result.set(action, actionNodeInfo.priorLogit + completedQ);
   }
   return result;
 }

@@ -113,7 +113,12 @@ export class MctsAgent2<
       const values = new PlayerValues(
         node.playerExpectedValues.playerIdToValue
       );
-      return new ActionStatistics(node.prior, node.visitCount, values);
+      return new ActionStatistics(
+        node.priorProbability,
+        node.priorLogit,
+        node.visitCount,
+        values
+      );
     });
 
     return {

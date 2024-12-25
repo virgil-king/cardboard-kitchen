@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import * as Plot from "@observablehq/plot";
 import { JSDOM } from "jsdom";
-import { kingdominoConv7 } from "./config.js";
+import { kingdominoExperiment } from "./config.js";
 import { EvalLogEntry } from "./eval-worker.js";
 import { requireDefined } from "studio-util";
 
 const log: Array<EvalLogEntry> = JSON.parse(
-  await readFile(await kingdominoConv7.logFile(), {
+  await readFile(await kingdominoExperiment.logFile(), {
     encoding: "utf-8",
   })
 );

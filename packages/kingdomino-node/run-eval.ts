@@ -1,9 +1,9 @@
 import {} from "training";
 import { evalEpisodeBatch } from "./eval-concurrent.js";
 import { loadModelFromFile } from "./model.js";
-import { kingdominoConv7 } from "./config.js";
+import { kingdominoExperiment } from "./config.js";
 
-const modelPath = await kingdominoConv7.newestModelPath();
+const modelPath = await kingdominoExperiment.newestModelPath();
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");
 }
@@ -15,7 +15,8 @@ const episodeCount = parseInt(process.argv[2]);
 console.log(`episodeCount is ${episodeCount}`);
 
 async function main() {
-  evalEpisodeBatch((await model).inferenceModel, episodeCount);
+  const result = await evalEpisodeBatch((await model).inferenceModel, episodeCount);
+  console.log(JSON.stringify(result.episodeTrainingData[0].toJson(), undefined, 1));
 }
 
 main();

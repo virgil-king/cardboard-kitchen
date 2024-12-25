@@ -4,7 +4,7 @@ import { KingdominoModel } from "kingdomino";
 import { Range } from "immutable";
 import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
-import { kingdominoConv7 } from "./config.js";
+import { kingdominoExperiment } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "mcts";
 import { LogDirectory } from "training";
 
@@ -16,12 +16,12 @@ const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let modelNumber = 0;
 
-const logFilePath = await kingdominoConv7.logFile();
+const logFilePath = await kingdominoExperiment.logFile();
 
-const episodesPath = await kingdominoConv7.evalEpisodesDirectory();
+const episodesPath = await kingdominoExperiment.evalEpisodesDirectory();
 const episodesDir = new LogDirectory(
   episodesPath,
-  kingdominoConv7.evalMaxEpisodeBytes
+  kingdominoExperiment.evalMaxEpisodeBytes
 );
 const textEncoder = new TextEncoder();
 
@@ -70,10 +70,10 @@ messagePort.on("message", async (message: any) => {
 async function evaluate(model: KingdominoModel) {
   const date = new Date();
   const agentIdToResult = new Map<string, AgentResult>();
-  for (const i of Range(0, kingdominoConv7.evalBatchCount)) {
+  for (const i of Range(0, kingdominoExperiment.evalBatchCount)) {
     const batchResult = await evalEpisodeBatch(
       model.inferenceModel,
-      kingdominoConv7.evalEpisodesPerBatch
+      kingdominoExperiment.evalEpisodesPerBatch
     );
     for (const [agentId, result] of batchResult.agentIdToResult.entries()) {
       let cumulativeResult = agentIdToResult.get(agentId);

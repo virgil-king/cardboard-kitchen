@@ -131,6 +131,10 @@ export class ActionNode<
     readonly priorProbability: number,
     readonly priorLogit: number
   ) {
+    if (isNaN(predictedValue)) {
+      throw new Error(`Predicted value was NaN`);
+    }
+
     this.context.stats.actionNodesCreated++;
   }
 
@@ -302,7 +306,9 @@ export class NonTerminalStateNode<
           inferenceResult.policyLogits.get(action)
         );
         const actionPredictedValue =
-          (policyLogit / maxPolicyLogit) * statePredictedValue;
+          maxPolicyLogit == 0
+            ? 0
+            : (policyLogit / maxPolicyLogit) * statePredictedValue;
         return new ActionNode(
           context,
           action,
@@ -449,13 +455,15 @@ export class NonTerminalStateNode<
           this.snapshot.state,
           undefined,
           2
-        )}; policy ${JSON.stringify(
+        )}; policy logits ${JSON.stringify(
           this.inferenceResult.policyLogits.toArray(),
           undefined,
           2
         )}; child priors ${[...this.actionToChild.entries()].map(
           (entry) => entry[1].priorProbability
-        )}; ucbs = ${ucbs}; child evs = ${childEvs}`
+        )}; ucbs = ${JSON.stringify(ucbs)}; child evs = ${JSON.stringify(
+          childEvs
+        )}`
       );
     }
     debugLog(
@@ -473,6 +481,7 @@ export class NonTerminalStateNode<
           action,
           new ActionStatistics(
             child.priorProbability,
+            child.priorLogit,
             child.visitCount,
             new PlayerValues(child.playerExpectedValues.playerIdToValue)
           ),

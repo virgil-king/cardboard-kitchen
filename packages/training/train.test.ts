@@ -33,6 +33,7 @@ test("EpisodeTrainingData: codec round trip", () => {
           new NumberAction(3),
           new ActionStatistics(
             0.5,
+            0.5,
             1,
             new PlayerValues(
               Map([
@@ -45,6 +46,7 @@ test("EpisodeTrainingData: codec round trip", () => {
         [
           new NumberAction(5),
           new ActionStatistics(
+            0.5,
             0.5,
             1,
             new PlayerValues(
@@ -74,6 +76,7 @@ test("EpisodeTrainingData: codec round trip", () => {
           new NumberAction(6),
           new ActionStatistics(
             0.5,
+            0.5,
             1,
             new PlayerValues(
               Map([
@@ -86,6 +89,7 @@ test("EpisodeTrainingData: codec round trip", () => {
         [
           new NumberAction(2),
           new ActionStatistics(
+            0.5,
             0.5,
             1,
             new PlayerValues(

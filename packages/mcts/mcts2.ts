@@ -127,18 +127,21 @@ export class ActionNode<
    * This property has a placeholder value until its parent state node has
    * received and processed its inference result.
    */
-  prior: number;
+  priorProbability: number;
+  priorLogit: number;
   /** Predicted value of this action for the acting player */
   predictedValue = 0;
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
-    prior: number
+    prior: number,
+    priorLogit: number
   ) {
     if (prior < 0) {
       throw new Error(`Negative prior ${prior}`);
     }
-    this.prior = prior;
+    this.priorProbability = prior;
+    this.priorLogit = priorLogit;
     this.context.stats.actionNodesCreated++;
   }
 
@@ -150,8 +153,13 @@ export class ActionNode<
     return this.visitCount + this.incompleteVisitCount;
   }
 
-  initializeFromModel(prior: number, predictedValue: number) {
-    this.prior = prior;
+  initializeFromModel(
+    priorProbability: number,
+    priorLogit: number,
+    predictedValue: number
+  ) {
+    this.priorProbability = priorProbability;
+    this.priorLogit = priorLogit;
     this.predictedValue = predictedValue;
   }
 
@@ -269,7 +277,7 @@ export class NonTerminalStateNode<
     for (const action of legalActions) {
       this.actionToChild = this.actionToChild.set(
         action,
-        new ActionNode(context, action, uniformPrior)
+        new ActionNode(context, action, uniformPrior, uniformPrior)
       );
     }
 
@@ -303,7 +311,7 @@ export class NonTerminalStateNode<
 
       for (const [
         action,
-        modelPrior,
+        modelPriorProbability,
       ] of actionToModelPrior.itemToProbability.entries()) {
         const actionNode = this.actionToChild.get(action);
         if (actionNode == undefined) {
@@ -321,15 +329,21 @@ export class NonTerminalStateNode<
           inferenceResult.policyLogits.get(action)
         );
         const actionPredictedValue =
-          (policyLogit / maxPolicyLogit) * statePredictedValue;
+          maxPolicyLogit == 0
+            ? 0
+            : (policyLogit / maxPolicyLogit) * statePredictedValue;
 
         debugLog(
           () =>
             `Updating ${JSON.stringify(
               action
-            )} with prior=${modelPrior} and predictedValue=${actionPredictedValue}`
+            )} with prior=${modelPriorProbability} and predictedValue=${actionPredictedValue}`
         );
-        actionNode.initializeFromModel(modelPrior, actionPredictedValue);
+        actionNode.initializeFromModel(
+          modelPriorProbability,
+          policyLogit,
+          actionPredictedValue
+        );
       }
       return inferenceResult;
     });
@@ -447,9 +461,11 @@ export class NonTerminalStateNode<
         () =>
           `Considering action node ${JSON.stringify(
             action
-          )} with current value ${childEv}, prior ${child.prior}, visit count ${
-            child.visitCount
-          }, and incomplete visit count ${child.incompleteVisitCount}`
+          )} with current value ${childEv}, prior ${
+            child.priorProbability
+          }, visit count ${child.visitCount}, and incomplete visit count ${
+            child.incompleteVisitCount
+          }`
       );
 
       // Incomplete visits are not counted in child EVs, which are only
@@ -458,7 +474,7 @@ export class NonTerminalStateNode<
       // children within a batch
       const ucb =
         childEv +
-        child.prior *
+        child.priorProbability *
           Math.sqrt(
             (this.context.config.explorationBias *
               Math.log(1 + this.combinedVisitCount)) /

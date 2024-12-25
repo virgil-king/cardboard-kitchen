@@ -401,7 +401,7 @@ export class KingdominoModel
 
     const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
 
-    return new KingdominoModel(model, metadata);
+    return new KingdominoModel(model, metadata, sampleToNewPolicy);
   }
 
   /**
@@ -776,7 +776,7 @@ export class KingdominoInferenceModel
   decodeValues(players: Players, values: ReadonlyArray<number>): PlayerValues {
     const playerIdToValue = Map(
       players.players.map((player, index) => {
-        const result = requireDefined(values[index]);
+        let result = requireDefined(values[index]);
         if (Number.isNaN(result)) {
           throw new Error(`Player value was NaN`);
         }
@@ -1234,7 +1234,11 @@ export class KingdominoTrainingModel
         metadata.trainingSampleCount += dataPoints.length;
       }
 
-      return (fitResult as number[])[0];
+      const result = (fitResult as number[])[0];
+      if (isNaN(result)) {
+        throw new Error(`Loss was NaN`);
+      }
+      return result;
     } finally {
       linearInputTensor.dispose();
       for (const boardTensor of boardTensors) {

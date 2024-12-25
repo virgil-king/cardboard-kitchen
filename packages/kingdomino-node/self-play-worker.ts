@@ -11,7 +11,7 @@ import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
 import { mcts, ModelCodecType } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
-import { SELF_PLAY_MCTS_CONFIG, kingdominoConv7 } from "./config.js";
+import { SELF_PLAY_MCTS_CONFIG, kingdominoExperiment } from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
@@ -54,7 +54,7 @@ async function main() {
       stats: new mcts.MctsStats(),
     };
 
-    const generators = Range(0, kingdominoConv7.selfPlayEpisodesPerBatch)
+    const generators = Range(0, kingdominoExperiment.selfPlayEpisodesPerBatch)
       .map(() => {
         return gumbelSelfPlayEpisode(
           Kingdomino.INSTANCE,

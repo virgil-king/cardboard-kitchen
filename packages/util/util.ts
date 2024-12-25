@@ -330,3 +330,19 @@ export async function throwFirstRejection(promises: Promise<unknown>[]) {
     }
   }
 }
+
+export function intersperse<T>(
+  items: ReadonlyArray<T>,
+  separator: T
+): Array<T> {
+  if (items.length == 0) {
+    return [];
+  }
+  const result = new Array<T>();
+  result.push(items[0]);
+  for (const item of items.slice(1)) {
+    result.push(separator);
+    result.push(item);
+  }
+  return result;
+}

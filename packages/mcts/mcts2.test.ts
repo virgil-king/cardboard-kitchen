@@ -37,7 +37,7 @@ const players = new Players(alice, bob);
 const episodeConfig = new EpisodeConfiguration(players);
 
 test("ActionNode.visit: before result fulfilled: visit counts are correct", () => {
-  const node = new ActionNode(createContext(), new NumberAction(1), 0.1);
+  const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
   node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
 
@@ -47,7 +47,7 @@ test("ActionNode.visit: before result fulfilled: visit counts are correct", () =
 });
 
 test("ActionNode.visit: after result fulfilled: visit counts are correct", async () => {
-  const node = new ActionNode(createContext(), new NumberAction(1), 0.1);
+  const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
   await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
 
@@ -60,6 +60,7 @@ test("ActionNode.visit: multiple calls before results fulfilled: visit counts ar
   const node = new ActionNode(
     createContext(new BatchingModel(PickANumberImmediateModel.INSTANCE)),
     new NumberAction(1),
+    0.1,
     0.1
   );
   const snapshot = PickANumber.INSTANCE.newEpisode(episodeConfig);
@@ -74,7 +75,7 @@ test("ActionNode.visit: multiple calls before results fulfilled: visit counts ar
 
 test("ActionNode.visit: results fulfilled after multiple calls: visit counts are correct", async () => {
   const model = new BatchingModel(PickANumberImmediateModel.INSTANCE);
-  const node = new ActionNode(createContext(model), new NumberAction(1), 0.1);
+  const node = new ActionNode(createContext(model), new NumberAction(1), 0.1, 0.1);
   const snapshot = PickANumber.INSTANCE.newEpisode(episodeConfig);
 
   const visit1 = node.visit(snapshot);
@@ -90,7 +91,7 @@ test("ActionNode.visit: results fulfilled after multiple calls: visit counts are
 });
 
 test("ActionNode.visit: after result fulfilled: player values updated", async () => {
-  const node = new ActionNode(createContext(), new NumberAction(1), 0.1);
+  const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
   await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
 

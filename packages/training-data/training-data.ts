@@ -35,6 +35,7 @@ export interface StateNodeInfo<A extends Action> {
 export interface ActionNodeInfo {
   readonly visitCount: number;
   readonly priorProbability: number;
+  readonly priorLogit: number;
   readonly expectedValues: PlayerValues;
 }
 
@@ -42,6 +43,7 @@ export class ActionStatistics implements ActionNodeInfo {
   constructor(
     /** Predicted probability that the current player would select this action */
     readonly priorProbability: number,
+    readonly priorLogit: number,
     /** Number of times the action was visited by MCTS */
     readonly visitCount: number,
     /** Player values assigned by MCTS for the action */
@@ -49,7 +51,8 @@ export class ActionStatistics implements ActionNodeInfo {
   ) {}
   toJson(): EncodedActionStatistics {
     return {
-      prior: this.priorProbability,
+      priorProbability: this.priorProbability,
+      priorLogit: this.priorLogit,
       visitCount: this.visitCount,
       expectedValues: this.expectedValues.toJson(),
     };
@@ -57,7 +60,8 @@ export class ActionStatistics implements ActionNodeInfo {
   static decode(encoded: any): ActionStatistics {
     const decoded = decodeOrThrow(actionStatisticsJson, encoded);
     return new ActionStatistics(
-      decoded.prior,
+      decoded.priorProbability,
+      decoded.priorLogit,
       decoded.visitCount,
       PlayerValues.decode(decoded.expectedValues)
     );
@@ -65,7 +69,8 @@ export class ActionStatistics implements ActionNodeInfo {
 }
 
 const actionStatisticsJson = io.type({
-  prior: io.number,
+  priorProbability: io.number,
+  priorLogit: io.number,
   visitCount: io.number,
   expectedValues: playerValuesJson,
 });
