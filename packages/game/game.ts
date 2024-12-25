@@ -87,6 +87,9 @@ export class PlayerValues implements JsonSerializable {
       }
     }
   }
+  requirePlayerValue(player: Player): number {
+    return requireDefined(this.playerIdToValue.get(player.id));
+  }
   toJson(): EncodedPlayerValues {
     return {
       playerIdToValue: this.playerIdToValue.entrySeq().toArray(),
