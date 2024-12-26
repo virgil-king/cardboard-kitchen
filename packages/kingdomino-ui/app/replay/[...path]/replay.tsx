@@ -1,12 +1,12 @@
 "use client";
 
 import { GameComponent } from "@/components";
-import {
-  Kingdomino,
-} from "kingdomino";
+import { Kingdomino } from "kingdomino";
 import { EpisodeSnapshot } from "game";
 import { useState } from "react";
 import { EpisodeTrainingData } from "training-data";
+import { improvedPolicyLogits } from "mcts";
+import { ProbabilityDistribution, requireDefined } from "studio-util";
 
 type ReplayProps = {
   episodeJsonString: string;
@@ -20,12 +20,22 @@ export function Replay(props: ReplayProps): JSX.Element {
   for (let i = 0; i < episode.dataPoints.length; i++) {
     const dataPoint = episode.get(i);
     frames.push(() => {
+      const improvedPolicy = ProbabilityDistribution.fromLogits(
+        improvedPolicyLogits(
+          dataPoint,
+          requireDefined(Kingdomino.INSTANCE.currentPlayer(dataPoint.snapshot))
+        )
+      );
+      console.log(
+        `improvedPolicy=${improvedPolicy.itemToProbability.toArray()}`
+      );
       return (
         <GameComponent
           snapshot={dataPoint.snapshot}
           modelValues={dataPoint.predictedValues}
           terminalValues={dataPoint.terminalValues}
           actionToStatistics={dataPoint.actionToStatistics}
+          improvedPolicy={improvedPolicy}
         ></GameComponent>
       );
     });
@@ -79,17 +89,3 @@ export function Replay(props: ReplayProps): JSX.Element {
     </>
   );
 }
-
-function ActionInfoComponent() {}
-
-// type TrainingInfoProps = {
-//   trainingData: StateTrainingData<
-//     KingdominoConfiguration,
-//     KingdominoState,
-//     KingdominoAction
-//   >;
-// };
-
-// function TrainingInfoComponent(props: TrainingInfoProps) {
-//     return <div
-// }

@@ -28,7 +28,7 @@ import { Map, Set } from "immutable";
 import styles from "@/app/page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
-import { requireDefined } from "studio-util";
+import { ProbabilityDistribution, requireDefined } from "studio-util";
 import { CSSProperties } from "react";
 import { ActionStatistics } from "training-data";
 
@@ -60,6 +60,7 @@ export type GameProps = {
   searchValues?: PlayerValues;
   terminalValues?: PlayerValues;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
+  improvedPolicy?: ProbabilityDistribution<KingdominoAction>;
 };
 
 export function GameComponent(props: GameProps): JSX.Element {
@@ -110,6 +111,7 @@ export function GameComponent(props: GameProps): JSX.Element {
         currentPlayerId={
           requireDefined(Kingdomino.INSTANCE.currentPlayer(props.snapshot)).id
         }
+        improvedPolicy={props.improvedPolicy}
       ></PolicyComponent>
     );
 
@@ -420,6 +422,7 @@ function ClaimStatistics(props: ClaimStatisticsProps) {
 type PolicyProps = {
   policy: Map<KingdominoAction, ActionStatistics>;
   currentPlayerId: string;
+  improvedPolicy?: ProbabilityDistribution<KingdominoAction>;
 };
 
 function PolicyComponent(props: PolicyProps) {
@@ -441,6 +444,7 @@ function PolicyComponent(props: PolicyProps) {
               action={action}
               stats={stats}
               currentPlayerId={props.currentPlayerId}
+              improvedPrior={props.improvedPolicy?.get(action)}
             ></ActionPolicyComponent>
           </div>
         );
@@ -453,6 +457,7 @@ type ActionPolicyProps = {
   action: KingdominoAction;
   stats: ActionStatistics;
   currentPlayerId: string;
+  improvedPrior?: number;
 };
 
 function ActionPolicyComponent(props: ActionPolicyProps) {
@@ -472,6 +477,8 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
       Visit count: {props.stats.visitCount}
       <br />
       Expected value: {expectedValueString}
+      <br />
+      Improved prior: {props.improvedPrior ?? ""}
     </div>
   );
 }
