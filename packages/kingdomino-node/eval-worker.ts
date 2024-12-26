@@ -62,6 +62,8 @@ messagePort.on("message", async (message: any) => {
     await evaluate(model);
   } finally {
     model.dispose();
+    // https://github.com/tensorflow/tfjs/issues/8471
+    tf.disposeVariables();
   }
 
   messagePort.postMessage(undefined);

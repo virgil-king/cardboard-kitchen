@@ -1,5 +1,6 @@
 import {
   SettablePromise,
+  decodeOrThrow,
   driveAsyncGenerators,
   requireDefined,
   sleep,
@@ -9,13 +10,14 @@ import { gumbelSelfPlayEpisode } from "training";
 import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
-import { mcts, ModelCodecType } from "mcts";
+import { mcts, modelCodec, ModelCodecType } from "mcts";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { SELF_PLAY_MCTS_CONFIG, kingdominoExperiment } from "./config.js";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 
 let model: KingdominoModel | undefined;
+let newModelJson: ModelCodecType | undefined;
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -27,25 +29,34 @@ const episodeConfig = new EpisodeConfiguration(players);
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
-  const typedMessage = message as ModelCodecType;
-  const newModel = await KingdominoModel.fromJson(typedMessage);
-  model?.dispose();
-  model = newModel;
-  console.log(
-    `Self-play worker received new model with metadata ${JSON.stringify(
-      newModel.metadata
-    )}`
-  );
+  console.log(`Self-play worker received new model`);
+  // Save the serialized model so the main loop can consume it and
+  // dispose the old model in between batches
+  newModelJson = decodeOrThrow(modelCodec, message);
   ready.fulfill(undefined);
 });
 
-async function main() {
+async function acquireModel(): Promise<KingdominoModel> {
   await ready.promise;
 
-  while (true) {
-    const startMs = performance.now();
+  if (newModelJson != undefined) {
+    if (model != undefined) {
+      model.dispose();
+      // https://github.com/tensorflow/tfjs/issues/8471
+      tf.disposeVariables();
+    }
+    model = await KingdominoModel.fromJson(newModelJson);
+    newModelJson = undefined;
+  }
 
-    const localModel = requireDefined(model);
+  return requireDefined(model);
+}
+
+async function main() {
+  while (true) {
+    const localModel = await acquireModel();
+
+    const startMs = performance.now();
 
     const mctsContext = {
       config: SELF_PLAY_MCTS_CONFIG,
