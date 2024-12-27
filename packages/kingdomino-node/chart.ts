@@ -5,6 +5,8 @@ import { kingdominoExperiment } from "./config.js";
 import { EvalLogEntry } from "./eval-worker.js";
 import { requireDefined } from "studio-util";
 
+// This script emits an SVG line graph based on the data from an experiment log
+
 const log: Array<EvalLogEntry> = JSON.parse(
   await readFile(await kingdominoExperiment.logFile(), {
     encoding: "utf-8",

@@ -9,10 +9,7 @@ import {
 import { Range, Seq } from "immutable";
 import { mcts, InferenceResult, gumbelSequentialHalving } from "mcts";
 import { requireDefined, proportionalRandom } from "studio-util";
-import {
-  EpisodeTrainingData,
-  StateSearchData,
-} from "training-data";
+import { EpisodeTrainingData, StateSearchData } from "training-data";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
@@ -21,6 +18,8 @@ const decimalFormat = Intl.NumberFormat(undefined, {
 /**
  * Generator function for self-play episodes. Yields snapshots, receives inference
  * results, and returns episode training data.
+ *
+ * Actions are sampled proportionally with respect to MCTS visit counts.
  */
 export async function* selfPlayEpisode<
   C extends GameConfiguration,
@@ -111,6 +110,8 @@ export async function* selfPlayEpisode<
 /**
  * Generator function for self-play episodes. Yields snapshots, receives inference
  * results, and returns episode training data.
+ *
+ * Actions are selected by sequential halving.
  */
 export async function* gumbelSelfPlayEpisode<
   C extends GameConfiguration,

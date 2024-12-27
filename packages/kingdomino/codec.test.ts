@@ -3,7 +3,6 @@ import { assert } from "chai";
 import {
   ObjectCodec,
   OneHotCodec,
-  OptionalCodec,
   ScalarCodec,
 } from "./codec.js";
 
@@ -26,28 +25,6 @@ test("OneHotCodec: round trip", () => {
 
   assertClose(result, 2);
 });
-
-// test("OptionalCodec: undefined: round trip", () => {
-//   const codec = new OptionalCodec(new ScalarCodec());
-//   const offset = 17;
-//   const array = new Float32Array(codec.columnCount + offset);
-
-//   codec.encode(undefined, array, offset);
-//   const result = codec.decode(array, offset);
-
-//   assert.equal(result, undefined);
-// });
-
-// test("OptionalCodec: defined: round trip", () => {
-//   const codec = new OptionalCodec(new ScalarCodec());
-//   const offset = 17;
-//   const array = new Float32Array(codec.columnCount + offset);
-
-//   codec.encode(31, array, offset);
-//   const result = codec.decode(array, offset);
-
-//   assert.equal(result, 31);
-// });
 
 const testObjectCodec = new ObjectCodec({
   a: new ScalarCodec(),

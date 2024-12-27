@@ -159,7 +159,6 @@ test("claimTile: first round: next action is claim", () => {
 test("claimTile: already claimed: throws", () => {
   const players = new Players(alice, bob, cecile);
   const episode = episodeWithPlayers(players).apply(claim(2));
-  // const state = unroll(episode, [claim(alice, 2)]);
 
   assert.throws(() => {
     episode.apply(claim(2));
@@ -265,8 +264,6 @@ test("placeTile: end of game: center bonus applied correctly", () => {
     episode.currentSnapshot.state.requirePlayerState(bob.id).score,
     0
   );
-  // const result = episode.currentSnapshot.state.result;
-  // assert.equal(episode.currentSnapshot.state.nextAction, undefined);
 });
 
 test("encode/decode round trip", () => {
@@ -400,7 +397,6 @@ function episodeWithPlayers(
   players: Players,
   shuffledTileNumbers: Array<number> | undefined = undefined
 ): Episode<KingdominoConfiguration, KingdominoState, KingdominoAction> {
-  const episodeConfig = new EpisodeConfiguration(players);
   const snapshot = kingdomino.newKingdominoEpisode(
     new EpisodeConfiguration(players),
     shuffledTileNumbers

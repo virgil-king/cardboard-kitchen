@@ -24,6 +24,10 @@ import {
   StateSearchData,
 } from "training-data";
 
+// This file is an implementation of MCTS that supports multiple-episode
+// batching due to its asynchronous API but does not support single-episode
+// batching
+
 const debugLoggingEnabled = false;
 function debugLog(block: () => string) {
   if (debugLoggingEnabled) {
@@ -160,9 +164,9 @@ export class ActionNode<
     let result: PlayerValues;
     if (stateNode == undefined) {
       // New child
-      // debugLog(
-      //   () => `Creating new state node for ${JSON.stringify(childState)}`
-      // );
+      debugLog(
+        () => `Creating new state node for ${JSON.stringify(childState)}`
+      );
       const childSnapshot = snapshot.derive(childState);
       if (this.context.game.result(childSnapshot) == undefined) {
         const start = performance.now();
@@ -182,9 +186,9 @@ export class ActionNode<
       result = await stateNode.expectedValues();
     } else {
       // Existing child: continue the search into a grandchild node
-      // debugLog(
-      //   () => `Using existing state node for ${JSON.stringify(childState)}`
-      // );
+      debugLog(
+        () => `Using existing state node for ${JSON.stringify(childState)}`
+      );
       result = yield* stateNode.visit();
     }
     this.playerExpectedValues.merge(result);
@@ -370,7 +374,6 @@ export class NonTerminalStateNode<
   }
 
   async randomPlayout(agent: Agent<C, S, A>): Promise<PlayerValues> {
-    // console.log(`Starting random playout from ${JSON.stringify(this.snapshot.state)}`);
     let snapshot = this.snapshot;
     while (true) {
       const result = this.context.game.result(snapshot);

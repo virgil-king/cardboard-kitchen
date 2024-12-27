@@ -17,8 +17,8 @@ export class Vector2 implements ValueObject, JsonSerializable {
   }
   static origin = new Vector2(0, 0);
 
-  static fromJson(json: unknown): Vector2 {
-    const parsed = decodeOrThrow(vector2Json, json);
+  static decode(message: unknown): Vector2 {
+    const parsed = decodeOrThrow(vector2Json, message);
     return new Vector2(parsed.x, parsed.y);
   }
 

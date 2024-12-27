@@ -9,6 +9,8 @@ import { EpisodeTrainingData, StateTrainingData } from "training-data";
 import { LogDirectory } from "./logdirectory.js";
 import * as tf from "@tensorflow/tfjs";
 
+// This file provides the logic for the main thread of the training system
+
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
 });

@@ -1,4 +1,4 @@
-import { Map, Range, Seq } from "immutable";
+import { Map, Seq } from "immutable";
 import { Vector2 } from "./util.js";
 import { Linearization } from "./linearization.js";
 
@@ -26,13 +26,6 @@ export class ScalarCodec implements VectorCodec<number> {
   decode(from: Float32Array, offset: number): number {
     return from[offset];
   }
-}
-
-function oneHotValues(count: number, hot: number): Array<number> {
-  const result = new Array<number>(count);
-  result.fill(0);
-  result[hot] = 1;
-  return result;
 }
 
 /** Stores a required non-negative integer */

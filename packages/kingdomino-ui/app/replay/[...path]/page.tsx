@@ -1,6 +1,5 @@
 import fs from "fs/promises";
 import { Replay } from "./replay";
-import { intersperse } from "studio-util";
 
 export default async function ReplayPage({
   params,

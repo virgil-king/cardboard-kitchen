@@ -186,3 +186,19 @@ export function intersperse<T>(
   }
   return result;
 }
+
+/**
+ * Returns a random item from {@link stream} or undefined if the stream is empty
+ */
+export function streamingRandom<T>(stream: Generator<T>): T | undefined {
+  let count = 0;
+  let result: T | undefined = undefined;
+  for (let item of stream) {
+    count++;
+    const random = Math.random();
+    if (random < 1 / count) {
+      result = item;
+    }
+  }
+  return result;
+}

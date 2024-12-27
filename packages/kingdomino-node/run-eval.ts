@@ -3,6 +3,8 @@ import { evalEpisodeBatch } from "./eval-concurrent.js";
 import { loadModelFromFile } from "./model.js";
 import { kingdominoExperiment } from "./config.js";
 
+// Runs evaluation batches using eval-concurrent
+
 const modelPath = await kingdominoExperiment.newestModelPath();
 if (modelPath == undefined) {
   throw new Error("No model to evaluate");

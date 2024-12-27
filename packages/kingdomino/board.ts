@@ -10,10 +10,16 @@ import {
   adjacentExternalLocations,
   playAreaRadius,
   locationStateCodec,
-  KingdominoVectors
+  KingdominoVectors,
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
-import { Vector2, Rectangle, Direction, vector2Json, BoardTransformation } from "./util.js";
+import {
+  Vector2,
+  Rectangle,
+  Direction,
+  vector2Json,
+  BoardTransformation,
+} from "./util.js";
 import * as io from "io-ts";
 import { decodeOrThrow } from "studio-util";
 
@@ -31,10 +37,8 @@ export class PlayerBoard implements ValueObject {
   readonly occupiedRectangle: Rectangle;
 
   constructor(
-    /** Contains only occupied, non-center locations*/ readonly locationStates: Map<
-      Vector2,
-      LocationState
-    >
+    /** Contains only occupied, non-center locations */
+    readonly locationStates: Map<Vector2, LocationState>
   ) {
     this.occupiedRectangle = this.computeOccupiedRectangle();
   }
@@ -75,7 +79,10 @@ export class PlayerBoard implements ValueObject {
     let result: PlayerBoard = this;
     for (const tileLocationIndex of [0, 1]) {
       const squareLocation = placement.squareLocation(tileLocationIndex);
-      const locationState = LocationState.instance(tileNumber, tileLocationIndex);
+      const locationState = LocationState.instance(
+        tileNumber,
+        tileLocationIndex
+      );
       result = result.withLocationState(squareLocation, locationState);
     }
     return result;
@@ -157,7 +164,6 @@ export class PlayerBoard implements ValueObject {
         updatedRectangle.width > maxKingdomSize ||
         updatedRectangle.height > maxKingdomSize
       ) {
-        // console.log(`Would make kingdom too big`);
         return false;
       }
     }
@@ -178,7 +184,6 @@ export class PlayerBoard implements ValueObject {
     }
 
     // No terrain matches found
-    // console.log(`No terrain matches`);
     return false;
   }
 
@@ -206,7 +211,11 @@ export class PlayerBoard implements ValueObject {
       if (locationState.terrain == Terrain.TERRAIN_EMPTY) {
         continue;
       }
-      const visitResult = this.visitForScoring(locationState.terrain, location, scored);
+      const visitResult = this.visitForScoring(
+        locationState.terrain,
+        location,
+        scored
+      );
       score += visitResult.squareCount * visitResult.crownCount;
       scored = visitResult.scored;
       queue = queue.merge(visitResult.queue);
@@ -256,7 +265,10 @@ export class PlayerBoard implements ValueObject {
     let crownCount = locationState.crowns;
     let queue = Set<Vector2>();
     for (const direction of Direction.values()) {
-      const neighborLocation = KingdominoVectors.plus(location, direction.offset);
+      const neighborLocation = KingdominoVectors.plus(
+        location,
+        direction.offset
+      );
       if (scored.contains(neighborLocation)) {
         continue;
       }
@@ -354,8 +366,9 @@ export class PlayerBoard implements ValueObject {
   *adjacentEmptyLocations(): Generator<Vector2> {
     const center = PlayerBoard.center;
     // Contains both occupied and empty locations.
-    // We use an immutable Set here, even though a mutable set would be more convenient in this case,
-    // because JS mutable sets don't support deep equality behavior (ValueObject in this case)
+    // We use an immutable Set here, even though a mutable set would be more
+    // convenient in this case, because JS mutable sets don't support deep
+    // equality behavior (ValueObject in this case)
     const visited = Set<Vector2>();
     visited.add(center);
     for (const [neighbor, _] of this.visitForEnumeration(center, visited)) {
@@ -364,7 +377,8 @@ export class PlayerBoard implements ValueObject {
   }
 
   /**
-   * Emits pairs whose first element is an empty neighbor and whose second element is a new set of all visited locations
+   * Emits pairs whose first element is an empty neighbor and whose second
+   * element is a new set of all visited locations
    */
   private *visitForEnumeration(
     location: Vector2,
@@ -391,7 +405,6 @@ export class PlayerBoard implements ValueObject {
       }
     }
   }
-
 }
 
 type VisitResult = {

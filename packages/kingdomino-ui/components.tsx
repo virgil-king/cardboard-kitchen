@@ -2,7 +2,6 @@
 
 import _ from "lodash";
 import {
-  Action,
   EpisodeConfiguration,
   EpisodeSnapshot,
   Player,

@@ -26,9 +26,6 @@ export function Replay(props: ReplayProps): JSX.Element {
           requireDefined(Kingdomino.INSTANCE.currentPlayer(dataPoint.snapshot))
         )
       );
-      console.log(
-        `improvedPolicy=${improvedPolicy.itemToProbability.toArray()}`
-      );
       return (
         <GameComponent
           snapshot={dataPoint.snapshot}
@@ -72,8 +69,6 @@ export function Replay(props: ReplayProps): JSX.Element {
   }
 
   const gameElement = frames[frameIndex]();
-
-  // console.log(trainingData.predictedValues);
 
   return (
     <>

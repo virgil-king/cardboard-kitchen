@@ -1,5 +1,4 @@
 import fs from "fs";
-import { Kingdomino } from "kingdomino";
 import Link from "next/link";
 
 export default function Games(): JSX.Element {

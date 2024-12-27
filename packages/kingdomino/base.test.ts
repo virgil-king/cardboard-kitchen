@@ -1,6 +1,12 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { ClaimTile, KingdominoConfiguration, KingdominoVectors, LocationState, PlaceTile } from "./base.js";
+import {
+  ClaimTile,
+  KingdominoConfiguration,
+  KingdominoVectors,
+  LocationState,
+  PlaceTile,
+} from "./base.js";
 import { Direction, Vector2 } from "./util.js";
 
 test("LocationState.equals: equal: returns true", () => {
@@ -63,7 +69,10 @@ test("LocationState: codec round trip", () => {
 test("KingdominoVectors: transform", () => {
   const before = KingdominoVectors.instance(-3, -2);
 
-  const after = KingdominoVectors.transform(before, { mirror: true, quarterTurns: 3 });
+  const after = KingdominoVectors.transform(before, {
+    mirror: true,
+    quarterTurns: 3,
+  });
 
   assert.equal(after.x, 2);
   assert.equal(after.y, 3);

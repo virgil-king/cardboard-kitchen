@@ -9,9 +9,9 @@ test("Vector#multiply: returns vector with multiplied components", () => {
 test("Vector2: codec round trip", () => {
   const vec = new Vector2(-3, 111);
 
-  const encoded = vec.toJson();
+  const message = vec.encode();
 
-  assert.isTrue(vec.equals(Vector2.fromJson(encoded)));
+  assert.isTrue(vec.equals(Vector2.decode(message)));
 });
 
 test("Direction#values: returns all directions", () => {
@@ -58,20 +58,6 @@ test("Rectangle#height: returns expected value", () => {
 test("Rectangle#width: returns expected value", () => {
   assert(new Rectangle(2, 9, 3, 7).width == 1);
 });
-
-// test("Rectangle#extend: updates left and top", () => {
-//   const extended = new Rectangle(2, 3, 3, 2).extend(new Vector2(1, 5));
-
-//   assert(extended.left == 1);
-//   assert(extended.top == 5);
-// });
-
-// test("Rectangle#extend: updates right and bottom", () => {
-//   const extended = new Rectangle(2, 3, 3, 2).extend(new Vector2(4, 1));
-
-//   assert(extended.right == 4);
-//   assert(extended.bottom == 1);
-// });
 
 test("Rectangle#equals: equal: returns true", () => {
   const a = new Rectangle(1, 2, 3, 0);

@@ -1,5 +1,5 @@
 import { assert, test } from "vitest";
-import { combineHashes, requireDefined, weightedMerge } from "./util.js";
+import { combineHashes, requireDefined, streamingRandom, weightedMerge } from "./util.js";
 import { Map } from "immutable";
 import _ from "lodash";
 
@@ -35,4 +35,17 @@ test("weightedMerge: key only in b: uses b value", () => {
   const result = weightedMerge(a, 1, b, 2);
 
   assert.equal(requireDefined(result.get("b")), 783);
+});
+
+test("streamingRandom: returns some item", () => {
+  const candidates = [0, 1, 2];
+  const items = function* () {
+    for (const item of candidates) {
+      yield item;
+    }
+  };
+
+  const result = requireDefined(streamingRandom(items()));
+
+  assert(candidates.indexOf(result) != -1);
 });

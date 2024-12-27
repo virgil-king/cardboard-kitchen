@@ -22,7 +22,7 @@ import { ClaimTile, PlaceTile, playAreaRadius } from "./base.js";
 import { Vector2, Direction, NO_TRANSFORM } from "./util.js";
 import { ActionStatistics, StateTrainingData } from "training-data";
 import * as _ from "lodash";
-import { requireDefined } from "studio-util";
+import { ProbabilityDistribution, requireDefined } from "studio-util";
 import { Terrain } from "./tile.js";
 import * as tf from "@tensorflow/tfjs";
 
@@ -58,7 +58,7 @@ test("decodeValues: returns expected values", () => {
 test("encodePlacementPolicy: stores placement values at expected index", () => {
   const placement1 = new PlaceTile(new Vector2(-4, -3), Direction.LEFT);
   const placement2 = new PlaceTile(new Vector2(1, 2), Direction.DOWN);
-  const actionToVisitCount = Map([
+  const actionToStatistics = Map([
     [
       KingdominoAction.placeTile(placement1),
       new ActionStatistics(
@@ -89,8 +89,11 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
     ],
   ]);
 
+  const policy = ProbabilityDistribution.fromLogits(
+    actionToStatistics.map((value, key) => value.visitCount)
+  );
   const placementProbabilitiesVector = encodePlacementPolicy(
-    actionToVisitCount,
+    policy,
     NO_TRANSFORM
   );
 
@@ -130,7 +133,7 @@ test("JSON round trip: inference behavior is preserved", async () => {
 
 test("JSON + structured clone round trip: inference behavior is preserved", async () => {
   const artifacts = structuredClone(await model.toJson());
-  const model2 = await KingdominoModel.fromJson(artifacts, tf);
+  const model2 = await KingdominoModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = (await model.inferenceModel.infer([snapshot]))[0];
@@ -174,14 +177,16 @@ test("encodeSample: returns expected board and policy vectors", () => {
           new PlaceTile(new Vector2(-1, 2), Direction.LEFT)
         ),
         new ActionStatistics(
-          /* prior= */ 0.5,
+          /* priorProbability= */ 0.5,
+          /* priorLogit= */ 0.5,
           /* visitCount= */ 1,
           new PlayerValues(Map([]))
         ),
       ],
     ]),
     playerValues,
-    playerValues
+    playerValues,
+    1
   );
 
   const encodedSample = model
@@ -274,14 +279,16 @@ test("encodeSample: with transformation: returns expected board and policy vecto
           new PlaceTile(new Vector2(-1, 2), Direction.LEFT)
         ),
         new ActionStatistics(
-          /* prior= */ 0.5,
+          /* priorProbability= */ 0.5,
+          /* priorLogit= */ 0.5,
           /* visitCount= */ 1,
           new PlayerValues(Map([]))
         ),
       ],
     ]),
     playerValues,
-    playerValues
+    playerValues,
+    1
   );
 
   const encodedSample = model

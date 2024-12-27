@@ -272,10 +272,6 @@ type SamplePolicyFunction = (
   >
 ) => ProbabilityDistribution<KingdominoAction>;
 
-// TODOS:
-// - add linear input to placement policy module?
-// - include raw location data in the board internal layers instead of
-//   pinching it together with non-location data in an entrance layer
 export class KingdominoModel
   implements
     Model<
@@ -509,8 +505,6 @@ export class KingdominoModel
     }
     const currentPlayerIndex =
       snapshot.episodeConfiguration.players.players.indexOf(currentPlayer);
-    const nextOffers = snapshot.state.props.nextOffers;
-    const previousOffers = snapshot.state.props.previousOffers;
     const stateValue: StateCodecValue = {
       currentPlayerIndex: currentPlayerIndex,
       nextAction: nextAction,
@@ -791,7 +785,6 @@ export class KingdominoInferenceModel
 export function decodePolicy(
   snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
   decodedPolicy: PolicyOutput
-  // placementPolicy: Float32Array
 ): Map<KingdominoAction, number> {
   let result = Map<KingdominoAction, number>();
   const nextAction = snapshot.state.props.nextAction;
@@ -1091,7 +1084,6 @@ export class KingdominoTrainingModel
       EncodedSample
     >
 {
-  // private readonly tensorboard = tf.node.tensorBoard("/tmp/tensorboard");
   private readonly optimizer: tfTypes.Optimizer;
 
   constructor(

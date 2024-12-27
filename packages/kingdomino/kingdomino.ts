@@ -44,10 +44,6 @@ export class Kingdomino
       .max()
   );
 
-  load(bytes: Uint8Array): KingdominoState {
-    throw new Error("Method not implemented.");
-  }
-
   /**
    * @param shuffledTileNumbers shuffled tiles to use instead of a random shuffle of all tiles
    */

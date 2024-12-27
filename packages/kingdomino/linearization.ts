@@ -1,4 +1,3 @@
-import { array } from "io-ts";
 
 /**
  * Linearizes 2-5 dimensional fixed-size rectangular number matrices into

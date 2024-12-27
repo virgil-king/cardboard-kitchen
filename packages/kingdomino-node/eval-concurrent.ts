@@ -31,6 +31,9 @@ import {
 import { NeutralKingdominoModel } from "./neutral-model.js";
 import { EpisodeTrainingData, StateSearchData } from "training-data";
 
+// This file provides functionality for playing model evaluation episodes
+// using batch MCTS
+
 // Agents:
 // 1. Policy + value
 // 2. Policy + random playout

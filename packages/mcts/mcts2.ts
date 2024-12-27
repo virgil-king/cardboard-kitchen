@@ -18,7 +18,7 @@ import {
 } from "studio-util";
 import { InferenceResult, InferenceModel } from "./model.js";
 
-/**
+/*
  * This MCTS implementation supports batch inference within a single
  * episode. It does so by returning Promises from inference and node
  * visits, allowing nodes to be visited multiple times before any

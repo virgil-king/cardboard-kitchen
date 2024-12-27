@@ -6,13 +6,12 @@ import {
   GameState,
   PlayerValues,
   EpisodeConfiguration,
-  JsonSerializable,
   GameConfiguration,
   EpisodeSnapshot,
 } from "game";
 
 import { Map, Range, Set } from "immutable";
-import { decodeOrThrow, requireDefined, SettablePromise } from "studio-util";
+import { decodeOrThrow, requireDefined } from "studio-util";
 import { InferenceModel, InferenceResult, TrainingModel } from "./model.js";
 import * as io from "io-ts";
 import { StateTrainingData } from "training-data";
@@ -68,7 +67,6 @@ type EncodedPickANumberState = io.TypeOf<typeof pickANumberStateJson>;
 
 export class PickANumberState implements GameState {
   constructor(
-    // readonly config: EpisodeConfiguration,
     readonly playerIdToNumber: Map<string, number>,
     readonly remainingNumbers: Set<number>
   ) {}
