@@ -45,7 +45,7 @@ export class Vector2 implements ValueObject, JsonSerializable {
     return this._hashCode;
   }
 
-  toJson(): Vector2Json {
+  encode(): Vector2Json {
     return { x: this.x, y: this.y };
   }
 }

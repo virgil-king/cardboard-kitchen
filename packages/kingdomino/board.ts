@@ -9,7 +9,7 @@ import {
   maxKingdomSize,
   adjacentExternalLocations,
   playAreaRadius,
-  locationStateJson,
+  locationStateCodec,
   KingdominoVectors
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
@@ -18,7 +18,7 @@ import * as io from "io-ts";
 import { decodeOrThrow } from "studio-util";
 
 export const playerBoardJson = io.type({
-  locationStates: io.array(io.tuple([vector2Json, locationStateJson])),
+  locationStates: io.array(io.tuple([vector2Json, locationStateCodec])),
 });
 
 export type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
@@ -45,7 +45,7 @@ export class PlayerBoard implements ValueObject {
       Map(
         decoded.locationStates.map(([locationJson, stateJson]) => [
           KingdominoVectors.fromJson(locationJson),
-          LocationState.fromJson(stateJson),
+          LocationState.decode(stateJson),
         ])
       )
     );
@@ -345,7 +345,7 @@ export class PlayerBoard implements ValueObject {
   toJson(): PlayerBoardJson {
     return {
       locationStates: this.locationStates
-        .mapEntries(([location, state]) => [location.toJson(), state.toJson()])
+        .mapEntries(([location, state]) => [location.encode(), state.encode()])
         .toArray(),
     };
   }

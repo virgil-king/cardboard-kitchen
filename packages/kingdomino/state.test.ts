@@ -282,10 +282,12 @@ test("encode/decode round trip", () => {
   );
   const beforeState = episode.currentSnapshot.state;
 
-  const jsonObject = episode.currentSnapshot.state.toJson();
+  const jsonObject = episode.currentSnapshot.state.encode();
   const afterState = KingdominoState.decode(jsonObject);
   const jsonString = JSON.stringify(jsonObject);
-  const secondJsonString = JSON.stringify(KingdominoState.decode(JSON.parse(jsonString)).toJson());
+  const secondJsonString = JSON.stringify(
+    KingdominoState.decode(JSON.parse(jsonString)).encode()
+  );
 
   assert.equal(
     beforeState.props.currentPlayerId,

@@ -6,7 +6,6 @@ import {
   GameConfiguration,
   Game,
   EpisodeSnapshot,
-  playerValuesToString,
   Player,
   Agent,
 } from "game";
@@ -577,6 +576,6 @@ class NodeValues {
   }
 
   toString(): string {
-    return playerValuesToString(this.playerIdToValue);
+    return JSON.stringify(this.playerIdToValue.toArray());
   }
 }

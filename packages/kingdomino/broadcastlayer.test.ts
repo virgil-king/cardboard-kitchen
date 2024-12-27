@@ -1,15 +1,13 @@
 import { test } from "vitest";
 import { assert } from "chai";
 import * as tf from "@tensorflow/tfjs";
-import { getBroadcastLayerFactory } from "./broadcastlayer.js";
 import _ from "lodash";
-
-const factory = getBroadcastLayerFactory(tf);
+import { BroadcastLayer } from "./broadcastlayer.js";
 
 test("apply: tiles as needed", () => {
   // Dims: 2,1,1,3
   const tensor = tf.tensor([[[[1, 2, 3]]], [[[4, 5, 6]]]]);
-  const layer = factory.create({ shape: [2, 4, 4, 3] });
+  const layer = new BroadcastLayer({ shape: [2, 4, 4, 3] });
 
   const tiled = layer.apply(tensor) as tf.Tensor;
 

@@ -1,5 +1,16 @@
 import { Map, Range } from "immutable";
-import { EpisodeConfiguration, generateEpisode, Player, Players } from "game";
+import {
+  Action,
+  Agent,
+  Episode,
+  EpisodeConfiguration,
+  EpisodeSnapshot,
+  Game,
+  GameConfiguration,
+  GameState,
+  Player,
+  Players,
+} from "game";
 import {} from "training";
 
 import {
@@ -71,12 +82,12 @@ async function main() {
   for (const episodeIndex of Range(0, episodeCount)) {
     console.log(`Starting episode ${episodeIndex}`);
     const start = performance.now();
-    const transcript = await Array.fromAsync(
+    const snapshots = await Array.fromAsync(
       generateEpisode(Kingdomino.INSTANCE, episodeConfig, playerIdToAgent)
     );
 
-    const lastStateIndex = transcript.length - 1;
-    const lastSnapshot = transcript[lastStateIndex];
+    const lastStateIndex = snapshots.length - 1;
+    const lastSnapshot = snapshots[lastStateIndex];
     const result = requireDefined(Kingdomino.INSTANCE.result(lastSnapshot));
 
     console.log(
@@ -98,6 +109,38 @@ async function main() {
     }
   }
   console.log(playerIdToValue.toArray());
+}
+
+/**
+ * Runs a new episode of {@link game} using {@link playerIdToAgent} to
+ * select actions and yielding each new snapshot.
+ */
+export async function* generateEpisode<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+>(
+  game: Game<C, S, A>,
+  config: EpisodeConfiguration,
+  playerIdToAgent: Map<string, Agent<C, S, A>>
+): AsyncGenerator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, unknown> {
+  let snapshot = game.newEpisode(config);
+  let episode = new Episode(game, snapshot);
+  yield episode.currentSnapshot;
+  while (game.result(episode.currentSnapshot) == undefined) {
+    const currentPlayer = game.currentPlayer(episode.currentSnapshot);
+    if (currentPlayer == undefined) {
+      throw new Error(`Current player is undefined but game isn't over`);
+    }
+    const agent = playerIdToAgent.get(currentPlayer.id);
+    if (agent == undefined) {
+      throw new Error(`No agent for ${currentPlayer.id}`);
+    }
+    const action = agent.act(episode.currentSnapshot);
+    episode.apply(await action);
+    yield episode.currentSnapshot;
+  }
+  return episode.currentSnapshot;
 }
 
 main();

@@ -14,7 +14,7 @@ import {
   PlaceTile,
   TileOffer,
   TileOffers,
-  tileOffersJson,
+  tileOffersCodec,
 } from "./base.js";
 import { Direction, Vector2 } from "./util.js";
 
@@ -113,8 +113,8 @@ export const propsJson = io.type({
   currentPlayerId: io.union([io.string, io.undefined]),
   nextAction: io.union([nextActionJson, io.undefined]),
   drawnTileNumbers: io.array(io.number),
-  previousOffers: io.union([tileOffersJson, io.undefined]),
-  nextOffers: io.union([tileOffersJson, io.undefined]),
+  previousOffers: io.union([tileOffersCodec, io.undefined]),
+  nextOffers: io.union([tileOffersCodec, io.undefined]),
   offsetInScriptedTileNumbers: io.union([io.number, io.undefined]),
 });
 
@@ -196,7 +196,7 @@ export class KingdominoState implements GameState {
     return this.requirePlayerState(this.requireCurrentPlayerId());
   }
 
-  toJson(): PropsJson {
+  encode(): PropsJson {
     return {
       playerIdToState: this.props.playerIdToState
         .entrySeq()
@@ -211,11 +211,11 @@ export class KingdominoState implements GameState {
       previousOffers:
         this.props.previousOffers == undefined
           ? undefined
-          : this.props.previousOffers.toJson(),
+          : this.props.previousOffers.encode(),
       nextOffers:
         this.props.nextOffers == undefined
           ? undefined
-          : this.props.nextOffers.toJson(),
+          : this.props.nextOffers.encode(),
       offsetInScriptedTileNumbers: this.props.offsetInScriptedTileNumbers,
     };
   }
@@ -238,11 +238,11 @@ export class KingdominoState implements GameState {
       previousOffers:
         decoded.previousOffers == undefined
           ? undefined
-          : TileOffers.fromJson(decoded.previousOffers),
+          : TileOffers.decode(decoded.previousOffers),
       nextOffers:
         decoded.nextOffers == undefined
           ? undefined
-          : TileOffers.fromJson(decoded.nextOffers),
+          : TileOffers.decode(decoded.nextOffers),
       offsetInScriptedTileNumbers: decoded.offsetInScriptedTileNumbers,
     });
   }

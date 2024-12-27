@@ -17,7 +17,6 @@
         "chai": "^5.1.2",
         "d3": "^7.9.0",
         "effection": "^3.1.0",
-        "esm-seedrandom": "^3.0.5",
         "fp-ts": "^2.16.9",
         "game": "workspace:*",
         "immutable": "5.0.3",
@@ -28,9 +27,6 @@
         "long": "^5.2.3",
         "mcts": "workspace:^",
         "pnpm": "^9.15.1",
-        "react": "^18.3.1",
-        "react-dom": "^18.3.1",
-        "seedrandom": "^3.0.5",
         "studio-util": "workspace:^",
         "training": "workspace:*",
         "training-data": "workspace:^"

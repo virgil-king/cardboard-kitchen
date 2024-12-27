@@ -2,7 +2,7 @@ import { SettablePromise, requireDefined, sleep } from "studio-util";
 import { Action, Game, GameConfiguration, GameState } from "game";
 import { List, Map } from "immutable";
 import { Model } from "../mcts/model.js";
-import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
+import { EpisodeBuffer } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
 import { EpisodeTrainingData, StateTrainingData } from "training-data";
@@ -55,15 +55,14 @@ export async function train_parallel<
 
   const buffer = new EpisodeBuffer<
     StateTrainingData<C, S, A>,
-    SimpleArrayLike<StateTrainingData<C, S, A>>
+    EpisodeTrainingData<C, S, A>
   >(sampleBufferSize);
 
   const bufferReady = new SettablePromise<undefined>();
 
   function addEpisodeToBuffer(message: any) {
     const decoded = EpisodeTrainingData.decode(game, message);
-    const encodedSamples = decoded.stateTrainingDataArray();
-    buffer.addEpisode(new SimpleArrayLike(encodedSamples));
+    buffer.addEpisode(decoded);
     if (buffer.sampleCount() >= batchSize) {
       bufferReady.fulfill(undefined);
     }

@@ -16,7 +16,7 @@ console.log(`episodeCount is ${episodeCount}`);
 
 async function main() {
   const result = await evalEpisodeBatch((await model).inferenceModel, episodeCount);
-  console.log(JSON.stringify(result.episodeTrainingData[0].toJson(), undefined, 1));
+  console.log(JSON.stringify(result.episodeTrainingData[0].encode(), undefined, 1));
 }
 
 main();

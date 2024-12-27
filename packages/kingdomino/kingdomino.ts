@@ -10,14 +10,14 @@ import {
 import { KingdominoState, NextAction, propsJson } from "./state.js";
 import _ from "lodash";
 
-import { ActionCase, KingdominoAction, actionJson } from "./action.js";
+import { ActionCase, KingdominoAction, actionCodec } from "./action.js";
 import {
   ClaimTile,
   KingdominoConfiguration,
   PlaceTile,
   TileOffer,
   TileOffers,
-  configurationJson,
+  configurationCodec,
   playerCountToConfiguration,
 } from "./base.js";
 import { decodeOrThrow, requireDefined } from "studio-util";
@@ -378,7 +378,7 @@ export class Kingdomino
   }
 
   decodeConfiguration(json: any): KingdominoConfiguration {
-    const decoded = decodeOrThrow(configurationJson, json);
+    const decoded = decodeOrThrow(configurationCodec, json);
     return KingdominoConfiguration.fromJson(decoded);
   }
 
@@ -388,7 +388,7 @@ export class Kingdomino
   }
 
   decodeAction(json: any): KingdominoAction {
-    const decoded = decodeOrThrow(actionJson, json);
-    return KingdominoAction.fromJson(decoded);
+    const decoded = decodeOrThrow(actionCodec, json);
+    return KingdominoAction.decode(decoded);
   }
 }

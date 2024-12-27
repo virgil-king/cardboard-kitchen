@@ -30,7 +30,7 @@ const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
 const players = new Players(alice, bob);
 const episodeConfig = new EpisodeConfiguration(players);
-const model = KingdominoModel.fresh(tf);
+const model = KingdominoModel.fresh();
 
 test("encodeValues: two players: result has length four", () => {
   const vector = model.trainingModel().encodeValues(
@@ -63,6 +63,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
       KingdominoAction.placeTile(placement1),
       new ActionStatistics(
         0.5,
+        0.5,
         1,
         new PlayerValues(
           Map([
@@ -75,6 +76,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
     [
       KingdominoAction.placeTile(placement2),
       new ActionStatistics(
+        0.5,
         0.5,
         2,
         new PlayerValues(
@@ -114,13 +116,13 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
 
 test("JSON round trip: inference behavior is preserved", async () => {
   const artifacts = await model.toJson();
-  const model2 = await KingdominoModel.fromJson(artifacts, tf);
+  const model2 = await KingdominoModel.fromJson(artifacts);
   const snapshot = new Kingdomino().newEpisode(episodeConfig);
 
   const prediction1 = (await model.inferenceModel.infer([snapshot]))[0];
   const prediction2 = (await model2.inferenceModel.infer([snapshot]))[0];
 
-  assert.isTrue(prediction1.policy.equals(prediction2.policy));
+  assert.isTrue(prediction1.policyLogits.equals(prediction2.policyLogits));
   assert.isTrue(
     prediction1.value.playerIdToValue.equals(prediction2.value.playerIdToValue)
   );
@@ -134,7 +136,7 @@ test("JSON + structured clone round trip: inference behavior is preserved", asyn
   const prediction1 = (await model.inferenceModel.infer([snapshot]))[0];
   const prediction2 = (await model2.inferenceModel.infer([snapshot]))[0];
 
-  assert.isTrue(prediction1.policy.equals(prediction2.policy));
+  assert.isTrue(prediction1.policyLogits.equals(prediction2.policyLogits));
   assert.isTrue(
     prediction1.value.playerIdToValue.equals(prediction2.value.playerIdToValue)
   );

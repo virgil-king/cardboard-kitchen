@@ -1,13 +1,12 @@
-// import { io } from "@tensorflow/tfjs-core";
 import {
   PlayerValues,
-  playerValuesJson,
+  playerValuesCodec,
   GameState,
   Action,
   JsonSerializable,
   Game,
   GameConfiguration,
-  episodeConfigurationJson,
+  episodeConfigurationCodec,
   EpisodeConfiguration,
   EpisodeSnapshot,
 } from "game";
@@ -16,9 +15,9 @@ import { decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
 
 /**
- * Interface for sequences that allows values to be instantiated lazily
+ * Interface for sequences that allows values to be generated lazily
  */
-export interface ReadonlyArrayLike<T> {
+export interface LazyArray<T> {
   count(): number;
   get(index: number): T;
 }
@@ -54,7 +53,7 @@ export class ActionStatistics implements ActionNodeInfo {
       priorProbability: this.priorProbability,
       priorLogit: this.priorLogit,
       visitCount: this.visitCount,
-      expectedValues: this.expectedValues.toJson(),
+      expectedValues: this.expectedValues.encode(),
     };
   }
   static decode(encoded: any): ActionStatistics {
@@ -72,13 +71,13 @@ const actionStatisticsJson = io.type({
   priorProbability: io.number,
   priorLogit: io.number,
   visitCount: io.number,
-  expectedValues: playerValuesJson,
+  expectedValues: playerValuesCodec,
 });
 type EncodedActionStatistics = io.TypeOf<typeof actionStatisticsJson>;
 
 const stateSearchDataJson = io.type({
   state: io.any,
-  predictedValues: playerValuesJson,
+  predictedValues: playerValuesCodec,
   actionToStatistics: io.array(io.tuple([io.any, actionStatisticsJson])),
   visitCount: io.number,
 });
@@ -103,14 +102,14 @@ export class StateSearchData<S extends GameState, A extends Action>
     return this.actionToStatistics;
   }
 
-  toJson(): EncodedStateSearchData {
+  encode(): EncodedStateSearchData {
     return {
-      state: this.state.toJson(),
-      predictedValues: this.predictedValues.toJson(),
+      state: this.state.encode(),
+      predictedValues: this.predictedValues.encode(),
       actionToStatistics: this.actionToStatistics
         .entrySeq()
         .map<[any, EncodedActionStatistics]>(([action, value]) => [
-          action.toJson(),
+          action.encode(),
           value.toJson(),
         ])
         .toArray(),
@@ -144,8 +143,6 @@ export class StateTrainingData<
 {
   constructor(
     /** Game state */
-    // Consider pre-encoding as vectors to move work from the training thread to
-    // self-play threads
     readonly snapshot: EpisodeSnapshot<C, S>,
     /** Used to train the policy function */
     readonly actionToStatistics: Map<A, ActionStatistics>,
@@ -171,11 +168,11 @@ export class StateTrainingData<
 }
 
 const episodeTrainingDataJson = io.type({
-  episodeConfig: episodeConfigurationJson,
+  episodeConfig: episodeConfigurationCodec,
   gameConfig: io.any,
   dataPoints: io.array(stateSearchDataJson),
   terminalState: io.any,
-  terminalValues: playerValuesJson,
+  terminalValues: playerValuesCodec,
 });
 
 type EncodedEpisodeTrainingData = io.TypeOf<typeof episodeTrainingDataJson>;
@@ -184,7 +181,7 @@ export class EpisodeTrainingData<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action
-> implements JsonSerializable, ReadonlyArrayLike<StateTrainingData<C, S, A>>
+> implements JsonSerializable, LazyArray<StateTrainingData<C, S, A>>
 {
   constructor(
     readonly episodeConfig: EpisodeConfiguration,
@@ -223,13 +220,13 @@ export class EpisodeTrainingData<
     return result;
   }
 
-  toJson(): EncodedEpisodeTrainingData {
+  encode(): EncodedEpisodeTrainingData {
     return {
-      episodeConfig: this.episodeConfig.toJson(),
-      gameConfig: this.gameConfig.toJson(),
-      terminalValues: this.terminalValues.toJson(),
-      dataPoints: this.dataPoints.map((it) => it.toJson()),
-      terminalState: this.terminalState.toJson(),
+      episodeConfig: this.episodeConfig.encode(),
+      gameConfig: this.gameConfig.encode(),
+      terminalValues: this.terminalValues.encode(),
+      dataPoints: this.dataPoints.map((it) => it.encode()),
+      terminalState: this.terminalState.encode(),
     };
   }
 

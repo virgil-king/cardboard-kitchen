@@ -117,11 +117,11 @@ test("EpisodeTrainingData: codec round trip", () => {
     )
   );
 
-  const jsonObject = trainingData.toJson();
+  const jsonObject = trainingData.encode();
   const fromJsonObject = EpisodeTrainingData.decode(PickANumber.INSTANCE, jsonObject);
   const jsonString = JSON.stringify(jsonObject);
   const fromJsonString = EpisodeTrainingData.decode(PickANumber.INSTANCE, JSON.parse(jsonString));
-  const secondJsonString = JSON.stringify(fromJsonString.toJson());
+  const secondJsonString = JSON.stringify(fromJsonString.encode());
 
   assert.isTrue(
     fromJsonObject.episodeConfig.players.equals(trainingData.episodeConfig.players)

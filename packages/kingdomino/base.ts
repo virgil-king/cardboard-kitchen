@@ -6,7 +6,6 @@ import {
   vector2Json,
 } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
-
 import { List, Map, ValueObject, hash, Range } from "immutable";
 import _ from "lodash";
 import {
@@ -23,7 +22,11 @@ export const maxKingdomSize = 5;
 
 /** Size of the square in which a player could possibly place tiles */
 export const playAreaSize = 1 + 2 * (maxKingdomSize - 1);
-/** Distance from the center of the board to the furthest playable location in any cardinal direction */
+
+/**
+ * Distance from the center of the board to the furthest playable
+ * location in any cardinal direction
+ */
 export const playAreaRadius = Math.floor(playAreaSize / 2);
 
 /** The range of valid board indices in either axis */
@@ -32,14 +35,14 @@ export const boardIndices = _.range(-playAreaRadius, playAreaRadius + 1);
 export const centerX = 0;
 export const centerY = centerX;
 
-export const locationStateJson = io.type({
+export const locationStateCodec = io.type({
   tileNumber: io.number,
   tileLocationIndex: io.number,
 });
 
-type LocationStateJson = io.TypeOf<typeof locationStateJson>;
+type LocationStateMessage = io.TypeOf<typeof locationStateCodec>;
 
-export class LocationState implements ValueObject {
+export class LocationState implements ValueObject, JsonSerializable {
   static cache = Array<Array<LocationState>>();
 
   static {
@@ -63,8 +66,8 @@ export class LocationState implements ValueObject {
     readonly tileLocationIndex: number
   ) {}
 
-  static fromJson(json: unknown): LocationState {
-    const decoded = decodeOrThrow(locationStateJson, json);
+  static decode(message: unknown): LocationState {
+    const decoded = decodeOrThrow(locationStateCodec, message);
     return this.instance(decoded.tileNumber, decoded.tileLocationIndex);
   }
   properties(): LocationProperties {
@@ -82,7 +85,7 @@ export class LocationState implements ValueObject {
   hashCode(): number {
     return combineHashes(this.tileNumber, this.tileLocationIndex);
   }
-  toJson(): LocationStateJson {
+  encode(): LocationStateMessage {
     return {
       tileNumber: this.tileNumber,
       tileLocationIndex: this.tileLocationIndex,
@@ -100,12 +103,12 @@ export const centerLocationProperties: LocationProperties = {
   crowns: 0,
 };
 
-export const configurationJson = io.type({
+export const configurationCodec = io.type({
   playerCount: io.number,
   scriptedTileNumbers: io.union([io.array(io.number), io.undefined]),
 });
 
-type ConfigurationJson = io.TypeOf<typeof configurationJson>;
+type ConfigurationMessage = io.TypeOf<typeof configurationCodec>;
 
 export class KingdominoConfiguration implements GameConfiguration {
   /** The total number of tiles that will be dealt during the game */
@@ -122,7 +125,7 @@ export class KingdominoConfiguration implements GameConfiguration {
     } = requireDefined(playerCountToConfiguration.get(playerCount)));
   }
   static fromJson(json: unknown): KingdominoConfiguration {
-    const decoded = decodeOrThrow(configurationJson, json);
+    const decoded = decodeOrThrow(configurationCodec, json);
     return new KingdominoConfiguration(
       decoded.playerCount,
       decoded.scriptedTileNumbers
@@ -131,7 +134,7 @@ export class KingdominoConfiguration implements GameConfiguration {
   get turnsPerRound(): number {
     return this.firstRoundTurnOrder.length;
   }
-  toJson(): ConfigurationJson {
+  encode(): ConfigurationMessage {
     return {
       playerCount: this.playerCount,
       scriptedTileNumbers: this.scriptedTileNumbers,
@@ -166,19 +169,19 @@ export class TileClaim implements ValueObject {
   }
 }
 
-const tileOfferJson = io.type({
+const tileOfferCodec = io.type({
   tileNumber: io.union([io.number, io.undefined]),
   claim: io.union([io.string, io.undefined]),
 });
 
-type TileOfferJson = io.TypeOf<typeof tileOfferJson>;
+type TileOfferMessage = io.TypeOf<typeof tileOfferCodec>;
 
 export class TileOffer implements JsonSerializable, ValueObject {
   static readonly EMPTY = new TileOffer();
 
   constructor(readonly tileNumber?: number, readonly claim?: TileClaim) {}
   static fromJson(json: unknown): TileOffer {
-    const decoded = decodeOrThrow(tileOfferJson, json);
+    const decoded = decodeOrThrow(tileOfferCodec, json);
     const claim =
       decoded.claim == undefined ? undefined : new TileClaim(decoded.claim);
     return new TileOffer(decoded.tileNumber, claim);
@@ -200,7 +203,7 @@ export class TileOffer implements JsonSerializable, ValueObject {
     return TileOffer.EMPTY;
   }
 
-  toJson(): TileOfferJson {
+  encode(): TileOfferMessage {
     return { tileNumber: this.tileNumber, claim: this.claim?.playerId };
   }
 
@@ -218,14 +221,14 @@ export class TileOffer implements JsonSerializable, ValueObject {
   }
 }
 
-export const tileOffersJson = io.type({ offers: io.array(tileOfferJson) });
+export const tileOffersCodec = io.type({ offers: io.array(tileOfferCodec) });
 
-type TileOffersJson = io.TypeOf<typeof tileOffersJson>;
+type TileOffersMessage = io.TypeOf<typeof tileOffersCodec>;
 
 export class TileOffers implements JsonSerializable, ValueObject {
   constructor(readonly offers: List<TileOffer>) {}
-  static fromJson(json: unknown): TileOffers {
-    const decoded = decodeOrThrow(tileOffersJson, json);
+  static decode(message: unknown): TileOffers {
+    const decoded = decodeOrThrow(tileOffersCodec, message);
     return new TileOffers(
       List(decoded.offers.map((offer) => TileOffer.fromJson(offer)))
     );
@@ -251,8 +254,8 @@ export class TileOffers implements JsonSerializable, ValueObject {
     return this.offers.find((it) => it.hasTile());
   }
 
-  toJson(): TileOffersJson {
-    return { offers: this.offers.map((offer) => offer.toJson()).toArray() };
+  encode(): TileOffersMessage {
+    return { offers: this.offers.map((offer) => offer.encode()).toArray() };
   }
 
   equals(other: unknown): boolean {
@@ -266,7 +269,7 @@ export class TileOffers implements JsonSerializable, ValueObject {
   }
 }
 
-/** Returns the  */
+/** Returns the square index that's not {@link squareIndex} */
 export function otherSquareIndex(squareIndex: number) {
   switch (squareIndex) {
     case 0:
@@ -301,38 +304,34 @@ export function* adjacentExternalLocations(
   }
 }
 
-export function run<T>(f: () => T) {
-  return f();
-}
-
-export const claimJson = io.type({
+export const claimCodec = io.type({
   offerIndex: io.number,
 });
 
-type ClaimJson = io.TypeOf<typeof claimJson>;
+type ClaimMessage = io.TypeOf<typeof claimCodec>;
 
 export class ClaimTile implements JsonSerializable {
   constructor(readonly offerIndex: number) {}
-  static fromJson(json: unknown): ClaimTile {
-    const parsed = decodeOrThrow(claimJson, json);
+  static decode(json: unknown): ClaimTile {
+    const parsed = decodeOrThrow(claimCodec, json);
     return new ClaimTile(parsed.offerIndex);
   }
-  toJson(): ClaimJson {
+  encode(): ClaimMessage {
     return { offerIndex: this.offerIndex };
   }
 }
 
-export const placeJson = io.type({
+export const placeCodec = io.type({
   location: vector2Json,
   direction: io.number,
 });
 
-type PlaceJson = io.TypeOf<typeof placeJson>;
+type PlaceMessage = io.TypeOf<typeof placeCodec>;
 
 export class PlaceTile implements ValueObject, JsonSerializable {
   constructor(readonly location: Vector2, readonly direction: Direction) {}
   static fromJson(json: unknown) {
-    const parsed = decodeOrThrow(placeJson, json);
+    const parsed = decodeOrThrow(placeCodec, json);
     return new PlaceTile(
       KingdominoVectors.fromJson(parsed.location),
       Direction.fromIndex(parsed.direction)
@@ -376,9 +375,9 @@ export class PlaceTile implements ValueObject, JsonSerializable {
       this.direction.offset.hashCode()
     );
   }
-  toJson(): PlaceJson {
+  encode(): PlaceMessage {
     return {
-      location: this.location.toJson(),
+      location: this.location.encode(),
       direction: this.direction.index,
     };
   }

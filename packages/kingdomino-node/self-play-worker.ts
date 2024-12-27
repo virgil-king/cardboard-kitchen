@@ -100,7 +100,7 @@ async function main() {
       `Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
     );
 
-    messagePort.postMessage(episodes.map((episode) => episode.toJson()));
+    messagePort.postMessage(episodes.map((episode) => episode.encode()));
 
     await sleep(0);
   }

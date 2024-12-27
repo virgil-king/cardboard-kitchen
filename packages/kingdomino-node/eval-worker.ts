@@ -92,7 +92,7 @@ async function evaluate(model: KingdominoModel) {
 
     for (const episode of batchResult.episodeTrainingData) {
       episodesDir.writeData(
-        textEncoder.encode(JSON.stringify(episode.toJson(), undefined, 2))
+        textEncoder.encode(JSON.stringify(episode.encode(), undefined, 2))
       );
     }
   }

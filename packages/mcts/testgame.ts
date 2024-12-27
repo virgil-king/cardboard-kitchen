@@ -12,19 +12,10 @@ import {
 } from "game";
 
 import { Map, Range, Set } from "immutable";
-import { Tensor, Rank } from "@tensorflow/tfjs";
 import { decodeOrThrow, requireDefined, SettablePromise } from "studio-util";
 import { InferenceModel, InferenceResult, TrainingModel } from "./model.js";
 import * as io from "io-ts";
 import { StateTrainingData } from "training-data";
-
-class NotSerializable implements JsonSerializable {
-  static readonly INSTANCE = new NotSerializable();
-
-  toJson(): string {
-    throw new Error("Method not implemented.");
-  }
-}
 
 export class NumberAction implements Action {
   constructor(readonly number: number) {}
@@ -37,7 +28,7 @@ export class NumberAction implements Action {
   hashCode(): number {
     return this.number;
   }
-  toJson(): number {
+  encode(): number {
     return io.number.encode(this.number);
   }
   static decode(encoded: any): NumberAction {
@@ -59,7 +50,7 @@ type EncodedPickANumberConfiguration = io.TypeOf<
 
 export class PickANumberConfiguration implements GameConfiguration {
   constructor(readonly availableNumbers: Set<number>) {}
-  toJson(): EncodedPickANumberConfiguration {
+  encode(): EncodedPickANumberConfiguration {
     return { availableNumbers: this.availableNumbers.toArray() };
   }
   static decode(encoded: any): PickANumberConfiguration {
@@ -81,7 +72,7 @@ export class PickANumberState implements GameState {
     readonly playerIdToNumber: Map<string, number>,
     readonly remainingNumbers: Set<number>
   ) {}
-  toJson(): EncodedPickANumberState {
+  encode(): EncodedPickANumberState {
     return {
       playerIdToNumber: this.playerIdToNumber.entrySeq().toArray(),
       remainingNumbers: this.remainingNumbers.toArray(),
@@ -165,7 +156,7 @@ export class PickANumber
     );
   }
 
-  tensorToAction(tensor: Tensor<Rank>): NumberAction {
+  tensorToAction(): NumberAction {
     throw new Error("Method not implemented.");
   }
 
@@ -259,11 +250,3 @@ export class PickANumberImmediateModel
   }
 }
 
-type InferenceRequest<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
-> = {
-  snapshots: ReadonlyArray<EpisodeSnapshot<C, S>>;
-  results: SettablePromise<ReadonlyArray<InferenceResult<A>>>;
-};

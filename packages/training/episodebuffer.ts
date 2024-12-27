@@ -1,21 +1,15 @@
 import { List } from "immutable";
 import { randomBelow, requireDefined } from "studio-util";
-import { ReadonlyArrayLike } from "training-data";
+import { LazyArray } from "training-data";
 
-export class SimpleArrayLike<T> implements ReadonlyArrayLike<T> {
-  constructor(private readonly array: ReadonlyArray<T>) { }
-  count(): number {
-    return this.array.length;
-  }
-  get(index: number): T {
-    return this.array[index];
-  }
-}
-
+/**
+ * A size-capped buffer of lists.
+ */
 export class EpisodeBuffer<
   ItemT,
-  ArrayT extends ReadonlyArrayLike<ItemT>
+  ArrayT extends LazyArray<ItemT>
 > {
+  // Use List instead of Array for efficient `shift`
   private buffer = List<ArrayT>();
   private itemCount = 0;
 
@@ -25,7 +19,6 @@ export class EpisodeBuffer<
     this.buffer = this.buffer.push(episode);
     this.itemCount += episode.count();
 
-    let purgedEpisodeCount = 0;
     while (this.itemCount > this.targetItemCount) {
       const excessItemCount = this.itemCount - this.targetItemCount;
       const firstEpisode = requireDefined(this.buffer.first());
@@ -35,33 +28,22 @@ export class EpisodeBuffer<
       }
       this.itemCount -= firstEpisode.count();
       this.buffer = this.buffer.shift();
-      purgedEpisodeCount++;
-    }
-
-    if (purgedEpisodeCount > 0) {
     }
   }
 
   sampleCount(): number {
-    return this.buffer.reduce(
-      (reduction, episode) => reduction + episode.count(),
-      0
-    );
-  }
-
-  randomGame(): ArrayT {
-    return requireDefined(this.buffer.get(randomBelow(this.buffer.count())));
+    return this.itemCount;
   }
 
   sample(count: number): ReadonlyArray<ItemT> {
     if (count > this.itemCount) {
       throw new Error(
-        `Requested more states (${count}) than available (${this.itemCount})}`
+        `Requested more samples (${count}) than available (${this.itemCount})}`
       );
     }
 
-    // Sample randomly from games, then moves. This method is biased toward
-    // shorter games but it doesn't seem worth doing better.
+    // Sample randomly from episodes, then moves. This method is biased toward
+    // shorter episodes but it doesn't seem worth doing better.
     const result = new Array<ItemT>();
     for (let i = 0; i < count; i++) {
       const episodeIndex = randomBelow(this.buffer.count());

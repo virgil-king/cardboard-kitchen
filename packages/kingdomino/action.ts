@@ -1,6 +1,5 @@
 import { Action } from "game";
-
-import { ClaimTile, PlaceTile, claimJson, placeJson } from "./base.js";
+import { ClaimTile, PlaceTile, claimCodec, placeCodec } from "./base.js";
 import { hash } from "immutable";
 import { combineHashes, decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
@@ -34,16 +33,16 @@ export type Discard = {
 
 export type ActionData = Claim | Place | Discard;
 
-export const actionJson = io.union([
-  io.type({ case: io.literal(ActionCase.CLAIM), claim: claimJson }),
-  io.type({ case: io.literal(ActionCase.PLACE), place: placeJson }),
+export const actionCodec = io.union([
+  io.type({ case: io.literal(ActionCase.CLAIM), claim: claimCodec }),
+  io.type({ case: io.literal(ActionCase.PLACE), place: placeCodec }),
   io.type({ case: io.literal(ActionCase.DISCARD) }),
 ]);
 
-type ActionJson = io.TypeOf<typeof actionJson>;
+type ActionMessage = io.TypeOf<typeof actionCodec>;
 
 export class KingdominoAction implements Action {
-  private constructor(readonly data: ActionData) { }
+  private constructor(readonly data: ActionData) {}
   static claimTile(claimTile: ClaimTile) {
     return new KingdominoAction({
       case: ActionCase.CLAIM,
@@ -62,11 +61,11 @@ export class KingdominoAction implements Action {
     return new KingdominoAction({ case: ActionCase.DISCARD });
   }
 
-  static fromJson(json: unknown): KingdominoAction {
-    const decoded = decodeOrThrow(actionJson, json);
+  static decode(message: unknown): KingdominoAction {
+    const decoded = decodeOrThrow(actionCodec, message);
     switch (decoded.case) {
       case ActionCase.CLAIM:
-        return KingdominoAction.claimTile(ClaimTile.fromJson(decoded.claim));
+        return KingdominoAction.claimTile(ClaimTile.decode(decoded.claim));
       case ActionCase.PLACE:
         return KingdominoAction.placeTile(PlaceTile.fromJson(decoded.place));
       case ActionCase.DISCARD:
@@ -125,39 +124,23 @@ export class KingdominoAction implements Action {
     return combineHashes(tagHash, caseHash);
   }
 
-  toJson(): ActionJson {
+  encode(): ActionMessage {
     switch (this.data.case) {
       case ActionCase.CLAIM:
-        return { case: ActionCase.CLAIM, claim: { offerIndex: this.data.claim.offerIndex } };
+        return {
+          case: ActionCase.CLAIM,
+          claim: { offerIndex: this.data.claim.offerIndex },
+        };
       case ActionCase.PLACE:
         return {
-          case: ActionCase.PLACE, place: {
-            location: this.data.place.location.toJson(),
-            direction: Direction.valuesArray.indexOf(
-              this.data.place.direction
-            ),
-          }
+          case: ActionCase.PLACE,
+          place: {
+            location: this.data.place.location.encode(),
+            direction: Direction.valuesArray.indexOf(this.data.place.direction),
+          },
         };
       case ActionCase.DISCARD:
         return { case: ActionCase.DISCARD };
     }
   }
-  // const c = this.data.case;
-  //   return {
-  //     case: this.data.case,
-  //     claim:
-  //       this.data.case == ActionCase.CLAIM
-  //         ? { offerIndex: this.data.claim.offerIndex }
-  //         : undefined,
-  //     place:
-  //       this.data.case == ActionCase.PLACE
-  //         ? {
-  //           location: this.data.place.location.toJson(),
-  //           direction: Direction.valuesArray.indexOf(
-  //             this.data.place.direction
-  //           ),
-  //         }
-  //         : undefined,
-  //   };
-  // }
 }

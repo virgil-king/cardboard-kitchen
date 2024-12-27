@@ -128,7 +128,7 @@ export class LocationStateCodec implements VectorCodec<LocationState> {
 }
 
 // Exported for testing
-export const locationStateCodec = new LocationStateCodec();
+export const locationStateVectorCodec = new LocationStateCodec();
 
 // Exported for testing
 export const boardCodec = new (class
@@ -139,7 +139,7 @@ export const boardCodec = new (class
     playAreaRadius + 1,
     -playAreaRadius,
     playAreaRadius + 1,
-    locationStateCodec
+    locationStateVectorCodec
   );
   readonly columnCount = this.mapCodec.columnCount;
   readonly centerOffset = this.mapCodec.linearization.getOffset(
@@ -846,7 +846,7 @@ export class ResidualBlock {
   private readonly conv2: tfTypes.layers.Layer;
 
   // SIZE_FACTOR for tiled non-spatial data plus the original spatial data
-  static filterCount = SIZE_FACTOR + locationStateCodec.columnCount;
+  static filterCount = SIZE_FACTOR + locationStateVectorCodec.columnCount;
 
   constructor() {
     this.conv1 = ResidualBlock.conv2D();
@@ -876,7 +876,7 @@ export class ResidualBlock {
 }
 
 class BoardInputTensor {
-  static readonly channelCount = locationStateCodec.columnCount;
+  static readonly channelCount = locationStateVectorCodec.columnCount;
   static readonly shape = [
     playAreaSize,
     playAreaSize,

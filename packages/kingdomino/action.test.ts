@@ -10,7 +10,6 @@ import { ClaimTile, PlaceTile } from "./base.js";
 import { PlayerBoard } from "./board.js";
 import { KingdominoState } from "./state.js";
 import { requireDefined } from "studio-util";
-import { off } from "process";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -148,33 +147,33 @@ test("equals: equivalent claims: returns true", () => {
 test("claim: codec round trip", () => {
   const claim = KingdominoAction.claimTile(new ClaimTile(2));
   
-  const json = claim.toJson();
+  const json = claim.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
+  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
 
-  assert.isTrue(claim.equals(KingdominoAction.fromJson(json)));
+  assert.isTrue(claim.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);
 });
 
 test("place: codec round trip", () => {
   const place = KingdominoAction.placeTile(new PlaceTile(new Vector2(-1, 1), Direction.LEFT));
   
-  const json = place.toJson();
+  const json = place.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
+  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
 
-  assert.isTrue(place.equals(KingdominoAction.fromJson(json)));
+  assert.isTrue(place.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);
 });
 
 test("discard: codec round trip", () => {
   const discard = KingdominoAction.discardTile();
   
-  const json = discard.toJson();
+  const json = discard.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.fromJson(json).toJson());
+  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
 
-  assert.isTrue(discard.equals(KingdominoAction.fromJson(json)));
+  assert.isTrue(discard.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);
 });
 

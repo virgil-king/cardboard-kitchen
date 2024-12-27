@@ -1,28 +1,8 @@
 import { test } from "vitest";
 import { assert } from "chai";
-import { EpisodeBuffer, SimpleArrayLike } from "./episodebuffer.js";
+import { EpisodeBuffer } from "./episodebuffer.js";
 import * as _ from "lodash";
-import { ReadonlyArrayLike } from "training-data";
-
-// const buffer = new EpisodeBuffer<
-//   PickANumberConfiguration,
-//   PickANumberState,
-//   NumberAction
-// >(5);
-
-// const alice = new Player("alice", "Alice");
-// const bob = new Player("bob", "Bob");
-// const episodeConfig = new EpisodeConfiguration(new Players(alice, bob));
-
-// function episode(moves: ReadonlyArray<number>): EpisodeTrainingData<
-//   PickANumberConfiguration,
-//   PickANumberState,
-//   NumberAction
-// > {
-//     let snapshot = PickANumber.INSTANCE.newEpisode(episodeConfig);
-//     // const dataPoints = moves.map((move) => new StateSearchData());
-//     // const episode = new EpisodeTrainingData(episodeConfig, new PickANumberConfiguration(Set(Range(1, 10))));
-// }
+import { LazyArray } from "training-data";
 
 test("addGame: can purge older game while remaining above target: purges older game", () => {
   const buffer = new EpisodeBuffer<number, SimpleArrayLike<number>>(5);
@@ -35,8 +15,6 @@ test("addGame: can purge older game while remaining above target: purges older g
   buffer.addEpisode(game3);
 
   assert.equal(buffer.sampleCount(), 8);
-  const randomEpisode = buffer.randomGame();
-  assert.isTrue(_.isEqual(game2, randomEpisode) || _.isEqual(game3, randomEpisode));
 });
 
 test("sampleCount: returns number of states in single game", () => {
@@ -45,15 +23,6 @@ test("sampleCount: returns number of states in single game", () => {
   buffer.addEpisode(new SimpleArrayLike([2, 5]));
 
   assert.equal(buffer.sampleCount(), 2);
-});
-
-test("randomGame: returns single game", () => {
-  const buffer = new EpisodeBuffer<number, SimpleArrayLike<number>>(100);
-  const game = new SimpleArrayLike([8, 1]);
-
-  buffer.addEpisode(game);
-
-  assert.isTrue(_.isEqual(game, buffer.randomGame()));
 });
 
 test("sample: returns requested number of submitted states", () => {
@@ -68,3 +37,13 @@ test("sample: returns requested number of submitted states", () => {
     assert.isTrue(game.indexOf(item) != -1);
   }
 });
+
+class SimpleArrayLike<T> implements LazyArray<T> {
+  constructor(private readonly array: ReadonlyArray<T>) {}
+  count(): number {
+    return this.array.length;
+  }
+  get(index: number): T {
+    return this.array[index];
+  }
+}

@@ -20,15 +20,15 @@ test("LocationState.equals: not equal: returns false", () => {
 test("ClaimTile: codec round trip", () => {
   const claim = new ClaimTile(3);
 
-  const json = claim.toJson();
+  const json = claim.encode();
 
-  assert.equal(claim.offerIndex, ClaimTile.fromJson(json).offerIndex);
+  assert.equal(claim.offerIndex, ClaimTile.decode(json).offerIndex);
 });
 
 test("PlaceTile: codec round trip", () => {
   const place = new PlaceTile(new Vector2(2, -4), Direction.UP);
 
-  const json = place.toJson();
+  const json = place.encode();
 
   assert.isTrue(place.equals(PlaceTile.fromJson(json)));
 });
@@ -46,7 +46,7 @@ test("PlaceTile: transform", () => {
 test("KingdominoConfiguration: codec round trip", () => {
   const before = new KingdominoConfiguration(3, [1, 2, 3]);
 
-  const after = KingdominoConfiguration.fromJson(before.toJson());
+  const after = KingdominoConfiguration.fromJson(before.encode());
 
   assert.equal(before.playerCount, after.playerCount);
   assert.equal(before.scriptedTileNumbers, after.scriptedTileNumbers);
@@ -55,7 +55,7 @@ test("KingdominoConfiguration: codec round trip", () => {
 test("LocationState: codec round trip", () => {
   const before = LocationState.instance(5, 1);
 
-  const after = LocationState.fromJson(before.toJson());
+  const after = LocationState.decode(before.encode());
 
   assert.isTrue(before.equals(after));
 });

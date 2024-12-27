@@ -1,14 +1,13 @@
 import { combineHashes, decodeOrThrow, requireDefined } from "studio-util";
-
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
 
-export const playerJson = io.type({ id: io.string, name: io.string });
+export const playerCodec = io.type({ id: io.string, name: io.string });
 
-type EncodedPlayer = io.TypeOf<typeof playerJson>;
+type PlayerMessage = io.TypeOf<typeof playerCodec>;
 
-export class Player implements ValueObject {
+export class Player implements ValueObject, JsonSerializable {
   constructor(readonly id: string, readonly name: string) {}
   equals(other: unknown): boolean {
     if (!(other instanceof Player)) {
@@ -19,22 +18,22 @@ export class Player implements ValueObject {
   hashCode(): number {
     return combineHashes(hash(this.id), hash(this.name));
   }
-  toJson(): EncodedPlayer {
+  encode(): PlayerMessage {
     return this;
   }
-  static decode(encoded: any): Player {
-    const decoded = decodeOrThrow(playerJson, encoded);
+  static decode(message: any): Player {
+    const decoded = decodeOrThrow(playerCodec, message);
     return new Player(decoded.id, decoded.name);
   }
 }
 
-export const playersJson = io.type({
-  players: io.array(playerJson),
+export const playersCodec = io.type({
+  players: io.array(playerCodec),
 });
 
-type EncodedPlayers = io.TypeOf<typeof playersJson>;
+type PlayersMessage = io.TypeOf<typeof playersCodec>;
 
-export class Players implements ValueObject {
+export class Players implements ValueObject, JsonSerializable {
   players: List<Player>;
   playerIdToPlayer: Map<string, Player>;
   constructor(...playerArray: Array<Player>) {
@@ -55,22 +54,22 @@ export class Players implements ValueObject {
   hashCode(): number {
     return this.players.hashCode();
   }
-  toJson(): EncodedPlayers {
-    return { players: this.players.toArray().map((it) => it.toJson()) };
+  encode(): PlayersMessage {
+    return { players: this.players.toArray().map((it) => it.encode()) };
   }
-  static decode(encoded: any): Players {
-    const decoded = decodeOrThrow(playersJson, encoded);
+  static decode(message: any): Players {
+    const decoded = decodeOrThrow(playersCodec, message);
     return new Players(
       ...decoded.players.map((encoded) => Player.decode(encoded))
     );
   }
 }
 
-export const playerValuesJson = io.type({
+export const playerValuesCodec = io.type({
   playerIdToValue: io.array(io.tuple([io.string, io.number])),
 });
 
-type EncodedPlayerValues = io.TypeOf<typeof playerValuesJson>;
+type PlayerValuesMessage = io.TypeOf<typeof playerValuesCodec>;
 
 /**
  * Map from player to "value" which is defined by the player's position with
@@ -90,29 +89,23 @@ export class PlayerValues implements JsonSerializable {
   requirePlayerValue(player: Player): number {
     return requireDefined(this.playerIdToValue.get(player.id));
   }
-  toJson(): EncodedPlayerValues {
+  encode(): PlayerValuesMessage {
     return {
       playerIdToValue: this.playerIdToValue.entrySeq().toArray(),
     };
   }
-  static decode(encoded: any): PlayerValues {
-    const decoded = decodeOrThrow(playerValuesJson, encoded);
+  static decode(message: any): PlayerValues {
+    const decoded = decodeOrThrow(playerValuesCodec, message);
     return new PlayerValues(Map(decoded.playerIdToValue));
   }
 }
 
-export function playerValuesToString(
-  playerIdToValue: Map<string, number>
-): string {
-  return JSON.stringify(
-    playerIdToValue.mapEntries(([key, value]) => [key.toString(), value])
-  );
-}
-
-/** Returns a {@link PlayerValues} with values defined by position in the provided tiers. */
+/** Returns a {@link PlayerValues} with values defined by position in the provided tiers */
 export function tiersToPlayerValues(
-  /** Tiers of player IDs. Tiers are ordered by finishing position (earlier is
-   * better). Players in the same tier are tied */
+  /**
+   * Tiers of player IDs. Tiers are ordered by finishing position (earlier is
+   * better). Players in the same tier are tied.
+   */
   playerIds: Array<Array<string>>
 ) {
   let playerIdToValue = Map<string, number>();
@@ -162,11 +155,11 @@ export function scoresToPlayerValues(
 }
 
 /**
- * Interface for classes that can encode as plain JS values that can survive
- * structured cloning and JSON string encoding
+ * Interface for classes that can encode themselves as plain JS values that can
+ * survive structured cloning and JSON string encoding
  */
 export interface JsonSerializable {
-  toJson(): any;
+  encode(): any;
 }
 
 export interface Action extends JsonSerializable, ValueObject {}
@@ -180,11 +173,6 @@ export interface Agent<
 }
 
 export interface GameState extends JsonSerializable {}
-
-export class Transcript<StateT extends GameState, ActionT extends Action> {
-  readonly steps: Array<[ActionT, StateT]> = new Array();
-  constructor(readonly initialState: StateT) {}
-}
 
 /**
  * A token uniquely identifying a game state whose derivation from the previous
@@ -200,20 +188,20 @@ export type ChanceKey = any;
  */
 export const NO_CHANCE = [];
 
-export const episodeConfigurationJson = io.type({ players: playersJson });
+export const episodeConfigurationCodec = io.type({ players: playersCodec });
 
-type EncodedEpisodeConfiguration = io.TypeOf<typeof episodeConfigurationJson>;
+type EpisodeConfigurationMessage = io.TypeOf<typeof episodeConfigurationCodec>;
 
 /**
  * Configuration info shared by all games
  */
 export class EpisodeConfiguration implements JsonSerializable {
   constructor(readonly players: Players) {}
-  toJson(): EncodedEpisodeConfiguration {
-    return { players: this.players.toJson() };
+  encode(): EpisodeConfigurationMessage {
+    return { players: this.players.encode() };
   }
   static decode(encoded: any): EpisodeConfiguration {
-    const decoded = decodeOrThrow(episodeConfigurationJson, encoded);
+    const decoded = decodeOrThrow(episodeConfigurationCodec, encoded);
     return new EpisodeConfiguration(Players.decode(decoded.players));
   }
 }
@@ -308,34 +296,3 @@ export class Episode<
   }
 }
 
-/**
- * Runs a new episode of {@link game} using {@link playerIdToAgent} to
- * select actions and yielding each new snapshot.
- */
-export async function* generateEpisode<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
->(
-  game: Game<C, S, A>,
-  config: EpisodeConfiguration,
-  playerIdToAgent: Map<string, Agent<C, S, A>>
-): AsyncGenerator<EpisodeSnapshot<C, S>, EpisodeSnapshot<C, S>, unknown> {
-  let snapshot = game.newEpisode(config);
-  let episode = new Episode(game, snapshot);
-  yield episode.currentSnapshot;
-  while (game.result(episode.currentSnapshot) == undefined) {
-    const currentPlayer = game.currentPlayer(episode.currentSnapshot);
-    if (currentPlayer == undefined) {
-      throw new Error(`Current player is undefined but game isn't over`);
-    }
-    const agent = playerIdToAgent.get(currentPlayer.id);
-    if (agent == undefined) {
-      throw new Error(`No agent for ${currentPlayer.id}`);
-    }
-    const action = agent.act(episode.currentSnapshot);
-    episode.apply(await action);
-    yield episode.currentSnapshot;
-  }
-  return episode.currentSnapshot;
-}
