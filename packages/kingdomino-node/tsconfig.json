@@ -1,6 +1,6 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "include": ["*.ts", "ui.tsx"],
+  "include": ["*.ts"],
   "exclude": ["*.test.ts"],
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
