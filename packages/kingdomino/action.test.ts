@@ -1,4 +1,4 @@
-import { Episode, EpisodeConfiguration, Player, Players } from "game";
+import { Episode, EpisodeConfiguration, Player, Players, requireDefined } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { Direction, Vector2 } from "./util.js";
@@ -9,7 +9,6 @@ import { assert } from "chai";
 import { ClaimTile, PlaceTile } from "./base.js";
 import { PlayerBoard } from "./board.js";
 import { KingdominoState } from "./state.js";
-import { requireDefined } from "studio-util";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");

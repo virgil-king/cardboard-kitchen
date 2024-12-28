@@ -1,8 +1,7 @@
 import { KingdominoConfiguration } from "./base.js";
 import { KingdominoState } from "./state.js";
 import { KingdominoAction } from "./action.js";
-import { Agent } from "game";
-import { requireDefined, streamingRandom } from "studio-util";
+import { Agent, requireDefined, streamingRandom } from "game";
 
 import { KingdominoSnapshot } from "./kingdomino.js";
 

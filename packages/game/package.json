@@ -7,21 +7,21 @@
   "scripts": {
     "build": "pnpm exec tsc",
     "clean": "rm -rf out/*",
-    "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
+    "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js out/**/*.test.js"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",
-    "@vitest/coverage-v8": "^2.1.5",
+    "@vitest/coverage-v8": "^2.1.8",
     "chai": "^5.1.2",
     "tsconfig": "workspace:*",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.5"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
+    "fp-ts": "^2.16.9",
     "immutable": "5.0.3",
-    "io-ts": "^2.2.21",
+    "io-ts": "^2.2.22",
     "lodash": "^4.17.21",
-    "pnpm": "^9.14.2",
-    "studio-util": "workspace:*"
+    "pnpm": "^9.15.1"
   }
 }

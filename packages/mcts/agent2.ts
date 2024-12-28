@@ -6,9 +6,10 @@ import {
   GameConfiguration,
   GameState,
   PlayerValues,
+  requireDefined,
+  throwFirstRejection,
 } from "game";
 import { Map, Range } from "immutable";
-import { requireDefined, throwFirstRejection } from "studio-util";
 import {
   MctsConfig,
   MctsContext,

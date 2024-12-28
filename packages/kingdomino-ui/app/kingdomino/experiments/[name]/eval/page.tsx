@@ -1,6 +1,6 @@
+import { intersperse } from "game";
 import Link from "next/link";
 import * as fs from "node:fs/promises";
-import { intersperse } from "studio-util";
 
 export default async function Experiment({
   params,

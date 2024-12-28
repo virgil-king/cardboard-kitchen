@@ -5,10 +5,11 @@ import {
   Game,
   EpisodeConfiguration,
   EpisodeSnapshot,
+  proportionalRandom,
+  requireDefined,
 } from "game";
 import { Range, Seq } from "immutable";
 import { mcts, InferenceResult, gumbelSequentialHalving } from "mcts";
-import { requireDefined, proportionalRandom } from "studio-util";
 import { EpisodeTrainingData, StateSearchData } from "training-data";
 
 const decimalFormat = Intl.NumberFormat(undefined, {

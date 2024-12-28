@@ -14,9 +14,8 @@ import {
 } from "kingdomino";
 import { Set } from "immutable";
 import { GameProps, TilePlacementState } from "@/components";
-import { EpisodeConfiguration, EpisodeSnapshot, Player, Players } from "game";
+import { EpisodeConfiguration, EpisodeSnapshot, Player, Players, requireDefined } from "game";
 import { mcts2, MctsAgent2 } from "mcts";
-import { requireDefined } from "studio-util";
 import _ from "lodash";
 
 const playerId = "player";

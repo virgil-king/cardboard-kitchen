@@ -2,7 +2,7 @@ import { test } from "vitest";
 import { assert } from "chai";
 import { Linearization } from "./linearization.js";
 import _ from "lodash";
-import { requireDefined } from "studio-util";
+import { requireDefined } from "game";
 
 test("constructor: too few dimensions: throws", () => {
   assert.throws(() => {

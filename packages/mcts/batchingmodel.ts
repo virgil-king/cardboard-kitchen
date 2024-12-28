@@ -1,6 +1,5 @@
-import { Action, EpisodeSnapshot, GameConfiguration, GameState } from "game";
+import { Action, EpisodeSnapshot, GameConfiguration, GameState, SettablePromise } from "game";
 import { InferenceModel, InferenceResult } from "./model.js";
-import { SettablePromise } from "studio-util";
 
 type InferenceRequest<
   C extends GameConfiguration,

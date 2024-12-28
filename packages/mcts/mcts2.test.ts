@@ -8,11 +8,11 @@ import {
   Game,
   GameState,
   PlayerValues,
+  throwFirstRejection,
 } from "game";
 import { test } from "vitest";
 import { assert } from "chai";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { throwFirstRejection } from "studio-util";
 import {
   ActionNode,
   MctsConfig,

@@ -8,10 +8,11 @@ import {
   EpisodeConfiguration,
   GameConfiguration,
   EpisodeSnapshot,
+  decodeOrThrow,
+  requireDefined,
 } from "game";
 
 import { Map, Range, Set } from "immutable";
-import { decodeOrThrow, requireDefined } from "studio-util";
 import { InferenceModel, InferenceResult, TrainingModel } from "./model.js";
 import * as io from "io-ts";
 import { StateTrainingData } from "training-data";

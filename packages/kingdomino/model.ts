@@ -4,6 +4,12 @@ import {
   Player,
   PlayerValues,
   Players,
+  ProbabilityDistribution,
+  randomBelow,
+  randomBoolean,
+  requireDefined,
+  requireNotDone,
+  sum
 } from "game";
 import {
   ClaimTile,
@@ -29,14 +35,6 @@ import {
 import { Map, Range, Seq } from "immutable";
 import tfTypes from "@tensorflow/tfjs";
 import { Kingdomino } from "./kingdomino.js";
-import {
-  ProbabilityDistribution,
-  randomBelow,
-  randomBoolean,
-  requireDefined,
-  requireNotDone,
-  sum,
-} from "studio-util";
 import _ from "lodash";
 import { Terrain, Tile, terrainValues } from "./tile.js";
 import {

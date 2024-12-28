@@ -21,7 +21,7 @@ import {
   BoardTransformation,
 } from "./util.js";
 import * as io from "io-ts";
-import { decodeOrThrow } from "studio-util";
+import { decodeOrThrow } from "game";
 
 export const playerBoardJson = io.type({
   locationStates: io.array(io.tuple([vector2Json, locationStateCodec])),

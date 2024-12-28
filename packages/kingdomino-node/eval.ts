@@ -10,6 +10,7 @@ import {
   GameState,
   Player,
   Players,
+  requireDefined,
 } from "game";
 import {} from "training";
 
@@ -20,7 +21,6 @@ import {
   KingdominoState,
   RandomKingdominoAgent,
 } from "kingdomino";
-import { requireDefined } from "studio-util";
 import { mcts, MctsAgent } from "mcts";
 import { loadModelFromFile } from "./model.js";
 import { kingdominoExperiment } from "./config.js";

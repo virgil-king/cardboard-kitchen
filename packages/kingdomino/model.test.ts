@@ -6,6 +6,8 @@ import {
   Player,
   PlayerValues,
   Players,
+  ProbabilityDistribution,
+  requireDefined,
 } from "game";
 import {
   placementPolicyLinearization,
@@ -22,7 +24,6 @@ import { ClaimTile, PlaceTile, playAreaRadius } from "./base.js";
 import { Vector2, Direction, NO_TRANSFORM } from "./util.js";
 import { ActionStatistics, StateTrainingData } from "training-data";
 import * as _ from "lodash";
-import { ProbabilityDistribution, requireDefined } from "studio-util";
 import { Terrain } from "./tile.js";
 import * as tf from "@tensorflow/tfjs";
 

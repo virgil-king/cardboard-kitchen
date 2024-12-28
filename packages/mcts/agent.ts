@@ -1,14 +1,15 @@
 import {
   Action,
   Agent,
+  driveAsyncGenerators,
   EpisodeSnapshot,
   Game,
   GameConfiguration,
   GameState,
   PlayerValues,
+  requireDefined,
 } from "game";
 import { Range, Seq } from "immutable";
-import { requireDefined, driveAsyncGenerators } from "studio-util";
 import { MctsContext, NonTerminalStateNode } from "./mcts.js";
 
 /**

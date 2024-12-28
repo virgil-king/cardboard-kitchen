@@ -1,7 +1,6 @@
-import { combineHashes, decodeOrThrow } from "studio-util";
 import { Seq, ValueObject, hash } from "immutable";
 import * as io from "io-ts";
-import { JsonSerializable } from "game";
+import { combineHashes, decodeOrThrow, JsonSerializable } from "game";
 
 export const vector2Json = io.type({
   x: io.number,

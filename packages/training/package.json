@@ -27,7 +27,6 @@
     "lodash": "^4.17.21",
     "mcts": "workspace:^",
     "pnpm": "^9.14.2",
-    "studio-util": "workspace:*",
     "training-data": "workspace:^"
   }
 }

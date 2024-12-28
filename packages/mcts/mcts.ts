@@ -8,13 +8,11 @@ import {
   EpisodeSnapshot,
   Player,
   Agent,
-} from "game";
-import { Map as ImmutableMap, Seq } from "immutable";
-import {
   ProbabilityDistribution,
   requireDefined,
   weightedMerge,
-} from "studio-util";
+} from "game";
+import { Map as ImmutableMap, Seq } from "immutable";
 import { InferenceResult, InferenceModel } from "./model.js";
 import gamma from "@stdlib/random-base-gamma";
 import {

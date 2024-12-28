@@ -3,7 +3,7 @@ import * as Plot from "@observablehq/plot";
 import { JSDOM } from "jsdom";
 import { kingdominoExperiment } from "./config.js";
 import { EvalLogEntry } from "./eval-worker.js";
-import { requireDefined } from "studio-util";
+import { requireDefined } from "game";
 
 // This script emits an SVG line graph based on the data from an experiment log
 

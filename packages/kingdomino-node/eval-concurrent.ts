@@ -1,6 +1,8 @@
 import { List, Map, Range, Seq } from "immutable";
 import {
   Action,
+  driveAsyncGenerators,
+  driveGenerators,
   EpisodeConfiguration,
   EpisodeSnapshot,
   Game,
@@ -8,6 +10,7 @@ import {
   GameState,
   Player,
   Players,
+  requireDefined,
 } from "game";
 
 import {
@@ -17,11 +20,6 @@ import {
   KingdominoInferenceModel,
   KingdominoState,
 } from "kingdomino";
-import {
-  driveAsyncGenerators,
-  driveGenerators,
-  requireDefined,
-} from "studio-util";
 import _ from "lodash";
 import { InferenceModel, InferenceResult, mcts } from "mcts";
 import {

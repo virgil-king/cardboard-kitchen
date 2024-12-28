@@ -6,6 +6,8 @@ import {
   EpisodeSnapshot,
   Player,
   PlayerValues,
+  ProbabilityDistribution,
+  requireDefined,
 } from "game";
 import {
   ActionCase,
@@ -27,7 +29,6 @@ import { Map, Set } from "immutable";
 import styles from "@/app/page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
-import { ProbabilityDistribution, requireDefined } from "studio-util";
 import { CSSProperties } from "react";
 import { ActionStatistics } from "training-data";
 

@@ -27,7 +27,6 @@
         "long": "^5.2.3",
         "mcts": "workspace:^",
         "pnpm": "^9.15.1",
-        "studio-util": "workspace:^",
         "training": "workspace:*",
         "training-data": "workspace:^"
     },

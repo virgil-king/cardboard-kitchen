@@ -1,4 +1,4 @@
-import { combineHashes, decodeOrThrow, requireDefined } from "studio-util";
+import { combineHashes, decodeOrThrow, requireDefined } from "./util/util.js";
 import { hash, List, Map, ValueObject } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
@@ -295,4 +295,3 @@ export class Episode<
     return this;
   }
 }
-

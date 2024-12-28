@@ -1,4 +1,11 @@
-import { Episode, EpisodeConfiguration, Player, Players } from "game";
+import {
+  Episode,
+  EpisodeConfiguration,
+  Player,
+  Players,
+  requireDefined,
+  valueObjectsEqual,
+} from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
 import { Direction, Vector2 } from "./util.js";
@@ -16,7 +23,6 @@ import {
 } from "./base.js";
 import { KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
-import { requireDefined, valueObjectsEqual } from "studio-util";
 import { List, Set } from "immutable";
 
 const kingdomino = new Kingdomino();

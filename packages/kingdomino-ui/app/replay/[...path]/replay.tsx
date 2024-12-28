@@ -2,11 +2,10 @@
 
 import { GameComponent } from "@/components";
 import { Kingdomino } from "kingdomino";
-import { EpisodeSnapshot } from "game";
+import { EpisodeSnapshot, ProbabilityDistribution, requireDefined } from "game";
 import { useState } from "react";
 import { EpisodeTrainingData } from "training-data";
 import { improvedPolicyLogits } from "mcts";
-import { ProbabilityDistribution, requireDefined } from "studio-util";
 
 type ReplayProps = {
   episodeJsonString: string;

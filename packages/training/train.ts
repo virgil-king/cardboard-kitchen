@@ -1,5 +1,12 @@
-import { SettablePromise, requireDefined, sleep } from "studio-util";
-import { Action, Game, GameConfiguration, GameState } from "game";
+import {
+  Action,
+  Game,
+  GameConfiguration,
+  GameState,
+  requireDefined,
+  SettablePromise,
+  sleep,
+} from "game";
 import { List, Map } from "immutable";
 import { Model } from "../mcts/model.js";
 import { EpisodeBuffer } from "./episodebuffer.js";

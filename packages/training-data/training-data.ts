@@ -9,9 +9,9 @@ import {
   episodeConfigurationCodec,
   EpisodeConfiguration,
   EpisodeSnapshot,
+  decodeOrThrow,
 } from "game";
 import { Map } from "immutable";
-import { decodeOrThrow } from "studio-util";
 import * as io from "io-ts";
 
 /**

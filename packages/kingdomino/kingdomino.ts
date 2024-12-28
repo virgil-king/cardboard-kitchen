@@ -1,11 +1,13 @@
 import {
   ChanceKey,
+  decodeOrThrow,
   EpisodeConfiguration,
   EpisodeSnapshot,
   Game,
   NO_CHANCE,
   Player,
   PlayerValues,
+  requireDefined,
 } from "game";
 import { KingdominoState, NextAction, propsJson } from "./state.js";
 import _ from "lodash";
@@ -20,7 +22,6 @@ import {
   configurationCodec,
   playerCountToConfiguration,
 } from "./base.js";
-import { decodeOrThrow, requireDefined } from "studio-util";
 import { Seq } from "immutable";
 import { Tile } from "./tile.js";
 

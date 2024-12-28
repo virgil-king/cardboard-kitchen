@@ -1,5 +1,5 @@
+import { requireDefined, randomBelow } from "game";
 import { List } from "immutable";
-import { randomBelow, requireDefined } from "studio-util";
 import { LazyArray } from "training-data";
 
 /**

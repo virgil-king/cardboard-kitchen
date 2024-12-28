@@ -1,7 +1,13 @@
-import { Player, Players, EpisodeConfiguration, EpisodeSnapshot } from "game";
+import {
+  Player,
+  Players,
+  EpisodeConfiguration,
+  EpisodeSnapshot,
+  driveAsyncGenerator,
+  requireDefined,
+} from "game";
 import { test } from "vitest";
 import { assert } from "chai";
-import { driveAsyncGenerator, requireDefined } from "studio-util";
 import {
   MctsConfig,
   MctsContext,

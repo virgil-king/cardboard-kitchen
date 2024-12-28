@@ -8,11 +8,12 @@ import {
   Game,
   GameState,
   PlayerValues,
+  driveAsyncGenerator,
+  requireDefined,
 } from "game";
 import { test } from "vitest";
 import { assert } from "chai";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { driveAsyncGenerator, requireDefined } from "studio-util";
 import {
   MctsConfig,
   MctsContext,

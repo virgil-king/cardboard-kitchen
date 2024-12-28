@@ -29,7 +29,6 @@
     "io-ts": "^2.2.21",
     "lodash": "^4.17.21",
     "pnpm": "^9.14.2",
-    "studio-util": "workspace:*",
     "training-data": "workspace:^"
   }
 }

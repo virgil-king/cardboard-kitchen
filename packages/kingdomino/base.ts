@@ -1,4 +1,4 @@
-import { GameConfiguration, JsonSerializable, Player } from "game";
+import { combineHashes, decodeOrThrow, GameConfiguration, JsonSerializable, Player, requireDefined, valueObjectsEqual } from "game";
 import {
   BoardTransformation,
   Direction,
@@ -8,12 +8,6 @@ import {
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import { List, Map, ValueObject, hash, Range } from "immutable";
 import _ from "lodash";
-import {
-  combineHashes,
-  decodeOrThrow,
-  requireDefined,
-  valueObjectsEqual,
-} from "studio-util";
 import * as io from "io-ts";
 import { tiles } from "./tile.js";
 

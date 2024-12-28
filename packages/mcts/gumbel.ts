@@ -5,10 +5,11 @@ import {
   GameConfiguration,
   GameState,
   Player,
+  ProbabilityDistribution,
+  requireDefined,
 } from "game";
 import { ActionNode, NonTerminalStateNode } from "./mcts.js";
 import { Map, Range, Seq } from "immutable";
-import { ProbabilityDistribution, requireDefined } from "studio-util";
 import { StateNodeInfo, StateSearchData } from "training-data";
 import { InferenceResult } from "./model.js";
 

@@ -1,11 +1,13 @@
 import {
-  SettablePromise,
   decodeOrThrow,
   driveAsyncGenerators,
+  EpisodeConfiguration,
+  Player,
+  Players,
   requireDefined,
+  SettablePromise,
   sleep,
-} from "studio-util";
-import { EpisodeConfiguration, Player, Players } from "game";
+} from "game";
 import { gumbelSelfPlayEpisode } from "training";
 import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
