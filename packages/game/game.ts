@@ -1,5 +1,10 @@
-import { combineHashes, decodeOrThrow, requireDefined } from "./util/util.js";
-import { hash, List, Map, ValueObject } from "immutable";
+import {
+  combineHashes,
+  decodeOrThrow,
+  requireDefined,
+  sum,
+} from "./util/util.js";
+import { hash, List, Map, Seq, ValueObject } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
 
@@ -108,6 +113,8 @@ export function tiersToPlayerValues(
    */
   playerIds: Array<Array<string>>
 ) {
+  const playerCount = sum(Seq(playerIds).map((it) => it.length));
+  const valuePerDefeatedOpponent = 1 / (playerCount - 1);
   let playerIdToValue = Map<string, number>();
   let laterTiersSize = 0;
   for (let tierIndex = playerIds.length - 1; tierIndex >= 0; tierIndex--) {
@@ -115,7 +122,8 @@ export function tiersToPlayerValues(
     const thisTierSize = tier.length;
     // Value in this tier is one for all players in lower tiers plus half for
     // other players in this tier
-    const thisTierValue = laterTiersSize + (thisTierSize - 1) * 0.5;
+    const defeatedOpponentCount = laterTiersSize + (thisTierSize - 1) * 0.5;
+    const thisTierValue = valuePerDefeatedOpponent * defeatedOpponentCount;
     for (const playerId of tier) {
       playerIdToValue = playerIdToValue.set(playerId, thisTierValue);
     }

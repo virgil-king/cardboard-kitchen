@@ -41,19 +41,21 @@ test("Players.equals: not equal: returns false", () => {
   assert.isFalse(players1.equals(players2));
 });
 
-test("tiersToPlayerValues: half point for each player in the same tier", () => {
+test("tiersToPlayerValues: half point for all tied players", () => {
   const result = tiersToPlayerValues([["alice", "bob", "cecile"]]);
 
-  assert.equal(result.playerIdToValue.get("alice"), 1);
-  assert.equal(result.playerIdToValue.get("bob"), 1);
-  assert.equal(result.playerIdToValue.get("cecile"), 1);
+  assert.equal(result.playerIdToValue.get("alice"), 0.5);
+  assert.equal(result.playerIdToValue.get("bob"), 0.5);
+  assert.equal(result.playerIdToValue.get("cecile"), 0.5);
 });
 
 test("tiersToPlayerValues: one point for each player in lower tiers", () => {
   const result = tiersToPlayerValues([["alice"], ["bob"], ["cecile", "derek"]]);
 
-  assert.equal(result.playerIdToValue.get("alice"), 3);
-  assert.equal(result.playerIdToValue.get("bob"), 2);
+  assert.equal(result.playerIdToValue.get("alice"), 1);
+  assert.equal(result.playerIdToValue.get("bob"), 2/3);
+  assert.equal(result.playerIdToValue.get("cecile"), 1/6);
+  assert.equal(result.playerIdToValue.get("derek"), 1/6);
 });
 
 test("scoresToPlayerValues: tied players in same tier", () => {
