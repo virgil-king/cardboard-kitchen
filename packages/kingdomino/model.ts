@@ -9,7 +9,7 @@ import {
   randomBoolean,
   requireDefined,
   requireNotDone,
-  sum
+  sum,
 } from "game";
 import {
   ClaimTile,
@@ -295,7 +295,6 @@ export class KingdominoModel
       shape: [linearStateCodec.columnCount],
       name: "linear_input",
     });
-    console.log(`Linear input shape is ${linearInput.shape}`);
 
     // One analysis board input per player
     const boardModule = new BoardAnalysisModule();
@@ -327,7 +326,6 @@ export class KingdominoModel
     const concat = tf.layers
       .concatenate({ name: "concat_linear_input_with_board_analysis" })
       .apply([linearInput, ...boardAnalysisOutputs]) as tfTypes.SymbolicTensor;
-    console.log(`Concat shape is ${concat.shape}`);
 
     let hiddenOutput = concat;
     for (const i of Range(0, 4)) {
@@ -404,11 +402,6 @@ export class KingdominoModel
   static async loadFromUrl(url: string): Promise<KingdominoModel> {
     console.log(`Loading model from ${url}`);
     const layersModel = await tf.loadLayersModel(`${url}/model.json`);
-    console.log(
-      `Input shape is ${(layersModel.input as tfTypes.SymbolicTensor[]).map(
-        (t) => t.shape
-      )}`
-    );
 
     // Loading metadata from URLs is not supported
     const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
@@ -427,7 +420,9 @@ export class KingdominoModel
   }
 
   dispose(): void {
-    console.log(JSON.stringify(this.model.dispose()));
+    console.log(
+      `Model dispose result: ${JSON.stringify(this.model.dispose())}`
+    );
   }
 
   trainingModel(batchSize: number = 128): KingdominoTrainingModel {
@@ -924,10 +919,7 @@ class BoardAnalysisModule {
       name: "board_analysis_output",
     });
     this.blocks = Range(0, BoardAnalysisModule.blockCount)
-      .map((_) => {
-        console.log(`Creating new residual block`);
-        return new ResidualBlock();
-      })
+      .map((_) => new ResidualBlock())
       .toArray();
     this.inputMerger = new BoardInputMerger("board_analysis");
   }
@@ -961,11 +953,13 @@ class BoardInputMerger {
 
   readonly expandDims = new ExpandDimsLayer({
     name: `${this.namePrefix}_expand_dims`,
+    // Insert two new dimensions after the batch dimension
     shape: [1, 1],
   });
 
   readonly broadcast = new BroadcastLayer({
     name: `${this.namePrefix}_broadcast`,
+    // Broadcast the two new dimensions from size 1 to playAreaSize
     shape: [null, playAreaSize, playAreaSize, null],
   });
 
@@ -984,19 +978,10 @@ class BoardInputMerger {
     linearInput: tfTypes.SymbolicTensor,
     boardInput: tfTypes.SymbolicTensor
   ): tfTypes.SymbolicTensor {
-    // Broadcast the batch of linear input vectors to a batch of 2d matrices of
-    // those vectors.
-    // First insert two new dimensions around each batch item...
-    console.log(`linearInput shape: ${linearInput.shape}`);
-    // Then tile the last dimension in the previous two dimensions
     const tiledLinearInput = this.broadcast.apply(
       this.expandDims.apply(linearInput)
     ) as tfTypes.SymbolicTensor;
 
-    console.log(`expandDims shape: ${this.expandDims.outputShape}`);
-    console.log(`broadcast shape: ${this.broadcast.outputShape}`);
-
-    // Finally stack the tiled linear input and board input
     return this.concat.apply([
       tiledLinearInput,
       boardInput,
@@ -1065,11 +1050,7 @@ class PlacementPolicyModule {
       output = block.apply(output);
     }
 
-    output = this.outputLayer.apply(output) as tfTypes.SymbolicTensor;
-
-    console.log(`Placement policy module output shape is ${output.shape}`);
-
-    return output;
+    return this.outputLayer.apply(output) as tfTypes.SymbolicTensor;
   }
 }
 

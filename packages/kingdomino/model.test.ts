@@ -91,7 +91,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
   ]);
 
   const policy = ProbabilityDistribution.fromLogits(
-    actionToStatistics.map((value, key) => value.visitCount)
+    actionToStatistics.map((value) => value.visitCount)
   );
   const placementProbabilitiesVector = encodePlacementPolicy(
     policy,
@@ -105,7 +105,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
       placement1.location.y + playAreaRadius,
       placement1.direction.index
     ),
-    1
+    requireDefined(policy.get(KingdominoAction.placeTile(placement1)))
   );
   assertClose(
     placementPolicyLinearization.get(
@@ -114,7 +114,7 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
       placement2.location.y + playAreaRadius,
       placement2.direction.index
     ),
-    2
+    requireDefined(policy.get(KingdominoAction.placeTile(placement2)))
   );
 });
 
@@ -181,7 +181,7 @@ test("encodeSample: returns expected board and policy vectors", () => {
           /* priorProbability= */ 0.5,
           /* priorLogit= */ 0.5,
           /* visitCount= */ 1,
-          new PlayerValues(Map([]))
+          playerValues
         ),
       ],
     ]),
@@ -283,7 +283,7 @@ test("encodeSample: with transformation: returns expected board and policy vecto
           /* priorProbability= */ 0.5,
           /* priorLogit= */ 0.5,
           /* visitCount= */ 1,
-          new PlayerValues(Map([]))
+          playerValues
         ),
       ],
     ]),
