@@ -9,12 +9,13 @@ import {
   sleep,
 } from "game";
 import { gumbelSelfPlayEpisode } from "training";
-import { Kingdomino, KingdominoModel } from "kingdomino";
+import { Kingdomino } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
 import { mcts, modelCodec, ModelCodecType } from "agent";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { SELF_PLAY_MCTS_CONFIG, kingdominoExperiment } from "./config.js";
+import { KingdominoModel } from "kingdomino-agent";
 
 const messagePort = worker_threads.workerData as worker_threads.MessagePort;
 

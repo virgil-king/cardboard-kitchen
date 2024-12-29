@@ -17,7 +17,6 @@ import {
   Kingdomino,
   KingdominoAction,
   KingdominoConfiguration,
-  KingdominoInferenceModel,
   KingdominoState,
 } from "kingdomino";
 import _ from "lodash";
@@ -28,6 +27,7 @@ import {
 } from "./config.js";
 import { NeutralKingdominoModel } from "./neutral-model.js";
 import { EpisodeTrainingData, StateSearchData } from "agent";
+import { KingdominoInferenceModel } from "kingdomino-agent";
 
 // This file provides functionality for playing model evaluation episodes
 // using batch MCTS

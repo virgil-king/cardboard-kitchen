@@ -1,5 +1,4 @@
 import { test } from "vitest";
-import { Kingdomino } from "./kingdomino.js";
 import {
   Episode,
   EpisodeConfiguration,
@@ -10,23 +9,29 @@ import {
   Vector2,
   requireDefined,
 } from "game";
-import {
-  placementPolicyLinearization,
-  KingdominoModel,
-  boardCodec,
-  locationPropertiesCodec,
-  encodePlacementPolicy,
-  policyCodec,
-} from "./model.js";
 import { assert } from "chai";
 import { Map, Range } from "immutable";
-import { KingdominoAction } from "./action.js";
-import { ClaimTile, PlaceTile, playAreaRadius } from "./base.js";
-import { Direction, NO_TRANSFORM } from "./util.js";
 import { ActionStatistics, StateTrainingData } from "agent";
 import * as _ from "lodash";
-import { Terrain } from "./tile.js";
 import * as tf from "@tensorflow/tfjs";
+import {
+  boardCodec,
+  encodePlacementPolicy,
+  KingdominoModel,
+  locationPropertiesCodec,
+  placementPolicyLinearization,
+  policyCodec,
+} from "./model.js";
+import {
+  ClaimTile,
+  Direction,
+  Kingdomino,
+  KingdominoAction,
+  NO_TRANSFORM,
+  PlaceTile,
+  playAreaRadius,
+  Terrain,
+} from "kingdomino";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");

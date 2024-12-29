@@ -1,6 +1,6 @@
 import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
-import { KingdominoModel } from "kingdomino";
+import { KingdominoModel } from "kingdomino-agent";
 import { Range } from "immutable";
 import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";

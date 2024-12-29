@@ -4,7 +4,6 @@ import {
   Kingdomino,
   KingdominoAction,
   KingdominoConfiguration,
-  KingdominoModel,
   KingdominoSnapshot,
   KingdominoState,
   NextAction,
@@ -23,6 +22,7 @@ import {
 } from "game";
 import { mcts2, MctsAgent2 } from "agent";
 import _ from "lodash";
+import { KingdominoModel } from "kingdomino-agent";
 
 const playerId = "player";
 const bot1PlayerId = "bot1";

@@ -1,3 +1,5 @@
+This package contains the game logic for Kingdomino.
+
 Installation:
 
 1. Install node

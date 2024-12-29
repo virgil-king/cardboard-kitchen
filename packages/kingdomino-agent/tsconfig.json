@@ -13,12 +13,6 @@
       "path": "../game"
     },
     {
-      "path": "../kingdomino"
-    },
-    {
-      "path": "../kingdomino-agent"
-    },
-    {
       "path": "../training"
     }
   ]

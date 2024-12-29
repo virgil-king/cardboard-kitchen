@@ -12,18 +12,6 @@ import {
   sum,
 } from "game";
 import {
-  ClaimTile,
-  KingdominoConfiguration,
-  PlaceTile,
-  TileOffers,
-  playAreaRadius,
-  playAreaSize,
-  KingdominoVectors,
-  LocationState,
-} from "./base.js";
-import { KingdominoState, NextAction, nextActions } from "./state.js";
-import { ActionCase, KingdominoAction } from "./action.js";
-import {
   ArrayCodec,
   CodecValueType,
   decodeAsGenerator,
@@ -43,18 +31,36 @@ import {
   VectorCodec,
 } from "agent";
 import { Map, Range, Seq } from "immutable";
-import tfTypes from "@tensorflow/tfjs";
-import { Kingdomino } from "./kingdomino.js";
+import {
+  ActionCase,
+  BoardTransformation,
+  ClaimTile,
+  Direction,
+  Kingdomino,
+  KingdominoAction,
+  KingdominoConfiguration,
+  KingdominoState,
+  KingdominoVectors,
+  LocationState,
+  NextAction,
+  nextActions,
+  NO_TRANSFORM,
+  PlaceTile,
+  playAreaRadius,
+  playAreaSize,
+  Terrain,
+  terrainValues,
+  Tile,
+  TileOffers,
+} from "kingdomino";
 import _ from "lodash";
-import { Terrain, Tile, terrainValues } from "./tile.js";
-import { PlayerBoard } from "./board.js";
-import { BoardTransformation, Direction, NO_TRANSFORM } from "./util.js";
 import { StateTrainingData } from "agent";
 import { Linearization } from "agent";
 import { BroadcastLayer } from "./broadcastlayer.js";
 import { ExpandDimsLayer } from "./expanddims.js";
 import * as tf from "@tensorflow/tfjs";
 import { Vector2 } from "game";
+import { PlayerBoard } from "kingdomino/out/board.js";
 
 /*
  * This model is a function from state to per-player value and move
@@ -312,14 +318,12 @@ export class KingdominoModel
     // them with with the linear input as the input to the dense layers stack.
     const boardAnalysisOutputs = boardInputs.map((input) => {
       const boardModuleOutput = boardModule.apply(linearInput, input);
-      return tf.layers
-        .flatten()
-        .apply(boardModuleOutput) as tfTypes.SymbolicTensor;
+      return tf.layers.flatten().apply(boardModuleOutput) as tf.SymbolicTensor;
     });
 
     const concat = tf.layers
       .concatenate({ name: "concat_linear_input_with_board_analysis" })
-      .apply([linearInput, ...boardAnalysisOutputs]) as tfTypes.SymbolicTensor;
+      .apply([linearInput, ...boardAnalysisOutputs]) as tf.SymbolicTensor;
 
     let hiddenOutput = concat;
     for (const i of Range(0, 4)) {
@@ -328,13 +332,13 @@ export class KingdominoModel
           units: HIDDEN_LAYER_WIDTH,
           name: `hidden_dense_${i}`,
         })
-        .apply(hiddenOutput) as tfTypes.SymbolicTensor;
+        .apply(hiddenOutput) as tf.SymbolicTensor;
       hiddenOutput = tf.layers
         .batchNormalization({ name: `hidden_norm_${i}` })
-        .apply(hiddenOutput) as tfTypes.SymbolicTensor;
+        .apply(hiddenOutput) as tf.SymbolicTensor;
       hiddenOutput = tf.layers
         .reLU({ name: `hidden_relu_${i}` })
-        .apply(hiddenOutput) as tfTypes.SymbolicTensor;
+        .apply(hiddenOutput) as tf.SymbolicTensor;
     }
 
     // Output layer containing state value for each player
@@ -344,7 +348,7 @@ export class KingdominoModel
         activation: "relu",
         name: "value_output",
       })
-      .apply(hiddenOutput) as tfTypes.SymbolicTensor;
+      .apply(hiddenOutput) as tf.SymbolicTensor;
 
     // Internal layer containing the non-placement policy values
     const linearPolicyOutput = tf.layers
@@ -353,11 +357,11 @@ export class KingdominoModel
         activation: "relu",
         name: "linear_policy_output",
       })
-      .apply(hiddenOutput) as tfTypes.SymbolicTensor;
+      .apply(hiddenOutput) as tf.SymbolicTensor;
 
     const linearInputPlusHiddenOutput = tf.layers
       .concatenate({ name: "concat_linear_input_with_hidden_output" })
-      .apply([linearInput, hiddenOutput]) as tfTypes.SymbolicTensor;
+      .apply([linearInput, hiddenOutput]) as tf.SymbolicTensor;
 
     // Placement policy module input is linear input plus dense stack output
     // plus policy board input
@@ -371,14 +375,14 @@ export class KingdominoModel
     // into the policy output layer.
     const flattenedPolicyBoardOutput = tf.layers
       .flatten({ name: "flatten_board_policy_output" })
-      .apply(placementPolicyOutput) as tfTypes.SymbolicTensor;
+      .apply(placementPolicyOutput) as tf.SymbolicTensor;
 
     const policyOutput = tf.layers
       .concatenate({ name: "concat_policies" })
       .apply([
         linearPolicyOutput,
         flattenedPolicyBoardOutput,
-      ]) as tfTypes.SymbolicTensor;
+      ]) as tf.SymbolicTensor;
 
     const model = tf.model({
       inputs: [linearInput, ...boardInputs, policyBoardInput],
@@ -404,7 +408,7 @@ export class KingdominoModel
   }
 
   constructor(
-    readonly model: tfTypes.LayersModel,
+    readonly model: tf.LayersModel,
     readonly metadata: ModelMetadata | undefined,
     readonly sampleToNewPolicy: SamplePolicyFunction = sampleToCompletedActionValuePolicy
   ) {}
@@ -572,9 +576,9 @@ export class KingdominoModel
    * array of player board input tensors
    */
   stateBatchToTensors(states: ReadonlyArray<EncodedState>): {
-    linearTensor: tfTypes.Tensor;
-    boardAnalysisTensors: ReadonlyArray<tfTypes.Tensor>;
-    boardPolicyTensor: tfTypes.Tensor;
+    linearTensor: tf.Tensor;
+    boardAnalysisTensors: ReadonlyArray<tf.Tensor>;
+    boardPolicyTensor: tf.Tensor;
   } {
     // Allocate a single Float32Array for each output tensor and encode the
     // batch into each of those arrays
@@ -633,7 +637,7 @@ export class KingdominoModel
   toJson(): Promise<ModelCodecType> {
     return new Promise((resolve) =>
       this.model.save({
-        save: (modelArtifacts: tfTypes.io.ModelArtifacts) => {
+        save: (modelArtifacts: tf.io.ModelArtifacts) => {
           resolve({ modelArtifacts: modelArtifacts, metadata: this.metadata });
 
           return Promise.resolve({
@@ -682,7 +686,7 @@ export class KingdominoInferenceModel
         inputTensors.linearTensor,
         ...inputTensors.boardAnalysisTensors,
         inputTensors.boardPolicyTensor,
-      ]) as tfTypes.Tensor[];
+      ]) as tf.Tensor[];
       try {
         if (!Array.isArray(outputTensors)) {
           throw new Error("Expected tensor array but received single tensor");
@@ -715,7 +719,7 @@ export class KingdominoInferenceModel
     snapshots: ReadonlyArray<
       EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
     >,
-    outputTensors: ReadonlyArray<tfTypes.Tensor>
+    outputTensors: ReadonlyArray<tf.Tensor>
   ): Promise<ReadonlyArray<InferenceResult<KingdominoAction>>> {
     const valuesArray = await outputTensors[0].data<"float32">();
     const policyArray = await outputTensors[1].data<"float32">();
@@ -822,8 +826,8 @@ export function decodePolicy(
 
 // Visible for testing
 export class ResidualBlock {
-  private readonly conv1: tfTypes.layers.Layer;
-  private readonly conv2: tfTypes.layers.Layer;
+  private readonly conv1: tf.layers.Layer;
+  private readonly conv2: tf.layers.Layer;
 
   // SIZE_FACTOR for tiled non-spatial data plus the original spatial data
   static filterCount = SIZE_FACTOR + locationStateVectorCodec.columnCount;
@@ -833,19 +837,17 @@ export class ResidualBlock {
     this.conv2 = ResidualBlock.conv2D();
   }
 
-  apply(input: tfTypes.SymbolicTensor): tfTypes.SymbolicTensor {
+  apply(input: tf.SymbolicTensor): tf.SymbolicTensor {
     let output = this.conv1.apply(input);
     output = tf.layers.batchNormalization().apply(output);
     output = tf.layers.reLU().apply(output);
-    output = this.conv2.apply(output) as tfTypes.SymbolicTensor;
-    output = tf.layers
-      .batchNormalization()
-      .apply(output) as tfTypes.SymbolicTensor;
+    output = this.conv2.apply(output) as tf.SymbolicTensor;
+    output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
     output = tf.layers.add().apply([input, output]);
-    return tf.layers.reLU().apply(output) as tfTypes.SymbolicTensor;
+    return tf.layers.reLU().apply(output) as tf.SymbolicTensor;
   }
 
-  static conv2D(): tfTypes.layers.Layer {
+  static conv2D(): tf.layers.Layer {
     return tf.layers.conv2d({
       kernelSize: 3,
       filters: this.filterCount,
@@ -890,10 +892,10 @@ class BoardAnalysisModule {
     playAreaSize * playAreaSize * this.outputChannelCount;
 
   // Compress linear input down to SIZE_FACTOR columns
-  private linearInputCompressor: tfTypes.layers.Layer;
+  private linearInputCompressor: tf.layers.Layer;
 
   // Aggreggate the entire board into one vector of output channels
-  private outputLayer: tfTypes.layers.Layer;
+  private outputLayer: tf.layers.Layer;
 
   private readonly blocks: ReadonlyArray<ResidualBlock>;
 
@@ -919,24 +921,22 @@ class BoardAnalysisModule {
   }
 
   apply(
-    linearInput: tfTypes.SymbolicTensor,
-    boardInput: tfTypes.SymbolicTensor
-  ): tfTypes.SymbolicTensor {
+    linearInput: tf.SymbolicTensor,
+    boardInput: tf.SymbolicTensor
+  ): tf.SymbolicTensor {
     let compressedLinearInput = this.linearInputCompressor.apply(
       linearInput
-    ) as tfTypes.SymbolicTensor;
+    ) as tf.SymbolicTensor;
 
     let output = this.inputMerger.apply(compressedLinearInput, boardInput);
-    output = tf.layers
-      .batchNormalization()
-      .apply(output) as tfTypes.SymbolicTensor;
-    output = tf.layers.reLU().apply(output) as tfTypes.SymbolicTensor;
+    output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
+    output = tf.layers.reLU().apply(output) as tf.SymbolicTensor;
 
     for (const block of this.blocks) {
       output = block.apply(output);
     }
 
-    output = this.outputLayer.apply(output) as tfTypes.SymbolicTensor;
+    output = this.outputLayer.apply(output) as tf.SymbolicTensor;
 
     return output;
   }
@@ -964,22 +964,22 @@ class BoardInputMerger {
   /**
    * Takes a batch of linear inputs and board inputs encoded using {@link boardCodec}.
    *
-   * Returns a {@link tfTypes.SymbolicTensor} defined by tiling the linear inputs
+   * Returns a {@link tf.SymbolicTensor} defined by tiling the linear inputs
    * to match the spatial dimensions of the board inputs and then stacking
    * those two tensors together.
    */
   apply(
-    linearInput: tfTypes.SymbolicTensor,
-    boardInput: tfTypes.SymbolicTensor
-  ): tfTypes.SymbolicTensor {
+    linearInput: tf.SymbolicTensor,
+    boardInput: tf.SymbolicTensor
+  ): tf.SymbolicTensor {
     const tiledLinearInput = this.broadcast.apply(
       this.expandDims.apply(linearInput)
-    ) as tfTypes.SymbolicTensor;
+    ) as tf.SymbolicTensor;
 
     return this.concat.apply([
       tiledLinearInput,
       boardInput,
-    ]) as tfTypes.SymbolicTensor;
+    ]) as tf.SymbolicTensor;
   }
 }
 
@@ -998,12 +998,12 @@ class PlacementPolicyModule {
   private readonly inputMerger: BoardInputMerger;
 
   // Compress linear input down to SIZE_FACTOR columns
-  private linearInputCompressor: tfTypes.layers.Layer;
+  private linearInputCompressor: tf.layers.Layer;
 
   private readonly blocks: ReadonlyArray<ResidualBlock>;
 
   // Pixel-wise downsize internal channel count to output channel count
-  private outputLayer: tfTypes.layers.Layer;
+  private outputLayer: tf.layers.Layer;
 
   constructor() {
     this.inputMerger = new BoardInputMerger("board_policy");
@@ -1027,24 +1027,22 @@ class PlacementPolicyModule {
   }
 
   apply(
-    linearInput: tfTypes.SymbolicTensor,
-    boardInput: tfTypes.SymbolicTensor
-  ): tfTypes.SymbolicTensor {
+    linearInput: tf.SymbolicTensor,
+    boardInput: tf.SymbolicTensor
+  ): tf.SymbolicTensor {
     let compressedLinearInput = this.linearInputCompressor.apply(
       linearInput
-    ) as tfTypes.SymbolicTensor;
+    ) as tf.SymbolicTensor;
 
     let output = this.inputMerger.apply(compressedLinearInput, boardInput);
-    output = tf.layers
-      .batchNormalization()
-      .apply(output) as tfTypes.SymbolicTensor;
-    output = tf.layers.reLU().apply(output) as tfTypes.SymbolicTensor;
+    output = tf.layers.batchNormalization().apply(output) as tf.SymbolicTensor;
+    output = tf.layers.reLU().apply(output) as tf.SymbolicTensor;
 
     for (const block of this.blocks) {
       output = block.apply(output);
     }
 
-    return this.outputLayer.apply(output) as tfTypes.SymbolicTensor;
+    return this.outputLayer.apply(output) as tf.SymbolicTensor;
   }
 }
 
@@ -1057,7 +1055,7 @@ export class KingdominoTrainingModel
       EncodedSample
     >
 {
-  private readonly optimizer: tfTypes.Optimizer;
+  private readonly optimizer: tf.Optimizer;
 
   constructor(
     private readonly model: KingdominoModel,

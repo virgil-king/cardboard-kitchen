@@ -16,6 +16,7 @@
     "game": "workspace:^",
     "immutable": "5.0.3",
     "kingdomino": "workspace:^",
+    "kingdomino-agent": "workspace:^",
     "lodash": "^4.17.21",
     "next": "15.0.3",
     "pnpm": "^9.15.2",

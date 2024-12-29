@@ -4,7 +4,6 @@ import { GameComponent } from "@/components";
 import {
   KingdominoAction,
   KingdominoConfiguration,
-  KingdominoModel,
   KingdominoState,
 } from "kingdomino";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -12,6 +11,7 @@ import * as tf from "@tensorflow/tfjs";
 import { SinglePlayerEpisodeController } from "./controller";
 import { Controls } from "./controls";
 import { mcts2 } from "agent";
+import { KingdominoModel } from "kingdomino-agent";
 
 export default function SinglePlayerEpisodePage(): JSX.Element {
   const [model, setModel] = useState<KingdominoModel | undefined>(undefined);

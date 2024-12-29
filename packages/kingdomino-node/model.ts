@@ -1,4 +1,4 @@
-import { KingdominoModel } from "kingdomino";
+import { KingdominoModel } from "kingdomino-agent";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import fs from "node:fs/promises";
 import { ModelMetadata, modelMetadataCodec } from "agent";

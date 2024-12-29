@@ -1,16 +1,14 @@
 {
   "extends": "tsconfig/tsconfig.base.json",
-  "include": ["*.ts"],
-  "exclude": ["*.test.ts"],
+  "include": ["*.test.ts"],
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
     "outDir": "out",
     "composite": true,
     "skipLibCheck": true
   },
   "references": [
     {
-      "path": "../game"
+      "path": "./tsconfig.json"
     }
   ]
 }
