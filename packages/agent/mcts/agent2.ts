@@ -16,8 +16,8 @@ import {
   MctsStats,
   NonTerminalStateNode,
 } from "./mcts2.js";
-import { BatchingModel } from "./batchingmodel.js";
-import { InferenceModel } from "./model.js";
+import { BatchingModel } from "../batchingmodel.js";
+import { InferenceModel } from "../model.js";
 import { ActionStatistics } from "training-data";
 
 export type MctsResult<A extends Action> = {

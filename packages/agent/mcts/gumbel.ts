@@ -11,7 +11,7 @@ import {
 import { ActionNode, NonTerminalStateNode } from "./mcts.js";
 import { Map, Range, Seq } from "immutable";
 import { StateNodeInfo, StateSearchData } from "training-data";
-import { InferenceResult } from "./model.js";
+import { InferenceResult } from "../model.js";
 
 const gumbelFactory = gumbel.factory(0, 1);
 

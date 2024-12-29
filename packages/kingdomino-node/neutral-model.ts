@@ -6,7 +6,7 @@ import {
 } from "kingdomino";
 import { EpisodeSnapshot, PlayerValues } from "game";
 import { Map } from "immutable";
-import { InferenceModel, InferenceResult } from "mcts";
+import { InferenceModel, InferenceResult } from "agent";
 
 export class NeutralKingdominoModel
   implements

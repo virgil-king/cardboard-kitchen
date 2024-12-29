@@ -7,7 +7,8 @@ import {
   LocationState,
   PlaceTile,
 } from "./base.js";
-import { Direction, Vector2 } from "./util.js";
+import { Direction } from "./util.js";
+import { Vector2 } from "game";
 
 test("LocationState.equals: equal: returns true", () => {
   const a = LocationState.instance(5, 1);

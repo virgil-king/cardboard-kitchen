@@ -24,8 +24,8 @@ import {
   NumberAction,
   PickANumber,
   PickANumberImmediateModel,
-} from "./testgame.js";
-import { InferenceModel } from "./model.js";
+} from "../testgame.js";
+import { InferenceModel } from "../model.js";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");

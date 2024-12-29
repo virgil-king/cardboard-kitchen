@@ -12,7 +12,7 @@ import { gumbelSelfPlayEpisode } from "training";
 import { Kingdomino, KingdominoModel } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
-import { mcts, modelCodec, ModelCodecType } from "mcts";
+import { mcts, modelCodec, ModelCodecType } from "agent";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { SELF_PLAY_MCTS_CONFIG, kingdominoExperiment } from "./config.js";
 

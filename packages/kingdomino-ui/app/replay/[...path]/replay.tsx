@@ -5,7 +5,7 @@ import { Kingdomino } from "kingdomino";
 import { EpisodeSnapshot, ProbabilityDistribution, requireDefined } from "game";
 import { useState } from "react";
 import { EpisodeTrainingData } from "training-data";
-import { improvedPolicyLogits } from "mcts";
+import { improvedPolicyLogits } from "agent";
 
 type ReplayProps = {
   episodeJsonString: string;

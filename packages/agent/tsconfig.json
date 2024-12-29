@@ -6,7 +6,7 @@
     "declaration": true,
     "skipLibCheck": true
   },
-  "include": ["*.ts"],
+  "include": ["**/*.ts"],
   "references": [
     {
       "path": "../training-data"

@@ -26,9 +26,9 @@ import {
   PickANumberConfiguration,
   PickANumberImmediateModel,
   PickANumberState,
-} from "./testgame.js";
-import { InferenceModel } from "./model.js";
-import { BatchingModel } from "./batchingmodel.js";
+} from "../testgame.js";
+import { InferenceModel } from "../model.js";
+import { BatchingModel } from "../batchingmodel.js";
 import { MctsAgent2, MctsResult } from "./agent2.js";
 
 const alice = new Player("alice", "Alice");

@@ -21,7 +21,7 @@ import {
   KingdominoState,
 } from "kingdomino";
 import _ from "lodash";
-import { InferenceModel, InferenceResult, mcts } from "mcts";
+import { InferenceModel, InferenceResult, mcts } from "agent";
 import {
   EVAL_RANDOM_PLAYOUT_MCTS_CONFIG,
   EVAL_MODEL_VALUE_CONFIG as EVAL_MODEL_VALUE_CONFIG,

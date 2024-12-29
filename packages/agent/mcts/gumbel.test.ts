@@ -21,7 +21,7 @@ import {
   PickANumberEpisodeSnapshot,
   PickANumberImmediateModel,
   PickANumberState,
-} from "./testgame.js";
+} from "../testgame.js";
 import {
   estimateStateValue,
   gumbelSequentialHalving,

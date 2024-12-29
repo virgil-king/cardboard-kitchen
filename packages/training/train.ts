@@ -8,7 +8,7 @@ import {
   sleep,
 } from "game";
 import { List, Map } from "immutable";
-import { Model } from "../mcts/model.js";
+import { Model } from "agent/model.js";
 import { EpisodeBuffer } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";

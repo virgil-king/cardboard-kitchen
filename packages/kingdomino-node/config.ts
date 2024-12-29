@@ -1,4 +1,4 @@
-import { mcts, selectChildAtIntermediateNode } from "mcts";
+import { mcts, selectChildAtIntermediateNode } from "agent";
 import {
   KingdominoAction,
   KingdominoConfiguration,

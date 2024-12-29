@@ -19,13 +19,13 @@
     "vitest": "^2.1.5"
   },
   "dependencies": {
+    "agent": "workspace:^",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-core": "^4.22.0",
     "game": "workspace:*",
     "immutable": "5.0.3",
     "io-ts": "^2.2.21",
     "lodash": "^4.17.21",
-    "mcts": "workspace:^",
     "pnpm": "^9.14.2",
     "training-data": "workspace:^"
   }

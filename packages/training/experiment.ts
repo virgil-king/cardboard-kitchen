@@ -1,5 +1,5 @@
 import { Action, Game, GameConfiguration, GameState } from "game";
-import { Model } from "mcts";
+import { Model } from "agent";
 import { LogDirectory } from "./logdirectory.js";
 import { train_parallel } from "./train.js";
 import fs from "node:fs/promises";

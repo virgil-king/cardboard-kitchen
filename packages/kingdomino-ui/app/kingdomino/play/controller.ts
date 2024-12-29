@@ -10,12 +10,18 @@ import {
   NextAction,
   PlaceTile,
   Tile,
-  Vector2,
 } from "kingdomino";
 import { Set } from "immutable";
 import { GameProps, TilePlacementState } from "@/components";
-import { EpisodeConfiguration, EpisodeSnapshot, Player, Players, requireDefined } from "game";
-import { mcts2, MctsAgent2 } from "mcts";
+import {
+  EpisodeConfiguration,
+  EpisodeSnapshot,
+  Player,
+  Players,
+  requireDefined,
+  Vector2,
+} from "game";
+import { mcts2, MctsAgent2 } from "agent";
 import _ from "lodash";
 
 const playerId = "player";

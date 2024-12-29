@@ -5,7 +5,7 @@ import { Range } from "immutable";
 import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoExperiment } from "./config.js";
-import { ModelCodecType, ModelMetadata } from "mcts";
+import { ModelCodecType, ModelMetadata } from "agent";
 import { LogDirectory } from "training";
 
 // No more than one eval worker should run at a time since this code

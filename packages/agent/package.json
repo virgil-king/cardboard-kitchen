@@ -1,5 +1,5 @@
 {
-  "name": "mcts",
+  "name": "agent",
   "version": "1.0.0",
   "author": "Virgil King <virgilking@gmail.com>",
   "type": "module",
@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm exec tsc",
     "clean": "rm -rf out/*",
-    "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js"
+    "test": "pnpm run build && pnpm exec tsc -p tsconfig.test.json && pnpm exec vitest run --coverage --coverage.reporter=text --coverage.reporter=lcov out/*.test.js out/**/*.test.js"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",

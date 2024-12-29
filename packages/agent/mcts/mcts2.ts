@@ -14,7 +14,7 @@ import {
   weightedMerge,
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { InferenceResult, InferenceModel } from "./model.js";
+import { InferenceResult, InferenceModel } from "../model.js";
 
 /*
  * This MCTS implementation supports batch inference within a single

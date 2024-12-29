@@ -1,7 +1,7 @@
-import { Episode, EpisodeConfiguration, Player, Players } from "game";
+import { Episode, EpisodeConfiguration, Player, Players, Vector2 } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
-import { Direction, Vector2 } from "./util.js";
+import { Direction } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
@@ -28,7 +28,7 @@ test("apply: last claim in second round: next action is place", () => {
     KingdominoAction.discardTile(),
     KingdominoAction.claimTile(new ClaimTile(1)),
     KingdominoAction.discardTile(),
-    KingdominoAction.claimTile(new ClaimTile(2)),
+    KingdominoAction.claimTile(new ClaimTile(2))
   );
 
   assert.equal(
@@ -36,7 +36,6 @@ test("apply: last claim in second round: next action is place", () => {
     NextAction.RESOLVE_OFFER
   );
 });
-
 
 test("apply: discard last tile in game: ends game", () => {
   const players = new Players(alice, bob, cecile);

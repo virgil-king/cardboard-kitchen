@@ -24,7 +24,7 @@
         "kingdomino": "workspace:^",
         "lodash": "^4.17.21",
         "long": "^5.2.3",
-        "mcts": "workspace:^",
+        "agent": "workspace:^",
         "pnpm": "^9.15.1",
         "training": "workspace:*",
         "training-data": "workspace:^"

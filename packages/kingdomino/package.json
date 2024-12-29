@@ -12,18 +12,18 @@
     "dependencies": {
         "@tensorflow/tfjs": "^4.22.0",
         "@tensorflow/tfjs-core": "^4.22.0",
-        "@types/node": "^22.9.3",
+        "@types/node": "^22.10.2",
+        "agent": "workspace:^",
         "chai": "^5.1.2",
-        "effection": "^3.0.3",
+        "effection": "^3.1.0",
         "esm-seedrandom": "^3.0.5",
         "fp-ts": "^2.16.9",
         "game": "workspace:*",
         "immutable": "5.0.3",
-        "io-ts": "^2.2.21",
+        "io-ts": "^2.2.22",
         "lodash": "^4.17.21",
         "long": "^5.2.3",
-        "mcts": "workspace:^",
-        "pnpm": "^9.14.2",
+        "pnpm": "^9.15.2",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "seedrandom": "^3.0.5",
@@ -33,11 +33,11 @@
     },
     "devDependencies": {
         "@types/lodash": "^4.17.13",
-        "@types/react": "^18.3.12",
-        "@types/react-dom": "^18.3.1",
-        "@vitest/coverage-v8": "^2.1.5",
+        "@types/react": "^18.3.18",
+        "@types/react-dom": "^18.3.5",
+        "@vitest/coverage-v8": "^2.1.8",
         "tsconfig": "workspace:*",
         "typescript": "^5.7.2",
-        "vitest": "^2.1.5"
+        "vitest": "^2.1.8"
     }
 }

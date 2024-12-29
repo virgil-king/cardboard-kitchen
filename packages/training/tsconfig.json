@@ -12,7 +12,7 @@
       "path": "../training-data"
     },
     {
-      "path": "../mcts"
+      "path": "../agent"
     }
   ]
 }

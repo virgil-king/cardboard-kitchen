@@ -25,13 +25,13 @@
   },
   "references": [
     {
+      "path": "../agent"
+    },
+    {
       "path": "../game"
     },
     {
       "path": "../kingdomino"
-    },
-    {
-      "path": "../util"
     }
   ],
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

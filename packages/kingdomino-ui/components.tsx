@@ -8,6 +8,7 @@ import {
   PlayerValues,
   ProbabilityDistribution,
   requireDefined,
+  Vector2
 } from "game";
 import {
   ActionCase,
@@ -23,7 +24,6 @@ import {
   TileOffers,
 } from "kingdomino";
 import { KingdominoConfiguration, playAreaRadius } from "kingdomino";
-import { Vector2 } from "kingdomino";
 import { Map, Set } from "immutable";
 
 import styles from "@/app/page.module.css";

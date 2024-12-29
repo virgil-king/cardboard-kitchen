@@ -14,14 +14,13 @@ import {
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import {
-  Vector2,
   Rectangle,
   Direction,
-  vector2Json,
   BoardTransformation,
 } from "./util.js";
 import * as io from "io-ts";
 import { decodeOrThrow } from "game";
+import { vector2Json, Vector2 } from "game";
 
 export const playerBoardJson = io.type({
   locationStates: io.array(io.tuple([vector2Json, locationStateCodec])),

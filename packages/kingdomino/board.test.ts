@@ -1,19 +1,17 @@
-import { Direction, Rectangle, Vector2 } from "./util.js";
-
+import { Direction, Rectangle } from "./util.js";
 import { test } from "vitest";
 import { assert } from "chai";
 import { Map, Range, Set } from "immutable";
 import {
-  KingdominoVectors,
   LocationState,
   PlaceTile,
-  boardIndices,
   centerX,
   centerY,
   playAreaRadius,
 } from "./base.js";
 import { PlayerBoard, extend } from "./board.js";
 import { Terrain, Tile } from "./tile.js";
+import { Vector2 } from "game";
 
 test("occupiedRectangle: tiles reach top right of play area: result includes edges", () => {
   const board = new PlayerBoard(

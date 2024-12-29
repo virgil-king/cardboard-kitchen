@@ -1,7 +1,7 @@
 import { KingdominoModel } from "kingdomino";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import fs from "node:fs/promises";
-import { ModelMetadata, modelMetadataCodec } from "mcts";
+import { ModelMetadata, modelMetadataCodec } from "agent";
 import { Experiment } from "training";
 import { decodeOrThrow } from "game";
 

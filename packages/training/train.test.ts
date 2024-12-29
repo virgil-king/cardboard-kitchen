@@ -8,7 +8,7 @@ import {
 import { EpisodeConfiguration, Player, PlayerValues, Players } from "game";
 import { Map, Range, Set } from "immutable";
 import * as _ from "lodash";
-import { NumberAction, PickANumber, PickANumberConfiguration, PickANumberState } from "mcts";
+import { NumberAction, PickANumber, PickANumberConfiguration, PickANumberState } from "agent";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");

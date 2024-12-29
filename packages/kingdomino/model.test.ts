@@ -7,6 +7,7 @@ import {
   PlayerValues,
   Players,
   ProbabilityDistribution,
+  Vector2,
   requireDefined,
 } from "game";
 import {
@@ -21,7 +22,7 @@ import { assert } from "chai";
 import { Map, Range } from "immutable";
 import { KingdominoAction } from "./action.js";
 import { ClaimTile, PlaceTile, playAreaRadius } from "./base.js";
-import { Vector2, Direction, NO_TRANSFORM } from "./util.js";
+import { Direction, NO_TRANSFORM } from "./util.js";
 import { ActionStatistics, StateTrainingData } from "training-data";
 import * as _ from "lodash";
 import { Terrain } from "./tile.js";

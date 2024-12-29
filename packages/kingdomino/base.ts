@@ -2,14 +2,13 @@ import { combineHashes, decodeOrThrow, GameConfiguration, JsonSerializable, Play
 import {
   BoardTransformation,
   Direction,
-  Vector2,
-  vector2Json,
 } from "./util.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
 import { List, Map, ValueObject, hash, Range } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
 import { tiles } from "./tile.js";
+import { Vector2, vector2Json } from "game";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;

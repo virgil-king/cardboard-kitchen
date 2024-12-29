@@ -1,5 +1,5 @@
 import { Map, Seq } from "immutable";
-import { Vector2 } from "./util.js";
+import { Vector2 } from "game";
 import { Linearization } from "./linearization.js";
 
 /**

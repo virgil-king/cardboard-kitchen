@@ -21,7 +21,7 @@ import {
   KingdominoState,
   RandomKingdominoAgent,
 } from "kingdomino";
-import { mcts, MctsAgent } from "mcts";
+import { mcts, MctsAgent } from "agent";
 import { loadModelFromFile } from "./model.js";
 import { kingdominoExperiment } from "./config.js";
 

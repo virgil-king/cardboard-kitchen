@@ -13,7 +13,7 @@ import {
   weightedMerge,
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { InferenceResult, InferenceModel } from "./model.js";
+import { InferenceResult, InferenceModel } from "../model.js";
 import gamma from "@stdlib/random-base-gamma";
 import {
   ActionNodeInfo,

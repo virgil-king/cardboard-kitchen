@@ -24,43 +24,37 @@ import {
 import { KingdominoState, NextAction, nextActions } from "./state.js";
 import { ActionCase, KingdominoAction } from "./action.js";
 import {
+  ArrayCodec,
+  CodecValueType,
+  decodeAsGenerator,
   improvedPolicyLogits,
   InferenceModel,
   InferenceResult,
   Model,
   ModelCodecType,
   ModelMetadata,
+  ObjectCodec,
+  OneHotCodec,
+  OptionalCodec,
+  RawCodec,
+  ScalarCodec,
+  Sparse2dCodec,
   TrainingModel,
-} from "mcts";
+  VectorCodec,
+} from "agent";
 import { Map, Range, Seq } from "immutable";
 import tfTypes from "@tensorflow/tfjs";
 import { Kingdomino } from "./kingdomino.js";
 import _ from "lodash";
 import { Terrain, Tile, terrainValues } from "./tile.js";
-import {
-  VectorCodec,
-  OneHotCodec,
-  ObjectCodec,
-  ArrayCodec,
-  CodecValueType,
-  ScalarCodec,
-  OptionalCodec,
-  RawCodec,
-  Sparse2dCodec,
-  decodeAsGenerator,
-} from "./codec.js";
 import { PlayerBoard } from "./board.js";
-import {
-  BoardTransformation,
-  Direction,
-  NO_TRANSFORM,
-  Vector2,
-} from "./util.js";
+import { BoardTransformation, Direction, NO_TRANSFORM } from "./util.js";
 import { StateTrainingData } from "training-data";
-import { Linearization } from "./linearization.js";
+import { Linearization } from "agent";
 import { BroadcastLayer } from "./broadcastlayer.js";
 import { ExpandDimsLayer } from "./expanddims.js";
 import * as tf from "@tensorflow/tfjs";
+import { Vector2 } from "game";
 
 /*
  * This model is a function from state to per-player value and move

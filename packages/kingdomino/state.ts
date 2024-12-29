@@ -20,13 +20,13 @@ import {
   TileOffers,
   tileOffersCodec,
 } from "./base.js";
-import { Direction, Vector2 } from "./util.js";
-
+import { Direction } from "./util.js";
 import { List, Map, Seq, Set, ValueObject, hash } from "immutable";
 import _ from "lodash";
 import { PlayerBoard, playerBoardJson } from "./board.js";
 import * as io from "io-ts";
 import { KingdominoAction } from "./action.js";
+import { Vector2 } from "game";
 
 const playerStateJson = io.type({
   board: playerBoardJson,

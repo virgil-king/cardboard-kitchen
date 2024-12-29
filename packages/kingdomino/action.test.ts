@@ -1,7 +1,14 @@
-import { Episode, EpisodeConfiguration, Player, Players, requireDefined } from "game";
+import {
+  Episode,
+  EpisodeConfiguration,
+  Player,
+  Players,
+  requireDefined,
+  Vector2,
+} from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
-import { Direction, Vector2 } from "./util.js";
+import { Direction } from "./util.js";
 import { Tile } from "./tile.js";
 
 import { expect, test } from "vitest";
@@ -145,21 +152,27 @@ test("equals: equivalent claims: returns true", () => {
 
 test("claim: codec round trip", () => {
   const claim = KingdominoAction.claimTile(new ClaimTile(2));
-  
+
   const json = claim.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
+  const secondJsonString = JSON.stringify(
+    KingdominoAction.decode(json).encode()
+  );
 
   assert.isTrue(claim.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);
 });
 
 test("place: codec round trip", () => {
-  const place = KingdominoAction.placeTile(new PlaceTile(new Vector2(-1, 1), Direction.LEFT));
-  
+  const place = KingdominoAction.placeTile(
+    new PlaceTile(new Vector2(-1, 1), Direction.LEFT)
+  );
+
   const json = place.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
+  const secondJsonString = JSON.stringify(
+    KingdominoAction.decode(json).encode()
+  );
 
   assert.isTrue(place.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);
@@ -167,10 +180,12 @@ test("place: codec round trip", () => {
 
 test("discard: codec round trip", () => {
   const discard = KingdominoAction.discardTile();
-  
+
   const json = discard.encode();
   const jsonString = JSON.stringify(json);
-  const secondJsonString = JSON.stringify(KingdominoAction.decode(json).encode());
+  const secondJsonString = JSON.stringify(
+    KingdominoAction.decode(json).encode()
+  );
 
   assert.isTrue(discard.equals(KingdominoAction.decode(json)));
   assert.equal(jsonString, secondJsonString);

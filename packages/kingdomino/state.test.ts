@@ -5,10 +5,11 @@ import {
   Players,
   requireDefined,
   valueObjectsEqual,
+  Vector2,
 } from "game";
 import { KingdominoAction } from "./action.js";
 import { Kingdomino } from "./kingdomino.js";
-import { Direction, Vector2 } from "./util.js";
+import { Direction } from "./util.js";
 
 import { test } from "vitest";
 import { assert } from "chai";
