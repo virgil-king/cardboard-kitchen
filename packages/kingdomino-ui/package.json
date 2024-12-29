@@ -22,8 +22,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "styled-jsx": "^5.1.6",
-    "training": "workspace:^",
-    "training-data": "workspace:^"
+    "training": "workspace:^"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",

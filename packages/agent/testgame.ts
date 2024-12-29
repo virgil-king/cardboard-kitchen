@@ -11,11 +11,10 @@ import {
   decodeOrThrow,
   requireDefined,
 } from "game";
-
 import { Map, Range, Set } from "immutable";
 import { InferenceModel, InferenceResult, TrainingModel } from "./model.js";
 import * as io from "io-ts";
-import { StateTrainingData } from "training-data";
+import { StateTrainingData } from "./training-data.js";
 
 export class NumberAction implements Action {
   constructor(readonly number: number) {}
@@ -248,4 +247,3 @@ export class PickANumberImmediateModel
     throw new Error("Method not implemented.");
   }
 }
-

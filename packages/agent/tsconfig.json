@@ -7,9 +7,5 @@
     "skipLibCheck": true
   },
   "include": ["**/*.ts"],
-  "references": [
-    {
-      "path": "../training-data"
-    }
-  ]
+  "references": []
 }

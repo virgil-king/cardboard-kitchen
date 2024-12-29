@@ -8,3 +8,4 @@ export * from "./model.js";
 export * from "./batchingmodel.js";
 export * from "./util/codec.js";
 export * from "./util/linearization.js";
+export * from "./training-data.js";

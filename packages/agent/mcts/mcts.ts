@@ -20,7 +20,7 @@ import {
   ActionStatistics,
   StateNodeInfo,
   StateSearchData,
-} from "training-data";
+} from "../training-data.js";
 
 // This file is an implementation of MCTS that supports multiple-episode
 // batching due to its asynchronous API but does not support single-episode

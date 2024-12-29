@@ -6,7 +6,7 @@ import {
   PlayerValues,
 } from "game";
 import { Map } from "immutable";
-import { StateTrainingData } from "training-data";
+import { StateTrainingData } from "./training-data.js";
 import * as io from "io-ts";
 
 export type InferenceResult<A extends Action> = {

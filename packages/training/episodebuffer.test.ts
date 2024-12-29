@@ -2,7 +2,7 @@ import { test } from "vitest";
 import { assert } from "chai";
 import { EpisodeBuffer } from "./episodebuffer.js";
 import * as _ from "lodash";
-import { LazyArray } from "training-data";
+import { LazyArray } from "agent";
 
 test("addGame: can purge older game while remaining above target: purges older game", () => {
   const buffer = new EpisodeBuffer<number, SimpleArrayLike<number>>(5);

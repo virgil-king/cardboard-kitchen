@@ -11,12 +11,12 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",
-    "@vitest/coverage-v8": "^2.1.5",
+    "@vitest/coverage-v8": "^2.1.8",
     "chai": "^5.1.2",
     "long": "^5.2.3",
     "tsconfig": "workspace:*",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.5"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@stdlib/random": "^0.3.3",
@@ -26,9 +26,8 @@
     "@tensorflow/tfjs-core": "^4.22.0",
     "game": "workspace:*",
     "immutable": "5.0.3",
-    "io-ts": "^2.2.21",
+    "io-ts": "^2.2.22",
     "lodash": "^4.17.21",
-    "pnpm": "^9.14.2",
-    "training-data": "workspace:^"
+    "pnpm": "^9.15.2"
   }
 }

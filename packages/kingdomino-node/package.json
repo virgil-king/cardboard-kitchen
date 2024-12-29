@@ -26,8 +26,7 @@
         "long": "^5.2.3",
         "agent": "workspace:^",
         "pnpm": "^9.15.1",
-        "training": "workspace:*",
-        "training-data": "workspace:^"
+        "training": "workspace:*"
     },
     "devDependencies": {
         "@types/d3": "^7.4.3",

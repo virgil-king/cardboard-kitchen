@@ -18,7 +18,7 @@ import {
 } from "./mcts2.js";
 import { BatchingModel } from "../batchingmodel.js";
 import { InferenceModel } from "../model.js";
-import { ActionStatistics } from "training-data";
+import { ActionStatistics } from "../training-data.js";
 
 export type MctsResult<A extends Action> = {
   stateValues: PlayerValues;

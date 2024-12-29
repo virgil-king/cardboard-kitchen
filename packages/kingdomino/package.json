@@ -28,8 +28,7 @@
         "react-dom": "^18.3.1",
         "seedrandom": "^3.0.5",
         "tfjs": "^0.6.0",
-        "training": "workspace:*",
-        "training-data": "workspace:^"
+        "training": "workspace:*"
     },
     "devDependencies": {
         "@types/lodash": "^4.17.13",

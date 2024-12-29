@@ -9,8 +9,13 @@ import {
   requireDefined,
 } from "game";
 import { Range, Seq } from "immutable";
-import { mcts, InferenceResult, gumbelSequentialHalving } from "agent";
-import { EpisodeTrainingData, StateSearchData } from "training-data";
+import {
+  mcts,
+  InferenceResult,
+  gumbelSequentialHalving,
+  EpisodeTrainingData,
+  StateSearchData,
+} from "agent";
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,

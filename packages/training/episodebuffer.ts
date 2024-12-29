@@ -1,6 +1,6 @@
 import { requireDefined, randomBelow } from "game";
 import { List } from "immutable";
-import { LazyArray } from "training-data";
+import { LazyArray } from "agent";
 
 /**
  * A size-capped buffer of lists.

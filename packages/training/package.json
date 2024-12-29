@@ -26,7 +26,6 @@
     "immutable": "5.0.3",
     "io-ts": "^2.2.21",
     "lodash": "^4.17.21",
-    "pnpm": "^9.14.2",
-    "training-data": "workspace:^"
+    "pnpm": "^9.14.2"
   }
 }

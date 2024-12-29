@@ -27,7 +27,7 @@ import {
   EVAL_MODEL_VALUE_CONFIG as EVAL_MODEL_VALUE_CONFIG,
 } from "./config.js";
 import { NeutralKingdominoModel } from "./neutral-model.js";
-import { EpisodeTrainingData, StateSearchData } from "training-data";
+import { EpisodeTrainingData, StateSearchData } from "agent";
 
 // This file provides functionality for playing model evaluation episodes
 // using batch MCTS

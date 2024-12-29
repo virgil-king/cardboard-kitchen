@@ -49,7 +49,7 @@ import _ from "lodash";
 import { Terrain, Tile, terrainValues } from "./tile.js";
 import { PlayerBoard } from "./board.js";
 import { BoardTransformation, Direction, NO_TRANSFORM } from "./util.js";
-import { StateTrainingData } from "training-data";
+import { StateTrainingData } from "agent";
 import { Linearization } from "agent";
 import { BroadcastLayer } from "./broadcastlayer.js";
 import { ExpandDimsLayer } from "./expanddims.js";

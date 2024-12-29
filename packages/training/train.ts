@@ -12,7 +12,7 @@ import { Model } from "agent/model.js";
 import { EpisodeBuffer } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
-import { EpisodeTrainingData, StateTrainingData } from "training-data";
+import { EpisodeTrainingData, StateTrainingData } from "agent";
 import { LogDirectory } from "./logdirectory.js";
 import * as tf from "@tensorflow/tfjs";
 

@@ -30,7 +30,7 @@ import styles from "@/app/page.module.css";
 import { PlayerBoard } from "kingdomino/out/board";
 import { KingdominoPlayerState } from "kingdomino/out/state";
 import { CSSProperties } from "react";
-import { ActionStatistics } from "training-data";
+import { ActionStatistics } from "agent";
 
 export const s_spacing = "9pt";
 export const m_spacing = "18pt";
