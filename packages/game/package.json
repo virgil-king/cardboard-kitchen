@@ -13,7 +13,6 @@
     "@types/lodash": "^4.17.13",
     "@vitest/coverage-v8": "^2.1.8",
     "chai": "^5.1.2",
-    "tsconfig": "workspace:*",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },

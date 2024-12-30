@@ -189,6 +189,9 @@ export async function train_parallel<
       console.log(
         `Broadcasting updated model after ${episodeBatchesReceived} episode batches`
       );
+      console.log(
+        `Main thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
+      );
       episodeBatchesReceivedAtLastModelUpdate = episodeBatchesReceived;
       const encodedModel = await model.toJson();
       for (const port of workerPorts) {
