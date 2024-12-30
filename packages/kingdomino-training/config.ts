@@ -23,7 +23,7 @@ export const kingdominoExperiment = new Experiment({
 // Defaults for self-play and eval
 const mctsConfigDefaults = {
   simulationCount: 128,
-  explorationBias: 3 * Math.sqrt(2),
+  explorationBias: 5,
   maxChanceBranches: 1,
 };
 

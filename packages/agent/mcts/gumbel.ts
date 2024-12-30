@@ -16,7 +16,7 @@ import { InferenceResult } from "../model.js";
 const gumbelFactory = gumbel.factory(0, 1);
 
 const C_VISIT = 50;
-const C_SCALE = 1;
+const C_SCALE = 0.5;
 
 // Choosing n & m:
 // n=32, m=4:
