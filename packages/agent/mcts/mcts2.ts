@@ -85,6 +85,7 @@ export class MctsStats {
   terminalStatesReached = 0;
   inferences = 0;
   randomPlayoutTimeMs = 0;
+  maxDepth = 0;
 }
 
 export interface MctsContext<
@@ -161,10 +162,13 @@ export class ActionNode<
   }
 
   /**
-   * Updates the node by applying {@link action} to {@link episode} and then
+   * Updates the node by applying {@link action} to {@link snapshot} and then
    * creating or visiting the resulting state node
    */
-  async visit(snapshot: EpisodeSnapshot<C, S>): Promise<PlayerValues> {
+  async visit(
+    snapshot: EpisodeSnapshot<C, S>,
+    depth: number
+  ): Promise<PlayerValues> {
     this.incompleteVisitCount++;
     const [childState, chanceKey] = this.context.game.apply(
       snapshot,
@@ -182,9 +186,9 @@ export class ActionNode<
       }
       this.addToCache(chanceKey, stateNode);
       // Use the new node's initial predicted values
-      stateNodeValues = stateNode.predictedValues();
+      stateNodeValues = stateNode.predictedValues(depth + 1);
     } else {
-      stateNodeValues = stateNode.visit();
+      stateNodeValues = stateNode.visit(depth + 1);
     }
     const it = await stateNodeValues;
     this.playerExpectedValues.merge(it);
@@ -235,8 +239,8 @@ interface StateNode<
   incompleteVisitCount: number;
   visitCount: number;
   combinedVisitCount: number;
-  predictedValues(): Promise<PlayerValues>;
-  visit(): Promise<PlayerValues>;
+  predictedValues(depth: number): Promise<PlayerValues>;
+  visit(depth: number): Promise<PlayerValues>;
 }
 
 /**
@@ -353,7 +357,10 @@ export class NonTerminalStateNode<
   /**
    * Returns expected values computed using all enabled prediction methods
    */
-  async predictedValues(): Promise<PlayerValues> {
+  async predictedValues(depth: number): Promise<PlayerValues> {
+    if (depth > this.context.stats.maxDepth) {
+      this.context.stats.maxDepth = depth;
+    };
     const config = this.context.config;
     const modelValueWeight = config.modelValueWeight;
     const randomPlayoutConfig = config.randomPlayoutConfig;
@@ -410,9 +417,13 @@ export class NonTerminalStateNode<
    * expected values based on that visit, and returns this node's new expected values
    */
   async visit(
+    depth: number = 0,
     selectUnvisitedActionsFirst: boolean = false
   ): Promise<PlayerValues> {
     this.incompleteVisitCount++;
+    if (depth > this.context.stats.maxDepth) {
+      this.context.stats.maxDepth = depth;
+    };
 
     const action = this.selectAction(selectUnvisitedActionsFirst);
     let child = this.actionToChild.get(action);
@@ -421,7 +432,7 @@ export class NonTerminalStateNode<
         "An action was visited which was not reported by the policy"
       );
     }
-    const childResultPromise = child.visit(this.snapshot);
+    const childResultPromise = child.visit(this.snapshot, depth);
 
     return Promise.allSettled([this.inference, childResultPromise]).then(
       ([inferenceResult, childResult]) => {
@@ -534,11 +545,17 @@ export class TerminalStateNode<
     return this.visitCount;
   }
 
-  async predictedValues(): Promise<PlayerValues> {
+  async predictedValues(depth: number): Promise<PlayerValues> {
+    if (depth > this.context.stats.maxDepth) {
+      this.context.stats.maxDepth = depth;
+    };
     return this.result;
   }
 
-  async visit(): Promise<PlayerValues> {
+  async visit(depth: number): Promise<PlayerValues> {
+    if (depth > this.context.stats.maxDepth) {
+      this.context.stats.maxDepth = depth;
+    };
     this.visitCount++;
     return this.result;
   }

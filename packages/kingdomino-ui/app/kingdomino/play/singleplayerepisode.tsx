@@ -54,7 +54,7 @@ function WithModel(props: { model: KingdominoModel }): JSX.Element {
     >({
       simulationCount: 512,
       modelValueWeight: 1,
-      explorationBias: 8
+      explorationBias: 8,
     })
   );
 

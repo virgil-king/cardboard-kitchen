@@ -39,7 +39,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 test("ActionNode.visit: before result fulfilled: visit counts are correct", () => {
   const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
-  node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
+  node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig), 0);
 
   assert.equal(node.visitCount, 0);
   assert.equal(node.incompleteVisitCount, 1);
@@ -49,7 +49,7 @@ test("ActionNode.visit: before result fulfilled: visit counts are correct", () =
 test("ActionNode.visit: after result fulfilled: visit counts are correct", async () => {
   const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
-  await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
+  await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig), 0);
 
   assert.equal(node.visitCount, 1);
   assert.equal(node.incompleteVisitCount, 0);
@@ -65,8 +65,8 @@ test("ActionNode.visit: multiple calls before results fulfilled: visit counts ar
   );
   const snapshot = PickANumber.INSTANCE.newEpisode(episodeConfig);
 
-  node.visit(snapshot);
-  node.visit(snapshot);
+  node.visit(snapshot, 0);
+  node.visit(snapshot, 0);
 
   assert.equal(node.visitCount, 0);
   assert.equal(node.incompleteVisitCount, 2);
@@ -78,8 +78,8 @@ test("ActionNode.visit: results fulfilled after multiple calls: visit counts are
   const node = new ActionNode(createContext(model), new NumberAction(1), 0.1, 0.1);
   const snapshot = PickANumber.INSTANCE.newEpisode(episodeConfig);
 
-  const visit1 = node.visit(snapshot);
-  const visit2 = node.visit(snapshot);
+  const visit1 = node.visit(snapshot, 0);
+  const visit2 = node.visit(snapshot, 0);
 
   model.fulfillRequests();
 
@@ -93,7 +93,7 @@ test("ActionNode.visit: results fulfilled after multiple calls: visit counts are
 test("ActionNode.visit: after result fulfilled: player values updated", async () => {
   const node = new ActionNode(createContext(), new NumberAction(1), 0.1, 0.1);
 
-  await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig));
+  await node.visit(PickANumber.INSTANCE.newEpisode(episodeConfig), 0);
 
   // After the first visit to a new non-terminal state node that node's
   // predicted values come from the model. The test model predicts that
@@ -189,7 +189,7 @@ async function synchronousMcts<
   const root = new NonTerminalStateNode(context, snapshot);
   for (let step = 0; step < config.simulationCount; step++) {
     // TODO update tests not to rely on the legacy 'true' behavior
-    await root.visit(true);
+    await root.visit(0, true);
   }
   const result = ImmutableMap(
     Seq(root.actionToChild.entries()).map(([action, node]) => [

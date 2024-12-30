@@ -9,7 +9,7 @@ import {
   requireDefined,
   throwFirstRejection,
 } from "game";
-import { Map, Range } from "immutable";
+import { Map, Range, Seq } from "immutable";
 import {
   MctsConfig,
   MctsContext,
@@ -64,20 +64,14 @@ export class MctsAgent2<
     visitResults.push(root.inference);
 
     // When root has exactly one child, visit it once to populate the
-    // action statistics, but no further visits are necessary. Otherwise
-    // visit the configured number of times or at least enough times to
-    // visit each child node at least once.
+    // action statistics, but no further visits are necessary.
     const simulationCount =
-      root.actionToChild.count() == 1
-        ? 1
-        : Math.max(
-            this.context.config.simulationCount,
-            root.actionToChild.size
-          );
+      root.actionToChild.count() == 1 ? 1 : this.context.config.simulationCount;
 
     let batchStart = performance.now();
-    for (let _ of Range(0, simulationCount)) {
-      visitResults.push(root.visit(true));
+    // Start the visit index at 1 to account for the initial root node inference
+    for (const _ of Range(1, simulationCount)) {
+      visitResults.push(root.visit(0, false));
       if (this.batchingModel.requests.length >= this.batchSize) {
         this.batchingModel.fulfillRequests();
         await throwFirstRejection(visitResults);
@@ -108,8 +102,6 @@ export class MctsAgent2<
       );
     }
 
-    console.log(`MCTS stats: ${JSON.stringify(this.context.stats)}`);
-
     const actionToStatistics = root.actionToChild.map((node) => {
       const values = new PlayerValues(
         node.playerExpectedValues.playerIdToValue
@@ -135,19 +127,37 @@ export class MctsAgent2<
     const currentPlayer = requireDefined(
       this.context.game.currentPlayer(snapshot)
     );
-    const [selectedAction] = requireDefined(
+    let selectedAction: A;
+    // If any chldren have expected values, choose the child with the greatest
+    // expected value. Otherwise we'll use priors.
+    if (
       actionToStatistics
-        .entrySeq()
-        .max(
-          ([, values1], [, values2]) =>
-            requireDefined(
-              values1.expectedValues.playerIdToValue.get(currentPlayer.id)
-            ) -
-            requireDefined(
-              values2.expectedValues.playerIdToValue.get(currentPlayer.id)
-            )
-        )
-    );
+        .valueSeq()
+        .find((it) =>
+          it.expectedValues.playerIdToValue.has(currentPlayer.id)
+        ) != undefined
+    ) {
+      [selectedAction] = requireDefined(
+        actionToStatistics
+          .entrySeq()
+          .max(
+            ([, values1], [, values2]) =>
+              (values1.expectedValues.playerIdToValue.get(currentPlayer.id) ??
+                0) -
+              (values2.expectedValues.playerIdToValue.get(currentPlayer.id) ??
+                0)
+          )
+      );
+    } else {
+      [selectedAction] = requireDefined(
+        actionToStatistics
+          .entrySeq()
+          .max(
+            ([, values1], [, values2]) =>
+              values1.priorProbability - values2.priorProbability
+          )
+      );
+    }
     return selectedAction;
   }
 

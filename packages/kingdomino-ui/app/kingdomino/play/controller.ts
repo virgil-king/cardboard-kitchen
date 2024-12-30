@@ -218,7 +218,7 @@ export class SinglePlayerEpisodeController {
         mctsResult.actionToStatistics
       );
       console.log(`Generating move took ${performance.now() - start} ms`);
-      console.log(`MCTS stats: ${JSON.stringify(mctsStats)}`);
+      console.log(`MCTS stats: ${JSON.stringify(mctsStats, undefined, 1)}`);
 
       if (this.autoAdvance) {
         this.act(action);
