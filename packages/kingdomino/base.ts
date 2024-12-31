@@ -8,7 +8,7 @@ import { List, Map, ValueObject, hash, Range } from "immutable";
 import _ from "lodash";
 import * as io from "io-ts";
 import { tiles } from "./tile.js";
-import { Vector2, vector2Json } from "game";
+import { Vector2, vector2Codec } from "game";
 
 /** Maximum height or width of a player's kingdom */
 export const maxKingdomSize = 5;
@@ -315,7 +315,7 @@ export class ClaimTile implements JsonSerializable {
 }
 
 export const placeCodec = io.type({
-  location: vector2Json,
+  location: vector2Codec,
   direction: io.number,
 });
 
@@ -326,7 +326,7 @@ export class PlaceTile implements ValueObject, JsonSerializable {
   static fromJson(json: unknown) {
     const parsed = decodeOrThrow(placeCodec, json);
     return new PlaceTile(
-      KingdominoVectors.fromJson(parsed.location),
+      KingdominoVectors.decode(parsed.location),
       Direction.fromIndex(parsed.direction)
     );
   }
@@ -431,8 +431,8 @@ export class KingdominoVectors {
     return this.instance(x, y);
   }
 
-  static fromJson(json: unknown): Vector2 {
-    const parsed = decodeOrThrow(vector2Json, json);
+  static decode(message: unknown): Vector2 {
+    const parsed = decodeOrThrow(vector2Codec, message);
     return this.instance(parsed.x, parsed.y);
   }
 }

@@ -23,13 +23,13 @@ import {
 import { Direction } from "./util.js";
 import { List, Map, Seq, Set, ValueObject, hash } from "immutable";
 import _ from "lodash";
-import { PlayerBoard, playerBoardJson } from "./board.js";
+import { PlayerBoard, playerBoardCodec } from "./board.js";
 import * as io from "io-ts";
 import { KingdominoAction } from "./action.js";
 import { Vector2 } from "game";
 
 const playerStateJson = io.type({
-  board: playerBoardJson,
+  board: playerBoardCodec,
   bonusPoints: io.number,
   /** Score is included for diagnostic purposes only since it's derived from the board and bonus points */
   score: io.number,
@@ -54,7 +54,7 @@ export class KingdominoPlayerState implements ValueObject {
   }
   toJson(): EncodedPlayerState {
     return {
-      board: this.board.toJson(),
+      board: this.board.encode(),
       bonusPoints: this.bonusPoints,
       score: this.score,
     };
@@ -62,7 +62,7 @@ export class KingdominoPlayerState implements ValueObject {
   static decode(encoded: any): KingdominoPlayerState {
     const decoded = decodeOrThrow(playerStateJson, encoded);
     return new KingdominoPlayerState(
-      PlayerBoard.fromJson(decoded.board),
+      PlayerBoard.decode(decoded.board),
       decoded.bonusPoints
     );
   }

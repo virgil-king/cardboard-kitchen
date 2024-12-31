@@ -13,20 +13,16 @@ import {
   KingdominoVectors,
 } from "./base.js";
 import { LocationProperties, Terrain, Tile } from "./tile.js";
-import {
-  Rectangle,
-  Direction,
-  BoardTransformation,
-} from "./util.js";
+import { Rectangle, Direction, BoardTransformation } from "./util.js";
 import * as io from "io-ts";
 import { decodeOrThrow } from "game";
-import { vector2Json, Vector2 } from "game";
+import { vector2Codec, Vector2 } from "game";
 
-export const playerBoardJson = io.type({
-  locationStates: io.array(io.tuple([vector2Json, locationStateCodec])),
+export const playerBoardCodec = io.type({
+  locationStates: io.array(io.tuple([vector2Codec, locationStateCodec])),
 });
 
-export type PlayerBoardJson = io.TypeOf<typeof playerBoardJson>;
+export type PlayerBoardMessage = io.TypeOf<typeof playerBoardCodec>;
 
 /**
  * Coordinates in this class refer to lines between tiles. A tile at [x,y]
@@ -42,13 +38,13 @@ export class PlayerBoard implements ValueObject {
     this.occupiedRectangle = this.computeOccupiedRectangle();
   }
 
-  static fromJson(json: unknown): PlayerBoard {
-    const decoded = decodeOrThrow(playerBoardJson, json);
+  static decode(message: unknown): PlayerBoard {
+    const decoded = decodeOrThrow(playerBoardCodec, message);
     return new PlayerBoard(
       Map(
-        decoded.locationStates.map(([locationJson, stateJson]) => [
-          KingdominoVectors.fromJson(locationJson),
-          LocationState.decode(stateJson),
+        decoded.locationStates.map(([locationMessage, stateMessage]) => [
+          KingdominoVectors.decode(locationMessage),
+          LocationState.decode(stateMessage),
         ])
       )
     );
@@ -66,10 +62,6 @@ export class PlayerBoard implements ValueObject {
   }
 
   static center: Vector2 = Vector2.origin;
-
-  toAssociationList(): Array<[Vector2, LocationState]> {
-    return [...this.locationStates.entries()];
-  }
 
   /**
    * Returns `this` updated by placing {@link tileNumber} according to {@link placement}
@@ -353,7 +345,7 @@ export class PlayerBoard implements ValueObject {
     return this.locationStates.hashCode();
   }
 
-  toJson(): PlayerBoardJson {
+  encode(): PlayerBoardMessage {
     return {
       locationStates: this.locationStates
         .mapEntries(([location, state]) => [location.encode(), state.encode()])

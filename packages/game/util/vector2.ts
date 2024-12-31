@@ -3,12 +3,12 @@ import * as io from "io-ts";
 import { JsonSerializable } from "../game.js";
 import { combineHashes, decodeOrThrow } from "./util.js";
 
-export const vector2Json = io.type({
+export const vector2Codec = io.type({
   x: io.number,
   y: io.number,
 });
 
-type Vector2Json = io.TypeOf<typeof vector2Json>;
+type Vector2Message = io.TypeOf<typeof vector2Codec>;
 
 export class Vector2 implements ValueObject, JsonSerializable {
   private readonly _hashCode: number;
@@ -18,7 +18,7 @@ export class Vector2 implements ValueObject, JsonSerializable {
   static origin = new Vector2(0, 0);
 
   static decode(message: unknown): Vector2 {
-    const parsed = decodeOrThrow(vector2Json, message);
+    const parsed = decodeOrThrow(vector2Codec, message);
     return new Vector2(parsed.x, parsed.y);
   }
 
@@ -45,7 +45,7 @@ export class Vector2 implements ValueObject, JsonSerializable {
     return this._hashCode;
   }
 
-  encode(): Vector2Json {
+  encode(): Vector2Message {
     return { x: this.x, y: this.y };
   }
 }
