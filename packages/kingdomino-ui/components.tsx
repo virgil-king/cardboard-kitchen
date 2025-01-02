@@ -8,7 +8,7 @@ import {
   PlayerValues,
   ProbabilityDistribution,
   requireDefined,
-  Vector2
+  Vector2,
 } from "game";
 import {
   ActionCase,
@@ -468,6 +468,14 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
     expectedValue == undefined
       ? "unknown"
       : decimalFormat.format(expectedValue);
+  let improvedPriorColor: string;
+  if (props.improvedPrior == undefined) {
+    improvedPriorColor = "";
+  } else if (props.improvedPrior > props.stats.priorProbability) {
+    improvedPriorColor = "green";
+  } else {
+    improvedPriorColor = "red";
+  }
   return (
     <div style={{ border: "1pt solid gray", padding: s_spacing }}>
       {actionToString(props.action)}
@@ -478,7 +486,10 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
       <br />
       Expected value: {expectedValueString}
       <br />
-      Improved prior: {props.improvedPrior ?? ""}
+      Improved prior:{" "}
+      <div style={{ color: improvedPriorColor }}>
+        {props.improvedPrior ?? ""}
+      </div>
     </div>
   );
 }
