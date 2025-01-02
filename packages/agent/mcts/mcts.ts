@@ -127,15 +127,9 @@ export class ActionNode<
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
-    /** Predicted value for the acting player */
-    readonly predictedValue: number,
     readonly priorProbability: number,
     readonly priorLogit: number
   ) {
-    if (isNaN(predictedValue)) {
-      throw new Error(`Predicted value was NaN`);
-    }
-
     this.context.stats.actionNodesCreated++;
   }
 
@@ -290,30 +284,11 @@ export class NonTerminalStateNode<
       });
     }
 
-    const maxPolicyLogit = requireDefined(
-      inferenceResult.policyLogits.valueSeq().max()
-    );
-    const currentPlayer = requireDefined(context.game.currentPlayer(snapshot));
-    const statePredictedValue = requireDefined(
-      inferenceResult.value.playerIdToValue.get(currentPlayer.id)
-    );
-
     this.actionToChild = ImmutableMap(
       itemToPrior.map((priorProbability, action) => {
-        // Estimate the value of this action for the acting player as the
-        // estimated value of the parent node times the ratio between the
-        // action's logit and the best action's logit
-        const policyLogit = requireDefined(
-          inferenceResult.policyLogits.get(action)
-        );
-        const actionPredictedValue =
-          maxPolicyLogit == 0
-            ? 0
-            : (policyLogit / maxPolicyLogit) * statePredictedValue;
         return new ActionNode(
           context,
           action,
-          actionPredictedValue,
           priorProbability,
           requireDefined(this.inferenceResult.policyLogits.get(action))
         );
@@ -421,7 +396,7 @@ export class NonTerminalStateNode<
       );
       childEvs.push(childEv);
       const ucb =
-        (childEv ?? child.predictedValue) +
+        (childEv ?? 0) +
         (child.priorProbability *
           this.context.config.explorationBias *
           Math.sqrt(1 + this.visitCount)) /

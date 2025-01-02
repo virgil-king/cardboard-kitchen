@@ -127,8 +127,6 @@ export class ActionNode<
    */
   priorProbability: number;
   priorLogit: number;
-  /** Predicted value of this action for the acting player */
-  predictedValue = 0;
   constructor(
     readonly context: MctsContext<C, S, A>,
     readonly action: A,
@@ -151,14 +149,9 @@ export class ActionNode<
     return this.visitCount + this.incompleteVisitCount;
   }
 
-  initializeFromModel(
-    priorProbability: number,
-    priorLogit: number,
-    predictedValue: number
-  ) {
+  initializeFromModel(priorProbability: number, priorLogit: number) {
     this.priorProbability = priorProbability;
     this.priorLogit = priorLogit;
-    this.predictedValue = predictedValue;
   }
 
   /**
@@ -300,16 +293,6 @@ export class NonTerminalStateNode<
           )}`
       );
 
-      const maxPolicyLogit = requireDefined(
-        inferenceResult.policyLogits.valueSeq().max()
-      );
-      const currentPlayer = requireDefined(
-        context.game.currentPlayer(snapshot)
-      );
-      const statePredictedValue = requireDefined(
-        inferenceResult.value.playerIdToValue.get(currentPlayer.id)
-      );
-
       for (const [
         action,
         modelPriorProbability,
@@ -329,22 +312,14 @@ export class NonTerminalStateNode<
         const policyLogit = requireDefined(
           inferenceResult.policyLogits.get(action)
         );
-        const actionPredictedValue =
-          maxPolicyLogit == 0
-            ? 0
-            : (policyLogit / maxPolicyLogit) * statePredictedValue;
 
         debugLog(
           () =>
             `Updating ${JSON.stringify(
               action
-            )} with prior=${modelPriorProbability} and predictedValue=${actionPredictedValue}`
+            )} with prior=${modelPriorProbability}`
         );
-        actionNode.initializeFromModel(
-          modelPriorProbability,
-          policyLogit,
-          actionPredictedValue
-        );
+        actionNode.initializeFromModel(modelPriorProbability, policyLogit);
       }
       return inferenceResult;
     });
@@ -360,7 +335,7 @@ export class NonTerminalStateNode<
   async predictedValues(depth: number): Promise<PlayerValues> {
     if (depth > this.context.stats.maxDepth) {
       this.context.stats.maxDepth = depth;
-    };
+    }
     const config = this.context.config;
     const modelValueWeight = config.modelValueWeight;
     const randomPlayoutConfig = config.randomPlayoutConfig;
@@ -423,7 +398,7 @@ export class NonTerminalStateNode<
     this.incompleteVisitCount++;
     if (depth > this.context.stats.maxDepth) {
       this.context.stats.maxDepth = depth;
-    };
+    }
 
     const action = this.selectAction(selectUnvisitedActionsFirst);
     let child = this.actionToChild.get(action);
@@ -462,8 +437,7 @@ export class NonTerminalStateNode<
       }
 
       const childEv =
-        child.playerExpectedValues.playerIdToValue.get(currentPlayer.id) ??
-        child.predictedValue;
+        child.playerExpectedValues.playerIdToValue.get(currentPlayer.id) ?? 0;
 
       debugLog(
         () =>
@@ -548,14 +522,14 @@ export class TerminalStateNode<
   async predictedValues(depth: number): Promise<PlayerValues> {
     if (depth > this.context.stats.maxDepth) {
       this.context.stats.maxDepth = depth;
-    };
+    }
     return this.result;
   }
 
   async visit(depth: number): Promise<PlayerValues> {
     if (depth > this.context.stats.maxDepth) {
       this.context.stats.maxDepth = depth;
-    };
+    }
     this.visitCount++;
     return this.result;
   }
