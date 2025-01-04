@@ -23,8 +23,10 @@ function computeChartData() {
     let scaleFactor: number;
     if (totalValue > 300) {
       scaleFactor = 64 * 3;
-    } else {
+    } else if (totalValue > 100) {
       scaleFactor = 64;
+    } else {
+      scaleFactor = 1;
     }
     let agentIdToAdjustedValue = Map(
       logEntry.results.map(([id, { value }]) => [id, value / scaleFactor])

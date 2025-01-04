@@ -11,6 +11,7 @@ import {
 } from "game";
 import { Range, Seq } from "immutable";
 import { MctsContext, NonTerminalStateNode } from "./mcts.js";
+import { InferenceModel } from "../model.js";
 
 /**
  * MCTS agent that performs poorly since it doesn't support batch inference
@@ -23,10 +24,11 @@ export class MctsAgent<
 {
   constructor(
     readonly game: Game<C, S, A>,
-    readonly mctsContext: MctsContext<C, S, A>
+    readonly mctsContext: MctsContext<C, S, A>,
+    readonly model: InferenceModel<C, S, A>
   ) {}
   async act(snapshot: EpisodeSnapshot<C, S>): Promise<A> {
-    const batchInferenceResult = await this.mctsContext.model.infer([snapshot]);
+    const batchInferenceResult = await this.model.infer([snapshot]);
     // console.log(`inference result is ${JSON.stringify(batchInferenceResult)}`);
     const root = new NonTerminalStateNode(
       this.mctsContext,
@@ -67,7 +69,7 @@ export class MctsAgent<
     const generator = node.visit();
     return driveAsyncGenerators([generator], (snapshots) => {
       const start = performance.now();
-      const result = this.mctsContext.model.infer(snapshots);
+      const result = this.model.infer(snapshots);
       console.log(`Inference took ${performance.now() - start} ms`);
       return result;
     });

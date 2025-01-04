@@ -7,16 +7,17 @@ import {
 } from "kingdomino";
 import { Experiment } from "training";
 
-// This file contains configuration for self-play, training, and eval
+// This file contains configuration for Kingdomino self-play, training, and eval
 
 export const kingdominoExperiment = new Experiment({
-  name: "kingdomino-gumbel-2",
-  selfPlayEpisodesPerBatch: 64,
-  selfPlayWorkerCount: 8,
+  name: "kingdomino-gumbel-custom-loss",
+  selfPlayEpisodesPerBatch: 256,
+  selfPlayWorkerCount: 1,
+  // trainingSampleBufferSize: 1024 * 4,
 
-  trainingBatchSize: 128,
+  trainingBatchSize: 256,
 
-  evalEpisodesPerBatch: 64,
+  evalEpisodesPerBatch: 128,
   evalBatchCount: 1,
 });
 
@@ -53,7 +54,7 @@ export const EVAL_RANDOM_PLAYOUT_MCTS_CONFIG = new mcts.MctsConfig<
 });
 
 /** MCTS config used by the subject agent during eval */
-export const EVAL_MODEL_VALUE_CONFIG = new mcts.MctsConfig<
+export const EVAL_MODEL_VALUE_MCTS_CONFIG = new mcts.MctsConfig<
   KingdominoConfiguration,
   KingdominoState,
   KingdominoAction

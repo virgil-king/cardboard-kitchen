@@ -8,7 +8,7 @@ import {
   sleep,
 } from "game";
 import { List, Map } from "immutable";
-import { Model } from "agent/model.js";
+import { Model, TrainingModel } from "agent/model.js";
 import { EpisodeBuffer } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
@@ -69,12 +69,13 @@ export async function train_parallel<
 
   const bufferReady = new SettablePromise<undefined>();
 
-  function addEpisodeToBuffer(message: any) {
+  function addEpisodeToBuffer(message: any): EpisodeTrainingData<C, S, A> {
     const decoded = EpisodeTrainingData.decode(game, message);
     buffer.addEpisode(decoded);
     if (buffer.sampleCount() >= batchSize) {
       bufferReady.fulfill(undefined);
     }
+    return decoded;
   }
 
   let initialEpisodeCount = 0;
@@ -91,16 +92,19 @@ export async function train_parallel<
 
   let episodesReceived = 0;
   let episodeBatchesReceived = 0;
+  let samplesReceived = 0;
+
   const workersStartedMs = performance.now();
   function receiveEpisodeBatch(episodes: Array<any>) {
     for (const episodeJson of episodes) {
-      addEpisodeToBuffer(episodeJson);
+      const decoded = addEpisodeToBuffer(episodeJson);
       if (!testing) {
         episodesDir.writeData(
           textEncoder.encode(JSON.stringify(episodeJson, undefined, 1))
         );
       }
       episodesReceived++;
+      samplesReceived += decoded.count();
     }
     episodeBatchesReceived++;
     const sinceWorkersStartedMs = performance.now() - workersStartedMs;
@@ -108,6 +112,10 @@ export async function train_parallel<
       `Received self-play batch; seconds per episode: ${decimalFormat.format(
         sinceWorkersStartedMs / 1_000 / episodesReceived
       )}`
+    );
+    const elapsed = performance.now() - workersStartedMs;
+    console.log(
+      `Samples generated per second: ${samplesReceived / (elapsed / 1000)}`
     );
   }
 
@@ -150,22 +158,21 @@ export async function train_parallel<
   let episodeBatchesReceivedAtLastModelUpdate = 0;
   let lastSaveTime = performance.now();
   let trailingLosses = List<number>();
+
+  const trainingStartedMs = performance.now();
+  let trainedSampleCount = 0;
+
+  let batch = sampleBatch(game, buffer, trainingModel, batchSize);
   while (true) {
-    const beforeBatch = performance.now();
-    const batch = buffer.sample(batchSize).map((sample) => {
-      return trainingModel.encodeSample(sample);
-    });
-    const beforeTrain = performance.now();
-    const loss = await trainingModel.train(batch);
-    const afterTrain = performance.now();
-    const totalBatchTime = afterTrain - beforeBatch;
-    console.log(
-      `Batch time ${decimalFormat.format(
-        (100 * (beforeTrain - beforeBatch)) / totalBatchTime
-      )}% data prep, ${decimalFormat.format(
-        (100 * (afterTrain - beforeTrain)) / totalBatchTime
-      )}% training`
+    const beforeStep = performance.now();
+    const stepResult = await generateBatchAndTrain(
+      game,
+      buffer,
+      trainingModel,
+      batch
     );
+    batch = stepResult.batch;
+    const loss = stepResult.loss;
     trailingLosses = trailingLosses.push(loss);
     if (trailingLosses.count() > 100) {
       trailingLosses = trailingLosses.shift();
@@ -176,9 +183,10 @@ export async function train_parallel<
     console.log(`Sliding window loss: ${trailingLoss}`);
     console.log(
       `Training step took ${decimalFormat.format(
-        performance.now() - beforeBatch
+        performance.now() - beforeStep
       )} ms`
     );
+    trainedSampleCount += batch.length;
     await sleep(0);
     const episodeBatchesReceivedSinceLastModelUpdate =
       episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
@@ -191,6 +199,10 @@ export async function train_parallel<
       );
       console.log(
         `Main thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
+      );
+      const elapsed = performance.now() - trainingStartedMs;
+      console.log(
+        `Samples trained per second: ${trainedSampleCount / (elapsed / 1000)}`
       );
       episodeBatchesReceivedAtLastModelUpdate = episodeBatchesReceived;
       const encodedModel = await model.toJson();
@@ -237,4 +249,73 @@ async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
     });
     yield JSON.parse(episodeString);
   }
+}
+
+type StepResult<T> = {
+  loss: number;
+  batch: ReadonlyArray<T>;
+};
+
+function sampleBatch<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action,
+  EncodedSampleT
+>(
+  game: Game<C, S, A>,
+  buffer: EpisodeBuffer<
+    StateTrainingData<C, S, A>,
+    EpisodeTrainingData<C, S, A>
+  >,
+  trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
+  batchSize: number
+): ReadonlyArray<EncodedSampleT> {
+  const batch = buffer.sample(batchSize, (sample) => {
+    const result = iterableLengthAtLeast(game.legalActions(sample.snapshot), 2);
+    return result;
+  });
+  return batch.map((sample) => {
+    return trainingModel.encodeSample(sample);
+  });
+}
+
+function iterableLengthAtLeast(
+  iterable: Iterable<unknown>,
+  count: number
+): boolean {
+  let visitedCount = 0;
+  for (const item of iterable) {
+    visitedCount++;
+    if (visitedCount >= count) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Concurrently trains {@link model} on {@link batch} and samples a new batch
+ */
+async function generateBatchAndTrain<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action,
+  EncodedSampleT
+>(
+  game: Game<C, S, A>,
+  buffer: EpisodeBuffer<
+    StateTrainingData<C, S, A>,
+    EpisodeTrainingData<C, S, A>
+  >,
+  trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
+  batch: ReadonlyArray<EncodedSampleT>
+) {
+  const trainingResult = trainingModel.train(batch);
+  const batchStart = performance.now();
+  const newBatch = sampleBatch(game, buffer, trainingModel, batch.length);
+  console.log(`Batch preparation took ${performance.now() - batchStart} ms`);
+  return {
+    loss: await trainingResult,
+    batch: newBatch,
+  } as StepResult<EncodedSampleT>;
 }

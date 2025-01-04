@@ -89,6 +89,9 @@ export class PlayerValues implements JsonSerializable {
       if (Number.isNaN(entry[1])) {
         throw new Error("Player value cannot be NaN");
       }
+      if (entry[1] < 0 || entry[1] > 1) {
+        throw new Error(`Player value ${entry[1]} is not between 0 and 1`);
+      }
     }
   }
   requirePlayerValue(player: Player): number {

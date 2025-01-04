@@ -2,11 +2,11 @@ import * as worker_threads from "node:worker_threads";
 import * as fs from "fs";
 import { KingdominoModel } from "kingdomino-agent";
 import { Range } from "immutable";
-import { AgentResult, evalEpisodeBatch } from "./eval-concurrent.js";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoExperiment } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "agent";
 import { LogDirectory } from "training";
+import { AgentResult, evalEpisodeBatch } from "./eval-concurrent-2.js";
 
 // No more than one eval worker should run at a time since this code
 // assumes it's the only writer to the log file and eval episodes
@@ -83,7 +83,8 @@ async function evaluate(model: KingdominoModel) {
         cumulativeResult = { value: 0, timeMs: 0 };
         agentIdToResult.set(agentId, cumulativeResult);
       }
-      cumulativeResult.value += result.value;
+      cumulativeResult.value +=
+        result.value / kingdominoExperiment.evalBatchCount;
       cumulativeResult.timeMs += result.timeMs;
     }
     console.log(

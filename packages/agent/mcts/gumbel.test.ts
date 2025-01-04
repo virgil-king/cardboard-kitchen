@@ -48,7 +48,6 @@ const config = new MctsConfig<
 const context = {
   config: config,
   game: PickANumber.INSTANCE,
-  model: PickANumberImmediateModel.INSTANCE,
   stats: new MctsStats(),
 } satisfies MctsContext<
   PickANumberConfiguration,

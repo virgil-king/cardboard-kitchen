@@ -21,6 +21,7 @@ import { InferenceModel } from "../model.js";
 import { ActionStatistics } from "../training-data.js";
 
 export type MctsResult<A extends Action> = {
+  /** State values from the model */
   stateValues: PlayerValues;
   actionToStatistics: Map<A, ActionStatistics>;
 };

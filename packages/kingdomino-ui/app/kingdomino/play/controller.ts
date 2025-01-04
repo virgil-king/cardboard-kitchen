@@ -10,19 +10,20 @@ import {
   PlaceTile,
   Tile,
 } from "kingdomino";
-import { Set } from "immutable";
+import { Map, Set } from "immutable";
 import { GameProps, TilePlacementState } from "@/components";
 import {
   EpisodeConfiguration,
   EpisodeSnapshot,
   Player,
   Players,
+  ProbabilityDistribution,
   requireDefined,
   Vector2,
 } from "game";
 import { mcts2, MctsAgent2 } from "agent";
 import _ from "lodash";
-import { KingdominoModel } from "kingdomino-agent";
+import { KingdominoModel, POLICY_TEMPERATURE } from "kingdomino-agent";
 
 const playerId = "player";
 const bot1PlayerId = "bot1";
@@ -223,10 +224,24 @@ export class SinglePlayerEpisodeController {
       if (this.autoAdvance) {
         this.act(action);
       } else {
+        const actionToLogit = mctsResult.actionToStatistics.map(
+          (stats) => stats.priorLogit
+        );
+        const pd = ProbabilityDistribution.fromLogits(actionToLogit);
+        const actionToModelExpectedValue = pd.recoverLogits(
+          mctsResult.stateValues.requirePlayerValue(
+            requireDefined(
+              Kingdomino.INSTANCE.currentPlayer(this.state.viewData.snapshot)
+            )
+          ),
+          POLICY_TEMPERATURE
+        );
+
         const viewData = {
           ...this.state.viewData,
           modelValues: mctsResult.stateValues,
           actionToStatistics: mctsResult.actionToStatistics,
+          actionValuesFromModel: actionToModelExpectedValue,
         } satisfies GameProps;
         this.updateState({
           viewData: viewData,

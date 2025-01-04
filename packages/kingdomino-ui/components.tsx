@@ -61,6 +61,8 @@ export type GameProps = {
   terminalValues?: PlayerValues;
   actionToStatistics?: Map<KingdominoAction, ActionStatistics>;
   improvedPolicy?: ProbabilityDistribution<KingdominoAction>;
+  /** Expected action values for the current player derived from model outputs */
+  actionValuesFromModel?: Map<KingdominoAction, number>;
 };
 
 export function GameComponent(props: GameProps): JSX.Element {
@@ -112,6 +114,7 @@ export function GameComponent(props: GameProps): JSX.Element {
           requireDefined(Kingdomino.INSTANCE.currentPlayer(props.snapshot)).id
         }
         improvedPolicy={props.improvedPolicy}
+        actionValuesFromModel={props.actionValuesFromModel}
       ></PolicyComponent>
     );
 
@@ -423,6 +426,7 @@ type PolicyProps = {
   policy: Map<KingdominoAction, ActionStatistics>;
   currentPlayerId: string;
   improvedPolicy?: ProbabilityDistribution<KingdominoAction>;
+  actionValuesFromModel?: Map<KingdominoAction, number>;
 };
 
 function PolicyComponent(props: PolicyProps) {
@@ -445,6 +449,7 @@ function PolicyComponent(props: PolicyProps) {
               stats={stats}
               currentPlayerId={props.currentPlayerId}
               improvedPrior={props.improvedPolicy?.get(action)}
+              expectedValueFromModel={props.actionValuesFromModel?.get(action)}
             ></ActionPolicyComponent>
           </div>
         );
@@ -458,6 +463,7 @@ type ActionPolicyProps = {
   stats: ActionStatistics;
   currentPlayerId: string;
   improvedPrior?: number;
+  expectedValueFromModel?: number;
 };
 
 function ActionPolicyComponent(props: ActionPolicyProps) {
@@ -468,14 +474,14 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
     expectedValue == undefined
       ? "unknown"
       : decimalFormat.format(expectedValue);
-  let improvedPriorColor: string;
-  if (props.improvedPrior == undefined) {
-    improvedPriorColor = "";
-  } else if (props.improvedPrior > props.stats.priorProbability) {
-    improvedPriorColor = "green";
-  } else {
-    improvedPriorColor = "red";
-  }
+  // let improvedPriorColor: string;
+  // if (props.improvedPrior == undefined) {
+  //   improvedPriorColor = "";
+  // } else if (props.improvedPrior > props.stats.priorProbability) {
+  //   improvedPriorColor = "green";
+  // } else {
+  //   improvedPriorColor = "red";
+  // }
   return (
     <div style={{ border: "1pt solid gray", padding: s_spacing }}>
       {actionToString(props.action)}
@@ -484,12 +490,13 @@ function ActionPolicyComponent(props: ActionPolicyProps) {
       <br />
       Visit count: {props.stats.visitCount}
       <br />
-      Expected value: {expectedValueString}
+      Expected value from search: {expectedValueString}
       <br />
-      Improved prior:{" "}
+      {/* Improved prior:{" "}
       <div style={{ color: improvedPriorColor }}>
         {props.improvedPrior ?? ""}
-      </div>
+      </div> */}
+      Expected value from model: {props.expectedValueFromModel ?? ""}
     </div>
   );
 }

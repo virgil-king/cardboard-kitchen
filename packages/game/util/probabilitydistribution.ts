@@ -9,13 +9,14 @@ export class ProbabilityDistribution<T> {
    * {@link logits}
    */
   static fromLogits<T>(
-    logits: ImmutableMap<T, number>
+    logits: ImmutableMap<T, number>,
+    temperature: number = 1
   ): ProbabilityDistribution<T> {
-    return this.normalize(logits.map((logit) => Math.exp(logit)));
+    return this.normalize(logits.map((logit) => Math.exp(logit / temperature)));
   }
 
   /**
-   * Returns a probability distribution by normalizing {@link values}
+   * Returns a probability distribution by normalizing {@link values} so they sum to 1
    */
   static normalize<T>(
     values: ImmutableMap<T, number>
@@ -39,5 +40,36 @@ export class ProbabilityDistribution<T> {
 
   get(key: T): number | undefined {
     return this.itemToProbability.get(key);
+  }
+
+  /**
+   * Returns a map from key to logit based on the probabilities of this distribution,
+   * assuming that the combined expected value of this distribution is
+   * {@link combinedExpectedValue} and that this distribution was created with
+   * temperature {@link temperature}.
+   * 
+   * In practice this function doesn't seem to provide good action value estimates
+   * based on predicted state values and action probabilities. 
+   */
+  recoverLogits(
+    combinedExpectedValue: number,
+    temperature: number = 1
+  ): ImmutableMap<T, number> {
+    // Recover (shifted) logits by reversing softmax
+    const logits = this.itemToProbability.map(
+      (it) => Math.log(it) * temperature
+    );
+    // Compute the difference between the target combined expected value
+    // and the combined expected value when using the raw logits
+    const offset =
+      combinedExpectedValue -
+      util.sum(
+        this.itemToProbability
+          .toSeq()
+          .map((p, key) => p * util.requireDefined(logits.get(key)))
+      );
+    // Add `offset` to every logit which will result in a total of `offset`
+    // being added to the combined expected value since the sum of 
+    return logits.map((logit) => logit + offset);
   }
 }

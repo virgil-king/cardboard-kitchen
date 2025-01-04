@@ -20,6 +20,7 @@ import {
   KingdominoModel,
   locationPropertiesCodec,
   placementPolicyLinearization,
+  POLICY_TEMPERATURE,
   policyCodec,
 } from "./model.js";
 import {
@@ -44,8 +45,8 @@ test("encodeValues: two players: result has length four", () => {
     players,
     new PlayerValues(
       Map([
-        [alice.id, 2],
-        [bob.id, 8],
+        [alice.id, 0],
+        [bob.id, 1],
       ])
     )
   );
@@ -74,8 +75,8 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
         1,
         new PlayerValues(
           Map([
-            [alice.id, 1],
-            [bob.id, 2],
+            [alice.id, 0],
+            [bob.id, 1],
           ])
         )
       ),
@@ -88,21 +89,21 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
         2,
         new PlayerValues(
           Map([
-            [alice.id, 1],
-            [bob.id, 2],
+            [alice.id, 0],
+            [bob.id, 1],
           ])
         )
       ),
     ],
   ]);
 
-  const policy = ProbabilityDistribution.fromLogits(
-    actionToStatistics.map((value) => value.visitCount)
-  );
   const placementProbabilitiesVector = encodePlacementPolicy(
-    policy,
+    actionToStatistics,
+    alice,
     NO_TRANSFORM
   );
+
+  console.log(`array=${placementProbabilitiesVector}`);
 
   assertClose(
     placementPolicyLinearization.get(
@@ -111,7 +112,9 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
       placement1.location.y + playAreaRadius,
       placement1.direction.index
     ),
-    requireDefined(policy.get(KingdominoAction.placeTile(placement1)))
+    requireDefined(
+      actionToStatistics.get(KingdominoAction.placeTile(placement1))
+    ).expectedValues.requirePlayerValue(alice)
   );
   assertClose(
     placementPolicyLinearization.get(
@@ -120,7 +123,9 @@ test("encodePlacementPolicy: stores placement values at expected index", () => {
       placement2.location.y + playAreaRadius,
       placement2.direction.index
     ),
-    requireDefined(policy.get(KingdominoAction.placeTile(placement2)))
+    requireDefined(
+      actionToStatistics.get(KingdominoAction.placeTile(placement2))
+    ).expectedValues.requirePlayerValue(alice)
   );
 });
 
@@ -229,15 +234,18 @@ test("encodeSample: returns expected board and policy vectors", () => {
       );
     }
   }
-  const alicePlaceVisitCounts = policyCodec.decode(
+
+  // console.log(JSON.stringify(encodedSample.policyOutput, undefined, 1));
+
+  const alicePlaceLogits = policyCodec.decode(
     encodedSample.policyOutput,
     0
   ).placeProbabilities;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
-        const policyValue =
-          alicePlaceVisitCounts[
+        const logit =
+          alicePlaceLogits[
             placementPolicyLinearization.getOffset(
               x + playAreaRadius,
               y + playAreaRadius,
@@ -245,9 +253,12 @@ test("encodeSample: returns expected board and policy vectors", () => {
             )
           ];
         if (x == -1 && y == 2 && directionIndex == 0) {
-          assert.equal(policyValue, 1);
+          assert.equal(
+            logit,
+            playerValues.requirePlayerValue(alice) * POLICY_TEMPERATURE
+          );
         } else {
-          assert.equal(policyValue, 0);
+          assert.equal(logit, -1 * POLICY_TEMPERATURE);
         }
       }
     }
@@ -333,15 +344,15 @@ test("encodeSample: with transformation: returns expected board and policy vecto
       );
     }
   }
-  const alicePlaceVisitCounts = policyCodec.decode(
+  const alicePlaceLogits = policyCodec.decode(
     encodedSample.policyOutput,
     0
   ).placeProbabilities;
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
     for (const y of Range(-playAreaRadius, playAreaRadius + 1)) {
       for (const directionIndex of Range(0, 4)) {
-        const policyValue =
-          alicePlaceVisitCounts[
+        const logit =
+          alicePlaceLogits[
             placementPolicyLinearization.getOffset(
               x + playAreaRadius,
               y + playAreaRadius,
@@ -349,9 +360,12 @@ test("encodeSample: with transformation: returns expected board and policy vecto
             )
           ];
         if (x == 2 && y == -1 && directionIndex == 3) {
-          assert.equal(policyValue, 1);
+          assert.equal(
+            logit,
+            playerValues.requirePlayerValue(alice) * POLICY_TEMPERATURE
+          );
         } else {
-          assert.equal(policyValue, 0);
+          assert.equal(logit, -1 * POLICY_TEMPERATURE);
         }
       }
     }

@@ -1,4 +1,4 @@
-import { List, Map, Range, Seq } from "immutable";
+import { Map, Range, Seq } from "immutable";
 import {
   Action,
   driveAsyncGenerators,
@@ -17,21 +17,21 @@ import {
   Kingdomino,
   KingdominoAction,
   KingdominoConfiguration,
+  KingdominoSnapshot,
   KingdominoState,
 } from "kingdomino";
 import _ from "lodash";
-import { InferenceModel, InferenceResult, mcts } from "agent";
+import { InferenceResult, mcts } from "agent";
 import {
   EVAL_RANDOM_PLAYOUT_MCTS_CONFIG,
   EVAL_MODEL_VALUE_MCTS_CONFIG,
 } from "./config.js";
-import { NeutralKingdominoModel } from "./neutral-model.js";
+import { neutralInference } from "./neutral-model.js";
 import { EpisodeTrainingData, StateSearchData } from "agent";
 import { KingdominoInferenceModel } from "kingdomino-agent";
 
 // This file provides functionality for playing model evaluation episodes
-// using batch MCTS. Each agent can use its own model and batching does
-// not occur across different agents.
+// using batch MCTS. All agents must use the same model.
 
 // Agents:
 // 1. Policy + value
@@ -83,27 +83,36 @@ export type EvalResult<
  * InferenceModel wrapper that neutralizes the policy of the delegate
  * but retains its value function
  */
-class NeutralPolicyInferenceModel<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action
-> implements InferenceModel<C, S, A>
-{
-  constructor(readonly delegate: InferenceModel<C, S, A>) {}
-  async infer(
-    snapshots: readonly EpisodeSnapshot<C, S>[]
-  ): Promise<readonly InferenceResult<A>[]> {
-    const results = await this.delegate.infer(snapshots);
-    return results.map((result) => {
-      const policySize = result.policyLogits.count();
-      const policyValue = 1 / policySize;
-      const policy = result.policyLogits.map(() => policyValue);
-      return {
-        value: result.value,
-        policyLogits: policy,
-      } satisfies InferenceResult<A>;
-    });
-  }
+// class NeutralPolicyInferenceModel<
+//   C extends GameConfiguration,
+//   S extends GameState,
+//   A extends Action
+// > implements InferenceModel<C, S, A>
+// {
+//   constructor(readonly delegate: InferenceModel<C, S, A>) {}
+//   async infer(
+//     snapshots: readonly EpisodeSnapshot<C, S>[]
+//   ): Promise<readonly InferenceResult<A>[]> {
+//     const results = await this.delegate.infer(snapshots);
+//     return results.map((result) => {
+//       return neutralizePolicy(result);
+//     });
+//   }
+// }
+
+/**
+ * Returns an inference result with values from {@link inference} and a flat policy
+ */
+function neutralizePolicy<A extends Action>(
+  inference: InferenceResult<A>
+): InferenceResult<A> {
+  const policySize = inference.policyLogits.count();
+  const policyValue = 1 / policySize;
+  const policy = inference.policyLogits.map(() => policyValue);
+  return {
+    value: inference.value,
+    policyLogits: policy,
+  } satisfies InferenceResult<A>;
 }
 
 /**
@@ -125,22 +134,27 @@ export async function evalEpisodeBatch(
   EvalResult<KingdominoConfiguration, KingdominoState, KingdominoAction>
 > {
   const modelPolicyModelValueAgent = new MctsBatchAgent(
-    model,
+    Kingdomino.INSTANCE,
     EVAL_MODEL_VALUE_MCTS_CONFIG
   );
   const modelPolicyRandomPlayoutAgent = new MctsBatchAgent(
-    model,
+    Kingdomino.INSTANCE,
     EVAL_RANDOM_PLAYOUT_MCTS_CONFIG
   );
   const neutralPolicyModelValueAgent = new MctsBatchAgent(
-    new NeutralPolicyInferenceModel(model),
-    EVAL_MODEL_VALUE_MCTS_CONFIG
+    Kingdomino.INSTANCE,
+    EVAL_MODEL_VALUE_MCTS_CONFIG,
+    (_snapshot, inference) => neutralizePolicy(inference)
   );
   const neutralPolicyRandomPlayoutAgent = new MctsBatchAgent(
-    new NeutralKingdominoModel(),
-    EVAL_RANDOM_PLAYOUT_MCTS_CONFIG
+    Kingdomino.INSTANCE,
+    EVAL_RANDOM_PLAYOUT_MCTS_CONFIG,
+    (snapshot) => neutralInference(Kingdomino.INSTANCE, snapshot)
   );
-  const agentIdToAgent = Map<string, MctsBatchAgent>([
+  const agentIdToAgent = Map<
+    string,
+    MctsBatchAgent<KingdominoConfiguration, KingdominoState, KingdominoAction>
+  >([
     ["model-policy-model-value", modelPolicyModelValueAgent],
     ["model-policy-random-playout", modelPolicyRandomPlayoutAgent],
     ["neutral-policy-model-value", neutralPolicyModelValueAgent],
@@ -161,7 +175,7 @@ export async function evalEpisodeBatch(
     neutralPolicyRandomPlayout,
   ];
 
-  const generators = Range(0, episodeCount)
+  const episodeGenerators = Range(0, episodeCount)
     .map(() => {
       const shuffledPlayers = _.shuffle(players);
       const episodeConfig = new EpisodeConfiguration(
@@ -181,40 +195,24 @@ export async function evalEpisodeBatch(
   );
 
   const start = performance.now();
-  const episodeData = await driveGenerators(generators, async (snapshots) => {
-    const agentIdToRequests = List(snapshots)
-      .map((snapshot, index) => {
-        return { requestIndex: index, snapshot: snapshot };
-      })
-      .groupBy((request) => {
-        const currentPlayerId = requireDefined(
-          Kingdomino.INSTANCE.currentPlayer(request.snapshot)
-        ).id;
-        return requireDefined(playerIdToAgentId.get(currentPlayerId));
-      });
-    const agentIdToResponses = agentIdToRequests.map(
-      async (requests, agentId) => {
-        const actStart = performance.now();
-        const result = await requireDefined(agentIdToAgent.get(agentId)).act(
-          requests.map((request) => request.snapshot).toArray()
+  const episodeResults = await driveGenerators(
+    episodeGenerators,
+    async (snapshots) => {
+      const searchGenerators = snapshots.map((snapshot) => {
+        const currentPlayer = requireDefined(
+          Kingdomino.INSTANCE.currentPlayer(snapshot)
         );
-        const elapsedMs = performance.now() - actStart;
-        requireDefined(agentIdToResult.get(agentId)).timeMs += elapsedMs;
-        return result;
-      }
-    );
-    const mctsResults = new Array<
-      MctsResult<KingdominoState, KingdominoAction>
-    >(snapshots.length);
-    for (const [agentId, requests] of agentIdToRequests) {
-      const responses = await requireDefined(agentIdToResponses.get(agentId));
-      for (const [agentRequestIndex, request] of requests.entries()) {
-        const mctsResult = responses[agentRequestIndex];
-        mctsResults[request.requestIndex] = mctsResult;
-      }
+        const agentId = requireDefined(playerIdToAgentId.get(currentPlayer.id));
+        return requireDefined(agentIdToAgent.get(agentId)).search(snapshot);
+      });
+      return driveAsyncGenerators(
+        searchGenerators,
+        (snapshots: ReadonlyArray<KingdominoSnapshot>) => {
+          return model.infer(snapshots);
+        }
+      );
     }
-    return mctsResults;
-  });
+  );
   const elapsed = performance.now() - start;
   console.log(
     `Completed ${episodeCount} episodes in ${decimalFormat.format(
@@ -222,7 +220,7 @@ export async function evalEpisodeBatch(
     )} ms (${decimalFormat.format(elapsed / episodeCount)} per episode)`
   );
 
-  for (const episodeTrainingData of episodeData) {
+  for (const episodeTrainingData of episodeResults) {
     console.log(
       `Scores: ${JSON.stringify(
         episodeTrainingData.terminalState.props.playerIdToState
@@ -246,7 +244,7 @@ export async function evalEpisodeBatch(
   }
 
   return {
-    episodeTrainingData: episodeData,
+    episodeTrainingData: episodeResults,
     agentIdToResult: agentIdToResult,
   };
 }
@@ -256,35 +254,46 @@ type MctsResult<S extends GameState, A extends Action> = {
   searchData: StateSearchData<S, A>;
 };
 
-class MctsBatchAgent {
+type InferenceTransformer<A extends Action> = (
+  snapshot: EpisodeSnapshot<any, any>,
+  inference: InferenceResult<A>
+) => InferenceResult<A>;
+
+/**
+ * Performs MCTS searches using {@link selectAction}, yielding snapshots
+ * and receiving inferences, and transforming inferences using a provided
+ * function before delivering them to {@link selectAction}
+ */
+class MctsBatchAgent<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action
+> {
   constructor(
-    readonly model: InferenceModel<
-      KingdominoConfiguration,
-      KingdominoState,
-      KingdominoAction
-    >,
-    readonly mctsConfig: mcts.MctsConfig<
-      KingdominoConfiguration,
-      KingdominoState,
-      KingdominoAction
-    >
+    readonly game: Game<C, S, A>,
+    readonly mctsConfig: mcts.MctsConfig<C, S, A>,
+    readonly inferenceTransformer: InferenceTransformer<A> = (
+      _snapshot,
+      inference
+    ) => inference
   ) {}
-  async act(
-    snapshots: ReadonlyArray<
-      EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-    >
-  ): Promise<ReadonlyArray<MctsResult<KingdominoState, KingdominoAction>>> {
-    const generators = snapshots.map((snapshot) => {
-      return selectAction(
-        Kingdomino.INSTANCE,
-        this.model,
-        snapshot,
-        this.mctsConfig
+  async *search(
+    snapshot: EpisodeSnapshot<C, S>
+  ): AsyncGenerator<
+    EpisodeSnapshot<C, S>,
+    MctsResult<S, A>,
+    InferenceResult<A>
+  > {
+    const searchGenerator = selectAction(this.game, snapshot, this.mctsConfig);
+    let next = await searchGenerator.next();
+    while (!next.done) {
+      const snapshot = next.value;
+      const inference = yield snapshot;
+      next = await searchGenerator.next(
+        this.inferenceTransformer(snapshot, inference)
       );
-    });
-    return driveAsyncGenerators(generators, (snapshots) => {
-      return this.model.infer(snapshots);
-    });
+    }
+    return next.value;
   }
 }
 
@@ -300,7 +309,6 @@ async function* selectAction<
   A extends Action
 >(
   game: Game<C, S, A>,
-  model: InferenceModel<C, S, A>,
   snapshot: EpisodeSnapshot<C, S>,
   mctsConfig: mcts.MctsConfig<C, S, A>
 ): AsyncGenerator<EpisodeSnapshot<C, S>, MctsResult<S, A>, InferenceResult<A>> {

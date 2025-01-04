@@ -44,7 +44,7 @@ const mctsConfig = new mcts.MctsConfig<
   KingdominoState,
   KingdominoAction
 >({
-  simulationCount: 256,
+  simulationCount: 128,
   randomPlayoutConfig: {
     weight: 1,
     agent: new RandomKingdominoAgent(),
@@ -68,7 +68,11 @@ async function main() {
     stats: new mcts.MctsStats(),
   };
   const randomAgent = new RandomKingdominoAgent();
-  const mctsAgent = new MctsAgent(Kingdomino.INSTANCE, mctsContext);
+  const mctsAgent = new MctsAgent(
+    Kingdomino.INSTANCE,
+    mctsContext,
+    (await model).inferenceModel
+  );
   const playerIdToAgent = Map([
     [model1.id, mctsAgent],
     [model2.id, mctsAgent],

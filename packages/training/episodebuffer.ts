@@ -5,10 +5,7 @@ import { LazyArray } from "agent";
 /**
  * A size-capped buffer of lists.
  */
-export class EpisodeBuffer<
-  ItemT,
-  ArrayT extends LazyArray<ItemT>
-> {
+export class EpisodeBuffer<ItemT, ArrayT extends LazyArray<ItemT>> {
   // Use List instead of Array for efficient `shift`
   private buffer = List<ArrayT>();
   private itemCount = 0;
@@ -35,7 +32,10 @@ export class EpisodeBuffer<
     return this.itemCount;
   }
 
-  sample(count: number): ReadonlyArray<ItemT> {
+  sample(
+    count: number,
+    predicate: (item: ItemT) => boolean = () => true
+  ): ReadonlyArray<ItemT> {
     if (count > this.itemCount) {
       throw new Error(
         `Requested more samples (${count}) than available (${this.itemCount})}`
@@ -45,10 +45,13 @@ export class EpisodeBuffer<
     // Sample randomly from episodes, then moves. This method is biased toward
     // shorter episodes but it doesn't seem worth doing better.
     const result = new Array<ItemT>();
-    for (let i = 0; i < count; i++) {
+    while (result.length < count) {
       const episodeIndex = randomBelow(this.buffer.count());
       const episode = requireDefined(this.buffer.get(episodeIndex));
-      result.push(requireDefined(episode.get(randomBelow(episode.count()))));
+      const sample = requireDefined(episode.get(randomBelow(episode.count())));
+      if (predicate(sample)) {
+        result.push(sample);
+      }
     }
     return result;
   }

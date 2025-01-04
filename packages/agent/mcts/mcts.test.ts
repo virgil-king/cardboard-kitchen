@@ -112,7 +112,6 @@ async function mcts<
   const context: MctsContext<C, S, A> = {
     config: config,
     game: game,
-    model: model,
     stats: new MctsStats(),
   };
   const inferenceResult = (await model.infer([snapshot]))[0];

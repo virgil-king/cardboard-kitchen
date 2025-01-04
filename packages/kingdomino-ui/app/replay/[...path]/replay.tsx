@@ -5,6 +5,7 @@ import { Kingdomino } from "kingdomino";
 import { EpisodeSnapshot, ProbabilityDistribution, requireDefined } from "game";
 import { useState } from "react";
 import { EpisodeTrainingData, improvedPolicyLogits } from "agent";
+import { POLICY_TEMPERATURE } from "kingdomino-agent";
 
 type ReplayProps = {
   episodeJsonString: string;
@@ -18,19 +19,32 @@ export function Replay(props: ReplayProps): JSX.Element {
   for (let i = 0; i < episode.dataPoints.length; i++) {
     const dataPoint = episode.get(i);
     frames.push(() => {
-      const improvedPolicy = ProbabilityDistribution.fromLogits(
-        improvedPolicyLogits(
-          dataPoint,
-          requireDefined(Kingdomino.INSTANCE.currentPlayer(dataPoint.snapshot))
-        )
+      // const improvedPolicy = ProbabilityDistribution.fromLogits(
+      //   improvedPolicyLogits(
+      //     dataPoint,
+      //     requireDefined(Kingdomino.INSTANCE.currentPlayer(dataPoint.snapshot))
+      //   )
+      // );
+
+      const actionToLogit = dataPoint.actionToStatistics.map(
+        (stats) => stats.priorLogit
       );
+      const pd = ProbabilityDistribution.fromLogits(actionToLogit);
+      const actionToModelExpectedValue = pd.recoverLogits(
+        dataPoint.predictedValues.requirePlayerValue(
+          requireDefined(Kingdomino.INSTANCE.currentPlayer(dataPoint.snapshot))
+        ),
+        1
+      );
+
       return (
         <GameComponent
           snapshot={dataPoint.snapshot}
           modelValues={dataPoint.predictedValues}
           terminalValues={dataPoint.terminalValues}
           actionToStatistics={dataPoint.actionToStatistics}
-          improvedPolicy={improvedPolicy}
+          // improvedPolicy={improvedPolicy}
+          actionValuesFromModel={actionToModelExpectedValue}
         ></GameComponent>
       );
     });

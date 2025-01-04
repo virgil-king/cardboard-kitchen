@@ -9,9 +9,9 @@ import {
   randomBoolean,
   requireDefined,
   requireNotDone,
-  sum,
 } from "game";
 import {
+  ActionStatistics,
   ArrayCodec,
   CodecValueType,
   decodeAsGenerator,
@@ -61,6 +61,13 @@ import { ExpandDimsLayer } from "./expanddims.js";
 import * as tf from "@tensorflow/tfjs";
 import { Vector2 } from "game";
 import { PlayerBoard } from "kingdomino/out/board.js";
+import {
+  selectiveKlDivergenceWithLogits2,
+} from "./loss.js";
+
+const decimalFormat = Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 3,
+});
 
 /*
  * This model is a function from state to per-player value and move
@@ -78,6 +85,8 @@ import { PlayerBoard } from "kingdomino/out/board.js";
 const SIZE_FACTOR = 16;
 
 const HIDDEN_LAYER_WIDTH = 64;
+
+export const POLICY_TEMPERATURE = 32;
 
 class TerrainTypeCodec implements VectorCodec<Terrain> {
   private readonly oneHotCodec = new OneHotCodec(terrainValues.length);
@@ -354,7 +363,7 @@ export class KingdominoModel
     const linearPolicyOutput = tf.layers
       .dense({
         units: linearPolicyCodec.columnCount,
-        activation: "relu",
+        activation: "elu",
         name: "linear_policy_output",
       })
       .apply(hiddenOutput) as tf.SymbolicTensor;
@@ -745,6 +754,7 @@ export class KingdominoInferenceModel
         decodedValues
       );
 
+      // console.log(`policy=${JSON.stringify(decodedPolicy, undefined, 2)}`);
       let policy = decodePolicy(snapshot, decodedPolicy);
       if (policy.isEmpty()) {
         throw new Error(`Empty policy!`);
@@ -765,7 +775,7 @@ export class KingdominoInferenceModel
         if (Number.isNaN(result)) {
           throw new Error(`Player value was NaN`);
         }
-        return [player.id, result];
+        return [player.id, Math.min(1, Math.max(0, result))];
       })
     );
     return new PlayerValues(playerIdToValue);
@@ -777,6 +787,10 @@ export function decodePolicy(
   snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
   decodedPolicy: PolicyOutput
 ): Map<KingdominoAction, number> {
+  // console.log(
+  //   `claim policy logits=${decodedPolicy.linearPolicy.claimProbabilities}`
+  // );
+
   let result = Map<KingdominoAction, number>();
   const nextAction = snapshot.state.props.nextAction;
 
@@ -1022,7 +1036,7 @@ class PlacementPolicyModule {
       kernelSize: 1,
       filters: PlacementPolicyModule.outputChannelCount,
       strides: 1,
-      activation: "relu",
+      activation: "elu",
     });
   }
 
@@ -1046,6 +1060,12 @@ class PlacementPolicyModule {
   }
 }
 
+function scaledMse(target: tf.Tensor, predicted: tf.Tensor): tf.Tensor {
+  return tf.tidy(() => {
+    return tf.losses.meanSquaredError(target, predicted).mul(100);
+  });
+}
+
 export class KingdominoTrainingModel
   implements
     TrainingModel<
@@ -1065,8 +1085,8 @@ export class KingdominoTrainingModel
 
     this.model.model.compile({
       optimizer: this.optimizer,
-      // MSE for value and cross entropy for policy
-      loss: [tf.losses.meanSquaredError, tf.losses.softmaxCrossEntropy],
+      // MSE for value and KL divergence for policy
+      loss: [scaledMse, selectiveKlDivergenceWithLogits2],
     });
   }
 
@@ -1122,16 +1142,19 @@ export class KingdominoTrainingModel
     const currentPlayerBoardTransform =
       innerPlayerToBoardTransform(currentPlayer);
     const linearPolicy = encodePolicy(
-      this.model.sampleToNewPolicy(sample),
+      sample,
+      // this.model.sampleToNewPolicy(sample),
       currentPlayerBoardTransform
     );
+    // console.log(`linearPolicy=${JSON.stringify(linearPolicy, undefined, 2)}`);
     return new EncodedSample(state, value, linearPolicy);
   }
 
-  async train(dataPoints: ReadonlyArray<EncodedSample>): Promise<number> {
-    if (dataPoints.length != this.batchSize) {
-      throw new Error(`Number of samples did not equal batch size`);
-    }
+  /**
+   * Encodes the list of samples as a set of input and output tensors
+   */
+  encodeBatch(dataPoints: ReadonlyArray<EncodedSample>): KingdominoBatch {
+    const start = performance.now();
     // Flattened indices: sample, linear state column
     const linearStateArray = new Float32Array(
       this.batchSize * linearStateCodec.columnCount
@@ -1169,6 +1192,11 @@ export class KingdominoTrainingModel
     const policyMatrix = Seq(dataPoints)
       .map((sample) => sample.policyOutput)
       .toArray();
+    console.log(
+      `Encoding batch as arrays took ${decimalFormat.format(
+        performance.now() - start
+      )} ms`
+    );
     const linearInputTensor = tf.tensor(linearStateArray, [
       dataPoints.length,
       linearStateCodec.columnCount,
@@ -1184,11 +1212,29 @@ export class KingdominoTrainingModel
     ]);
     const valueOutputTensor = tf.tensor(valuesMatrix);
     const policyOutputTensor = tf.tensor(policyMatrix);
+    console.log(
+      `Encoding batch as tensors took ${decimalFormat.format(
+        performance.now() - start
+      )} ms`
+    );
+    return new KingdominoBatch(
+      linearInputTensor,
+      boardTensors,
+      policyBoardTensor,
+      valueOutputTensor,
+      policyOutputTensor
+    );
+  }
 
+  async train(dataPoints: ReadonlyArray<EncodedSample>): Promise<number> {
+    if (dataPoints.length != this.batchSize) {
+      throw new Error(`Number of samples did not equal batch size`);
+    }
+    const batch = this.encodeBatch(dataPoints);
     try {
       const fitResult = await this.model.model.trainOnBatch(
-        [linearInputTensor, ...boardTensors, policyBoardTensor],
-        [valueOutputTensor, policyOutputTensor]
+        [batch.linearInput, ...batch.boards, batch.policyBoard],
+        [batch.valueOutput, batch.policyOutput]
       );
       console.log(fitResult);
 
@@ -1203,13 +1249,7 @@ export class KingdominoTrainingModel
       }
       return result;
     } finally {
-      linearInputTensor.dispose();
-      for (const boardTensor of boardTensors) {
-        boardTensor.dispose();
-      }
-      policyBoardTensor.dispose();
-      valueOutputTensor.dispose();
-      policyOutputTensor.dispose();
+      batch.dispose();
     }
   }
 
@@ -1233,35 +1273,55 @@ export class KingdominoTrainingModel
   }
 }
 
+const invalidActionValue = -1;
+
 /**
- * Encodes {@link visitCounts}, transformed by {@link boardTransform},
- * as probabilities in a new {@link Float32Array}.
+ * Encodes expected values from {@link sample}, transformed by {@link boardTransform},
+ * as logits in a new {@link Float32Array}.
  */
 // Visible for testing
 export function encodePolicy(
-  policy: ProbabilityDistribution<KingdominoAction>,
+  sample: StateTrainingData<
+    KingdominoConfiguration,
+    KingdominoState,
+    KingdominoAction
+  >,
+  // policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const claimProbabilities = new Float32Array(
     claimProbabilitiesCodec.columnCount
-  ).fill(0);
-  let discardProbability = 0;
-  for (const [action, probability] of policy.itemToProbability) {
+  ).fill(invalidActionValue);
+  let discardProbability = invalidActionValue;
+  const currentPlayer = requireDefined(
+    Kingdomino.INSTANCE.currentPlayer(sample.snapshot)
+  );
+  for (const [action, actionNodeInfo] of sample.actionToNodeInfo) {
+    if (actionNodeInfo.visitCount == 0) {
+      continue;
+    }
     switch (action.data.case) {
       case ActionCase.CLAIM: {
-        claimProbabilities[action.data.claim.offerIndex] = probability;
+        claimProbabilities[action.data.claim.offerIndex] =
+          actionNodeInfo.expectedValues.requirePlayerValue(currentPlayer);
         break;
       }
       case ActionCase.DISCARD: {
-        discardProbability = probability;
+        discardProbability =
+          actionNodeInfo.expectedValues.requirePlayerValue(currentPlayer);
         break;
       }
     }
   }
 
-  const placementProbabilities = encodePlacementPolicy(policy, boardTransform);
+  const placementProbabilities = encodePlacementPolicy(
+    sample.actionToStatistics,
+    currentPlayer,
+    boardTransform
+  );
 
-  const result = new Float32Array(policyCodec.columnCount);
+  let result = new Float32Array(policyCodec.columnCount);
+  result.fill(invalidActionValue);
   const policyCodecInput = {
     linearPolicy: {
       claimProbabilities: claimProbabilities,
@@ -1270,6 +1330,8 @@ export function encodePolicy(
     placeProbabilities: placementProbabilities,
   } satisfies PolicyOutput;
   policyCodec.encode(policyCodecInput, result, 0);
+
+  result = result.map((it) => it * POLICY_TEMPERATURE);
 
   return result;
 }
@@ -1284,16 +1346,30 @@ export function encodePolicy(
  */
 // Visible for testing
 export function encodePlacementPolicy(
-  policy: ProbabilityDistribution<KingdominoAction>,
+  actionToStatistics: Map<KingdominoAction, ActionStatistics>,
+  currentPlayer: Player,
+  // sample: StateTrainingData<
+  //   KingdominoConfiguration,
+  //   KingdominoState,
+  //   KingdominoAction
+  // >,
+  // policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const result = new Float32Array(placeProbabilitiesCodec.columnCount);
+  result.fill(invalidActionValue);
 
-  for (const [action, probability] of policy.itemToProbability) {
+  // const currentPlayer = requireDefined(
+  //   Kingdomino.INSTANCE.currentPlayer(sample.snapshot)
+  // );
+  for (const [action, actionStatistics] of actionToStatistics) {
+    if (actionStatistics.visitCount == 0) {
+      continue;
+    }
     if (action.data.case == ActionCase.PLACE) {
-      setPlacementVisitCount(
+      setPlacementLogit(
         action.data.place.transform(boardTransform),
-        probability,
+        actionStatistics.expectedValues.requirePlayerValue(currentPlayer),
         result
       );
     }
@@ -1302,14 +1378,14 @@ export function encodePlacementPolicy(
   return result;
 }
 
-export function setPlacementVisitCount(
+export function setPlacementLogit(
   placeTile: PlaceTile,
-  visitCount: number,
+  value: number,
   into: Float32Array
 ) {
   placementPolicyLinearization.set(
     into,
-    visitCount,
+    value,
     placeTile.location.x + playAreaRadius,
     placeTile.location.y + playAreaRadius,
     placeTile.direction.index
@@ -1340,8 +1416,29 @@ export function sampleToVisitCountPolicy(
   const actionToVisitCount = sample.actionToStatistics.map(
     (stats) => stats.visitCount
   );
-  const totalVisitCount = sum(actionToVisitCount.valueSeq());
+  // const totalVisitCount = sum(actionToVisitCount.valueSeq());
   return ProbabilityDistribution.normalize(
-    actionToVisitCount.map((visitCount) => visitCount / totalVisitCount)
+    actionToVisitCount
+    // actionToVisitCount.map((visitCount) => visitCount / totalVisitCount)
   );
+}
+
+class KingdominoBatch {
+  constructor(
+    readonly linearInput: tf.Tensor,
+    readonly boards: ReadonlyArray<tf.Tensor>,
+    readonly policyBoard: tf.Tensor,
+    readonly valueOutput: tf.Tensor,
+    readonly policyOutput: tf.Tensor
+  ) {}
+
+  dispose() {
+    this.linearInput.dispose();
+    for (const board of this.boards) {
+      board.dispose();
+    }
+    this.policyBoard.dispose();
+    this.valueOutput.dispose();
+    this.policyOutput.dispose();
+  }
 }

@@ -16,7 +16,7 @@ import { InferenceResult } from "../model.js";
 const gumbelFactory = gumbel.factory(0, 1);
 
 const C_VISIT = 50;
-const C_SCALE = 0.5;
+const C_SCALE = 1;
 
 // Choosing n & m:
 // n=32, m=4:
@@ -262,16 +262,12 @@ export function estimateStateValue<A extends Action>(
       visitedChildrenPriorSum += actionNodeInfo.priorProbability;
       visitedChildrenExpectationSum +=
         actionNodeInfo.priorProbability *
-        requireDefined(
-          actionNodeInfo.expectedValues.playerIdToValue.get(currentPlayer.id)
-        );
+        actionNodeInfo.expectedValues.requirePlayerValue(currentPlayer);
     }
   }
 
-  const nodePredictedValue = requireDefined(
-    stateNodeInfo.predictedValues.playerIdToValue.get(currentPlayer.id)
-  );
-
+  const nodePredictedValue =
+    stateNodeInfo.predictedValues.requirePlayerValue(currentPlayer);
   if (visitedChildrenPriorSum == 0) {
     // The only data we have in this case is the model value so use
     // that directly rather than running into divide-by-zero below

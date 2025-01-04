@@ -13,7 +13,7 @@ import {
   weightedMerge,
 } from "game";
 import { Map as ImmutableMap, Seq } from "immutable";
-import { InferenceResult, InferenceModel } from "../model.js";
+import { InferenceResult } from "../model.js";
 import gamma from "@stdlib/random-base-gamma";
 import {
   ActionNodeInfo,
@@ -98,7 +98,6 @@ export interface MctsContext<
 > {
   readonly config: MctsConfig<C, S, A>;
   readonly game: Game<C, S, A>;
-  readonly model: InferenceModel<C, S, A>;
   readonly stats: MctsStats;
 }
 
@@ -390,13 +389,20 @@ export class NonTerminalStateNode<
     const childEvs = [];
     const ucbs = [];
 
+    // Using zero for this behavior is consistent with AlphaZero. It would seem
+    // better to use an estimate based on the policy and the predicted state value.
+    // Consider using Gumbel state value estimation for that purpose, but don't use
+    // that behavior in evaluation agents that aren't supposed to have access to a
+    // state value predictor.
+    const unvisitedChildQValue = 0;
+
     for (const [action, child] of this.actionToChild) {
       const childEv = child.playerExpectedValues.playerIdToValue.get(
         currentPlayer.id
       );
       childEvs.push(childEv);
       const ucb =
-        (childEv ?? 0) +
+        (childEv ?? unvisitedChildQValue) +
         (child.priorProbability *
           this.context.config.explorationBias *
           Math.sqrt(1 + this.visitCount)) /
@@ -414,7 +420,6 @@ export class NonTerminalStateNode<
           }, and UCB score ${ucb}`
       );
 
-      // console.log(`ucb is ${ucb}`);
       if (ucb > maxUcb) {
         debugLog(
           () => `New max UCB ${ucb} for action ${JSON.stringify(action)}`

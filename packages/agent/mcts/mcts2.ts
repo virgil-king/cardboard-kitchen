@@ -428,6 +428,7 @@ export class NonTerminalStateNode<
       this.context.game.currentPlayer(this.snapshot)
     );
     const ucbs = [];
+
     for (const [action, child] of this.actionToChild) {
       if (selectUnvisitedActionsFirst && child.combinedVisitCount == 0) {
         debugLog(
@@ -436,6 +437,11 @@ export class NonTerminalStateNode<
         return action;
       }
 
+      // Using zero for this behavior is consistent with AlphaZero. It would seem
+      // better to use an estimate based on the policy and the predicted state value.
+      // Consider using Gumbel state value estimation for that purpose, but don't use
+      // that behavior in evaluation agents that aren't supposed to have access to a
+      // state value predictor.
       const childEv =
         child.playerExpectedValues.playerIdToValue.get(currentPlayer.id) ?? 0;
 
