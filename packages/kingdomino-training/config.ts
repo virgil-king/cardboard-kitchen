@@ -10,7 +10,7 @@ import { Experiment } from "training";
 // This file contains configuration for Kingdomino self-play, training, and eval
 
 export const kingdominoExperiment = new Experiment({
-  name: "kingdomino-gumbel-custom-loss",
+  name: "kingdomino-gzip",
   selfPlayEpisodesPerBatch: 256,
   selfPlayWorkerCount: 2,
   // trainingSampleBufferSize: 1024 * 4,

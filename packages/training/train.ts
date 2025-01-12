@@ -15,6 +15,8 @@ import fs from "node:fs/promises";
 import { EpisodeTrainingData, StateTrainingData } from "agent";
 import { LogDirectory } from "./logdirectory.js";
 import * as tf from "@tensorflow/tfjs";
+import gzip from "node-gzip";
+import zlib from "node:zlib";
 
 // This file provides the logic for the main thread of the training system
 
@@ -99,9 +101,9 @@ export async function train_parallel<
     for (const episodeJson of episodes) {
       const decoded = addEpisodeToBuffer(episodeJson);
       if (!testing) {
-        episodesDir.writeData(
-          textEncoder.encode(JSON.stringify(episodeJson, undefined, 1))
-        );
+        const episodeString = JSON.stringify(episodeJson, undefined, 1);
+        const episodeBlob = zlib.gzipSync(episodeString);
+        episodesDir.writeData(episodeBlob);
       }
       episodesReceived++;
       samplesReceived += decoded.count();
@@ -244,11 +246,14 @@ async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
   for (const filename of filesByDescendingModTime) {
     const path = episodesDir + "/" + filename;
     console.log(`Loading episode ${path}`);
-    const episodeString = await fs.readFile(path, {
-      encoding: "utf8",
-    });
-    yield JSON.parse(episodeString);
+    yield await readGzippedJson(path);
   }
+}
+
+async function readGzippedJson(path: string): Promise<any> {
+  const compressedBytes = await fs.readFile(path);
+  const decompressedBytes = await gzip.ungzip(compressedBytes);
+  return JSON.parse(decompressedBytes.toString("utf-8"));
 }
 
 type StepResult<T> = {

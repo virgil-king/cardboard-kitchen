@@ -4,8 +4,7 @@ import { GameComponent } from "@/components";
 import { Kingdomino } from "kingdomino";
 import { EpisodeSnapshot, ProbabilityDistribution, requireDefined } from "game";
 import { useState } from "react";
-import { EpisodeTrainingData, improvedPolicyLogits } from "agent";
-import { POLICY_TEMPERATURE } from "kingdomino-agent";
+import { EpisodeTrainingData } from "agent";
 
 type ReplayProps = {
   episodeJsonString: string;

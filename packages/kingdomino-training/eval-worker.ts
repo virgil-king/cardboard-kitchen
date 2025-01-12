@@ -7,6 +7,7 @@ import { kingdominoExperiment } from "./config.js";
 import { ModelCodecType, ModelMetadata } from "agent";
 import { LogDirectory } from "training";
 import { AgentResult, evalEpisodeBatch } from "./eval-concurrent-2.js";
+import gzip from "node-gzip";
 
 // No more than one eval worker should run at a time since this code
 // assumes it's the only writer to the log file and eval episodes
@@ -92,9 +93,9 @@ async function evaluate(model: KingdominoModel) {
     );
 
     for (const episode of batchResult.episodeTrainingData) {
-      episodesDir.writeData(
-        textEncoder.encode(JSON.stringify(episode.encode(), undefined, 2))
-      );
+      const episodeString = JSON.stringify(episode.encode(), undefined, 2);
+      const episodeBlob = await gzip.gzip(episodeString);
+      episodesDir.writeData(episodeBlob);
     }
   }
 
