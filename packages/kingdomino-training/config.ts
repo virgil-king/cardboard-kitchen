@@ -12,10 +12,10 @@ import { Experiment } from "training";
 export const kingdominoExperiment = new Experiment({
   name: "kingdomino-gumbel-custom-loss",
   selfPlayEpisodesPerBatch: 256,
-  selfPlayWorkerCount: 1,
+  selfPlayWorkerCount: 2,
   // trainingSampleBufferSize: 1024 * 4,
 
-  trainingBatchSize: 256,
+  trainingBatchSize: 128,
 
   evalEpisodesPerBatch: 128,
   evalBatchCount: 1,

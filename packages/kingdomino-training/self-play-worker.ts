@@ -29,6 +29,9 @@ const derek = new Player("derek", "Derek");
 const players = new Players(alice, bob, cecile, derek);
 const episodeConfig = new EpisodeConfiguration(players);
 
+const GUMBEL_SIMULATION_COUNT = 72;
+const GUMBEL_ACTION_COUNT = 8;
+
 const ready = new SettablePromise<undefined>();
 
 messagePort.on("message", async (message: any) => {
@@ -74,8 +77,8 @@ async function main() {
           Kingdomino.INSTANCE,
           mctsContext,
           episodeConfig,
-          32,
-          4
+          GUMBEL_SIMULATION_COUNT,
+          GUMBEL_ACTION_COUNT
         );
       })
       .toArray();

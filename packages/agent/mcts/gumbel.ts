@@ -29,9 +29,16 @@ const C_SCALE = 1;
 // step 1: N=32/(log_2(8)*8)=1 steps=8 steps total
 // step 2: N=32/(log_2(8)*8/2)=2 steps=8 steps total
 // step 2: N=32/(log_2(8)*8/4)=5 steps=10 steps total
-// n=64, m=4:
-// step 1: N=64/(log_2(4)*4)=8 steps=32 steps total
-// step 2: N=64/(log_2(4)*4/2)=16 steps=32 steps total
+// n=48, m=8:
+// 16 steps per round
+// step 1: 8 actions; 2 steps per action
+// step 2: 4 actions; 4 steps per action
+// step 3: 2 actions; 8 steps per action
+// n=72, m=8:
+// 24 steps per round
+// step 1: 8 actions; 3 steps per action
+// step 2: 4 actions; 6 steps per action
+// step 3: 2 actions; 12 steps per action
 
 /**
  * Returns {@link StateSearchData} describing the results of
