@@ -1,6 +1,7 @@
 import * as tf from "@tensorflow/tfjs";
 
 const eps = tf.backend().epsilon();
+const zero = tf.scalar(0);
 
 /**
  * Returns the KL divergence only for the positions of {@link targetLogits} and
@@ -13,23 +14,20 @@ export function selectiveKlDivergenceWithLogits(
   predictedLogits: tf.Tensor
 ): tf.Tensor {
   return tf.tidy(() => {
-    const zeros = tf.zeros(targetLogits.shape);
-    const mask = tf.greaterEqual(targetLogits, zeros);
-    // const eps = tf.backend().epsilon();
-    const targetProbs = selectiveSoftmax(mask, targetLogits, zeros).clipByValue(
+    const mask = tf.greaterEqual(targetLogits, zero);
+    const targetProbs = selectiveSoftmax(mask, targetLogits).clipByValue(
       eps,
       1 - eps
     );
-    const predictedProbs = selectiveSoftmax(
-      mask,
-      predictedLogits,
-      zeros
-    ).clipByValue(eps, 1 - eps);
+    const predictedProbs = selectiveSoftmax(mask, predictedLogits).clipByValue(
+      eps,
+      1 - eps
+    );
     const divisions = tf.div(targetProbs, predictedProbs);
     const logs = tf.log(divisions);
     const products = tf.mul(targetProbs, logs);
     const itemLosses = tf.sum(products, /* axis= */ 1);
-    const totalLoss = itemLosses.sum();
+    const totalLoss = itemLosses.mean();
     return totalLoss;
   });
 }
@@ -44,11 +42,10 @@ export function selectiveKlDivergenceWithLogits(
 // Exported for testing
 export function selectiveSoftmax(
   condition: tf.Tensor,
-  logits: tf.Tensor,
-  zeros: tf.Tensor
+  logits: tf.Tensor
 ): tf.Tensor {
   const powers = tf.exp(logits);
-  const selectedPowers = tf.where(condition, powers, zeros);
+  const selectedPowers = tf.where(condition, powers, zero);
   const sum = tf.sum(selectedPowers, /* axis= */ 1, /* keepDims= */ true);
   return tf.div(selectedPowers, sum);
 }
@@ -64,10 +61,8 @@ export function selectiveKlDivergenceWithLogits2(
   predictedLogits: tf.Tensor
 ): tf.Tensor {
   return tf.tidy(() => {
-    const zeros = tf.zeros(targetLogits.shape);
-    const mask = tf.greaterEqual(targetLogits, zeros);
+    const mask = tf.greaterEqual(targetLogits, zero);
     const negInf = tf.fill(targetLogits.shape, Number.NEGATIVE_INFINITY);
-    // const eps = tf.backend().epsilon();
     const targetProbs = tf
       .softmax(tf.where(mask, targetLogits, negInf))
       .clipByValue(eps, 1 - eps);
@@ -78,7 +73,7 @@ export function selectiveKlDivergenceWithLogits2(
     const logs = tf.log(divisions);
     const products = tf.mul(targetProbs, logs);
     const itemLosses = tf.sum(products, /* axis= */ 1);
-    const totalLoss = itemLosses.sum();
+    const totalLoss = itemLosses.mean();
     return totalLoss;
   });
 }

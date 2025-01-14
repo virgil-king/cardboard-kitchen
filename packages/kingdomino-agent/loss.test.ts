@@ -123,9 +123,8 @@ test("selectiveKlDivergenceWithLogits2: batch shape handled correctly", () => {
 test("selectiveSoftmax: uses zero for masked elements", () => {
   const logits = tf.tensor([[1, 1, 2]]);
   const condition = tf.tensor([[true, true, false]]);
-  const zeros = tf.tensor([[0, 0, 0]]);
 
-  const result = selectiveSoftmax(condition, logits, zeros);
+  const result = selectiveSoftmax(condition, logits);
 
   assert.deepEqual(result.dataSync(), new Float32Array([0.5, 0.5, 0]));
 });

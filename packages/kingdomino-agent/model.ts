@@ -62,6 +62,7 @@ import * as tf from "@tensorflow/tfjs";
 import { Vector2 } from "game";
 import { PlayerBoard } from "kingdomino/out/board.js";
 import {
+  selectiveKlDivergenceWithLogits,
   selectiveKlDivergenceWithLogits2,
 } from "./loss.js";
 
@@ -1062,7 +1063,7 @@ class PlacementPolicyModule {
 
 function scaledMse(target: tf.Tensor, predicted: tf.Tensor): tf.Tensor {
   return tf.tidy(() => {
-    return tf.losses.meanSquaredError(target, predicted).mul(100);
+    return tf.losses.meanSquaredError(target, predicted).mul(1);
   });
 }
 
@@ -1086,7 +1087,7 @@ export class KingdominoTrainingModel
     this.model.model.compile({
       optimizer: this.optimizer,
       // MSE for value and KL divergence for policy
-      loss: [scaledMse, selectiveKlDivergenceWithLogits2],
+      loss: [scaledMse, selectiveKlDivergenceWithLogits],
     });
   }
 
