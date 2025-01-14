@@ -29,13 +29,21 @@ export type PlayerBoardMessage = io.TypeOf<typeof playerBoardCodec>;
  * has its bottom left corner at [x,y].
  */
 export class PlayerBoard implements ValueObject {
-  readonly occupiedRectangle: Rectangle;
+  private _occupiedRectangle: Rectangle | undefined;
 
   constructor(
     /** Contains only occupied, non-center locations */
     readonly locationStates: Map<Vector2, LocationState>
-  ) {
-    this.occupiedRectangle = this.computeOccupiedRectangle();
+  ) {}
+
+  get occupiedRectangle(): Rectangle {
+    const cached = this._occupiedRectangle;
+    if (cached != undefined) {
+      return cached;
+    }
+    const fresh = this.computeOccupiedRectangle();
+    this._occupiedRectangle = fresh;
+    return fresh;
   }
 
   static decode(message: unknown): PlayerBoard {
