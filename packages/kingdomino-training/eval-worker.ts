@@ -71,6 +71,7 @@ messagePort.on("message", async (message: any) => {
 });
 
 async function evaluate(model: KingdominoModel) {
+  console.log(`Eval TFJS backend is ${tf.getBackend()}`);
   const date = new Date();
   const agentIdToResult = new Map<string, AgentResult>();
   for (const i of Range(0, kingdominoExperiment.evalBatchCount)) {

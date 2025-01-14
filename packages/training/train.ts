@@ -1,3 +1,4 @@
+import * as tf from "@tensorflow/tfjs-node-gpu";
 import {
   Action,
   Game,
@@ -14,7 +15,6 @@ import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
 import { EpisodeTrainingData, StateTrainingData } from "agent";
 import { LogDirectory } from "./logdirectory.js";
-import * as tf from "@tensorflow/tfjs";
 import gzip from "node-gzip";
 import zlib from "node:zlib";
 
@@ -61,6 +61,8 @@ export async function train_parallel<
   saveModel: (model: ModelT, path: string) => Promise<void>,
   episodesDir: LogDirectory
 ) {
+  console.log(`Training TFJS backend is ${tf.getBackend()}`);
+
   const trainingModel = model.trainingModel(batchSize);
   const encodedModel = await model.toJson();
 
@@ -214,6 +216,7 @@ export async function train_parallel<
     }
     const now = performance.now();
     const timeSinceLastSave = now - lastSaveTime;
+
     if (
       modelsDir != undefined &&
       timeSinceLastSave > timeBetweenModelSavesMs &&

@@ -59,6 +59,8 @@ async function acquireModel(): Promise<KingdominoModel> {
 }
 
 async function main() {
+  console.log(`Self-play TFJS backend is ${tf.getBackend()}`);
+
   while (true) {
     const localModel = await acquireModel();
 
