@@ -22,9 +22,10 @@ import {
   centerY,
   playAreaRadius,
 } from "./base.js";
-import { KingdominoState, NextAction } from "./state.js";
+import { KingdominoPlayerState, KingdominoState, NextAction } from "./state.js";
 import _ from "lodash";
-import { List, Set } from "immutable";
+import { List, Map, Set } from "immutable";
+import { PlayerBoard } from "./board.js";
 
 const kingdomino = new Kingdomino();
 const alice = new Player("alice", "Alice");
@@ -398,6 +399,20 @@ test("possiblePlacements: does not return out of bounds placements", () => {
       );
     })
   );
+});
+
+test("KingdominoPlayerState: encode/decode round trip", () => {
+  const state = new KingdominoPlayerState(new PlayerBoard(Map([])), 3, 7);
+  const message = state.encode();
+  const decoded = KingdominoPlayerState.decode(message);
+
+  assert.isTrue(state.equals(decoded));
+});
+
+test("KingdominoPlayerState: score is board score plus bonus points", () => {
+  const state = new KingdominoPlayerState(new PlayerBoard(Map([])), 1, 19);
+
+  assert.equal(state.score, 20);
 });
 
 function episodeWithPlayers(
