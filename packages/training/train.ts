@@ -278,27 +278,9 @@ function sampleBatch<
   trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
   batchSize: number
 ): ReadonlyArray<EncodedSampleT> {
-  const batch = buffer.sample(batchSize, (sample) => {
-    const result = iterableLengthAtLeast(game.legalActions(sample.snapshot), 2);
-    return result;
-  });
-  return batch.map((sample) => {
+  return buffer.sample(batchSize).map((sample) => {
     return trainingModel.encodeSample(sample);
   });
-}
-
-function iterableLengthAtLeast(
-  iterable: Iterable<unknown>,
-  count: number
-): boolean {
-  let visitedCount = 0;
-  for (const item of iterable) {
-    visitedCount++;
-    if (visitedCount >= count) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**

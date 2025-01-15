@@ -165,13 +165,9 @@ export async function* gumbelSelfPlayEpisode<
         initialActionCount
       );
       selectedAction = selectedChild.action;
-      // Only save non-terminal states where more than one action is possible
-      nonTerminalStates.push(root.stateSearchData());
     }
-    const [newState, chanceKey] = game.apply(
-      snapshot,
-      requireDefined(selectedAction)
-    );
+    nonTerminalStates.push(root.stateSearchData());
+    const [newState] = game.apply(snapshot, requireDefined(selectedAction));
     snapshot = snapshot.derive(newState);
     if (game.result(snapshot) != undefined) {
       break;

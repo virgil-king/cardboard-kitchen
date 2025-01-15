@@ -202,3 +202,17 @@ export function streamingRandom<T>(stream: Generator<T>): T | undefined {
   }
   return result;
 }
+
+export function iterableLengthAtLeast(
+  iterable: Iterable<unknown>,
+  count: number
+): boolean {
+  let visitedCount = 0;
+  for (const item of iterable) {
+    visitedCount++;
+    if (visitedCount >= count) {
+      return true;
+    }
+  }
+  return false;
+}
