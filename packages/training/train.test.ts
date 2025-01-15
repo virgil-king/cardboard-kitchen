@@ -40,8 +40,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             1,
             new PlayerValues(
               Map([
-                [alice.id, 1],
-                [bob.id, 2],
+                [alice.id, 0],
+                [bob.id, 1],
               ])
             )
           ),
@@ -54,8 +54,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             1,
             new PlayerValues(
               Map([
-                [alice.id, 1],
-                [bob.id, 2],
+                [alice.id, 0],
+                [bob.id, 1],
               ])
             )
           ),
@@ -83,8 +83,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             1,
             new PlayerValues(
               Map([
-                [alice.id, 1],
-                [bob.id, 2],
+                [alice.id, 0],
+                [bob.id, 1],
               ])
             )
           ),
@@ -97,8 +97,8 @@ test("EpisodeTrainingData: codec round trip", () => {
             1,
             new PlayerValues(
               Map([
-                [alice.id, 1],
-                [bob.id, 2],
+                [alice.id, 0],
+                [bob.id, 1],
               ])
             )
           ),
