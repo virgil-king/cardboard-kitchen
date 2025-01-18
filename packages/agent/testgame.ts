@@ -181,7 +181,7 @@ export class PickANumber
 export class PickANumberImmediateModel
   implements
     InferenceModel<GameConfiguration, PickANumberState, NumberAction>,
-    TrainingModel<GameConfiguration, PickANumberState, NumberAction, any>
+    TrainingModel<any>
 {
   static INSTANCE = new PickANumberImmediateModel();
 
@@ -243,7 +243,7 @@ export class PickANumberImmediateModel
       PickANumberState,
       NumberAction
     >[]
-  ): Promise<number> {
+  ): Promise<ReadonlyArray<number>> {
     throw new Error("Method not implemented.");
   }
 }

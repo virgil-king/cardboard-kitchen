@@ -1,26 +1,23 @@
 import {
-  decodeOrThrow,
   driveAsyncGenerators,
   EpisodeConfiguration,
   Player,
   Players,
-  requireDefined,
-  SettablePromise,
   sleep,
 } from "game";
-import { gumbelSelfPlayEpisode } from "training";
+import {
+  ControllerMessage,
+  gumbelSelfPlayEpisode,
+  SelfPlayWorkerMessage,
+  TypedMessagePort,
+} from "training";
 import { Kingdomino } from "kingdomino";
 import * as worker_threads from "node:worker_threads";
 import { Range } from "immutable";
-import { mcts, modelCodec, ModelCodecType } from "agent";
+import { mcts } from "agent";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { SELF_PLAY_MCTS_CONFIG, kingdominoExperiment } from "./config.js";
-import { KingdominoModel } from "kingdomino-agent";
-
-const messagePort = worker_threads.workerData as worker_threads.MessagePort;
-
-let model: KingdominoModel | undefined;
-let newModelJson: ModelCodecType | undefined;
+import { createModel } from "./model.js";
 
 const alice = new Player("alice", "Alice");
 const bob = new Player("bob", "Bob");
@@ -29,47 +26,45 @@ const derek = new Player("derek", "Derek");
 const players = new Players(alice, bob, cecile, derek);
 const episodeConfig = new EpisodeConfiguration(players);
 
-const GUMBEL_SIMULATION_COUNT = 72;
-const GUMBEL_ACTION_COUNT = 8;
+const GUMBEL_SIMULATION_COUNT = 32; // 72;
+const GUMBEL_ACTION_COUNT = 4; // 8;
 
-const ready = new SettablePromise<undefined>();
+const messagePort = new TypedMessagePort<
+  SelfPlayWorkerMessage,
+  ControllerMessage
+>(worker_threads.workerData as worker_threads.MessagePort);
 
-messagePort.on("message", async (message: any) => {
-  console.log(`Self-play worker received new model`);
-  // Save the serialized model so the main loop can consume it and
-  // dispose the old model in between batches
-  newModelJson = decodeOrThrow(modelCodec, message);
-  ready.fulfill(undefined);
+let model = await createModel(kingdominoExperiment);
+let newModelAvailable = false;
+
+messagePort.onMessage((message: SelfPlayWorkerMessage) => {
+  switch (message.type) {
+    case "new_model_available": {
+      newModelAvailable = true;
+      break;
+    }
+  }
 });
 
-async function acquireModel(): Promise<KingdominoModel> {
-  await ready.promise;
-
-  if (newModelJson != undefined) {
-    if (model != undefined) {
-      model.dispose();
-      // https://github.com/tensorflow/tfjs/issues/8471
-      tf.disposeVariables();
-    }
-    model = await KingdominoModel.fromJson(newModelJson);
-    newModelJson = undefined;
-  }
-
-  return requireDefined(model);
-}
-
 async function main() {
-  console.log(`Self-play TFJS backend is ${tf.getBackend()}`);
+  messagePort.postMessage({
+    type: "log",
+    message: `TFJS backend is ${tf.getBackend()}`,
+  });
 
   while (true) {
-    const localModel = await acquireModel();
-
-    const startMs = performance.now();
+    if (newModelAvailable) {
+      model = await createModel(kingdominoExperiment);
+      messagePort.postMessage({
+        type: "log",
+        message: `loaded new model`,
+      });
+    }
 
     const mctsContext = {
       config: SELF_PLAY_MCTS_CONFIG,
       game: Kingdomino.INSTANCE,
-      model: localModel.inferenceModel,
+      model: model.inferenceModel,
       stats: new mcts.MctsStats(),
     };
 
@@ -87,28 +82,20 @@ async function main() {
 
     const episodes = await driveAsyncGenerators(generators, (snapshots) => {
       const startMs = performance.now();
-      const result = localModel.inferenceModel.infer(snapshots);
+      const result = model.inferenceModel.infer(snapshots);
       mctsContext.stats.inferenceTimeMs += performance.now() - startMs;
       return result;
     });
 
-    const elapsedMs = performance.now() - startMs;
-    console.log(
-      `Self-play inference time: ${
-        mctsContext.stats.inferenceTimeMs / elapsedMs
-      }% of total`
-    );
-    console.log(
-      `Self-play random playout time: ${
-        mctsContext.stats.randomPlayoutTimeMs / elapsedMs
-      }% of total`
-    );
+    messagePort.postMessage({
+      type: "episode_batch",
+      batch: episodes.map((episode) => episode.encode()),
+    });
 
-    console.log(
-      `Self-play thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
-    );
-
-    messagePort.postMessage(episodes.map((episode) => episode.encode()));
+    messagePort.postMessage({
+      type: "log",
+      message: `memory: ${JSON.stringify(tf.memory(), undefined, 2)}`,
+    });
 
     await sleep(0);
   }

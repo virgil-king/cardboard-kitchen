@@ -23,18 +23,44 @@ export const modelMetadataCodec = io.type({
 export type ModelMetadata = io.TypeOf<typeof modelMetadataCodec>;
 
 export const modelCodec = io.type({
+  description: io.string,
   modelArtifacts: io.any,
   metadata: io.union([modelMetadataCodec, io.undefined]),
 });
 
 export type ModelCodecType = io.TypeOf<typeof modelCodec>;
 
+/**
+ * Implementations must support structured cloning and should use transferable
+ * objects (e.g. ArrayBuffer) for efficiency
+ */
+export interface TransferableBatch {
+  readonly count: number;
+  readonly transfers: ReadonlyArray<any>;
+}
+
+/**
+ * Encodes batches for training.
+ *
+ * Encoding happens separately from training so the two can happen on different threads.
+ */
+export interface ModelEncoder<
+  C extends GameConfiguration,
+  S extends GameState,
+  A extends Action,
+  T extends TransferableBatch
+> {
+  encodeTrainingBatch(samples: ReadonlyArray<StateTrainingData<C, S, A>>): T;
+}
+
 export interface Model<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action,
-  EncodedSampleT
+  T extends TransferableBatch
 > {
+  description: string;
+
   inferenceModel: InferenceModel<C, S, A>;
 
   metadata: ModelMetadata | undefined;
@@ -43,7 +69,7 @@ export interface Model<
    * Returns a training view of the model. {@link batchSize} is only used the
    * first time this method is called per model instance.
    */
-  trainingModel(batchSize: number): TrainingModel<C, S, A, EncodedSampleT>;
+  trainingModel(batchSize: number): TrainingModel<T>;
 
   toJson(): Promise<ModelCodecType>;
 
@@ -65,14 +91,7 @@ export interface InferenceModel<
   ): Promise<ReadonlyArray<InferenceResult<A>>>;
 }
 
-export interface TrainingModel<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action,
-  EncodedSampleT
-> {
-  encodeSample(sample: StateTrainingData<C, S, A>): EncodedSampleT;
-
+export interface TrainingModel<T extends TransferableBatch> {
   /** Trains the model on the given data */
-  train(dataPoints: ReadonlyArray<EncodedSampleT>): Promise<number>;
+  train(batch: T): Promise<ReadonlyArray<number>>;
 }

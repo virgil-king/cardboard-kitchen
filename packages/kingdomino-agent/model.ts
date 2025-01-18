@@ -20,6 +20,7 @@ import {
   InferenceResult,
   Model,
   ModelCodecType,
+  ModelEncoder,
   ModelMetadata,
   ObjectCodec,
   OneHotCodec,
@@ -28,6 +29,7 @@ import {
   ScalarCodec,
   Sparse2dCodec,
   TrainingModel,
+  TransferableBatch,
   VectorCodec,
 } from "agent";
 import { Map, Range, Seq } from "immutable";
@@ -262,12 +264,77 @@ export class EncodedState {
   ) {}
 }
 
+/** A transferable matrix which can be reconstituted as a tensor */
+type TransferableMatrix = {
+  buffer: ArrayBuffer;
+  shape: Array<number>;
+};
+
+function toTensor(matrix: TransferableMatrix): tf.Tensor {
+  return tf.tensor(new Float32Array(matrix.buffer), matrix.shape);
+}
+
+/**
+ * Efficiently transferable encoding of a batch of training samples
+ */
+export interface KingdominoTransferableBatch extends TransferableBatch {
+  readonly count: number;
+  readonly linearInput: TransferableMatrix;
+  readonly boards: ReadonlyArray<TransferableMatrix>;
+  readonly policyBoard: TransferableMatrix;
+  readonly valueOutput: TransferableMatrix;
+  readonly policyOutput: TransferableMatrix;
+}
+
+function createTransferableBatch(
+  count: number,
+  linearInput: TransferableMatrix,
+  boards: ReadonlyArray<TransferableMatrix>,
+  policyBoard: TransferableMatrix,
+  valueOutput: TransferableMatrix,
+  policyOutput: TransferableMatrix
+): KingdominoTransferableBatch {
+  return {
+    count,
+    linearInput,
+    boards,
+    policyBoard,
+    valueOutput,
+    policyOutput,
+    transfers: [
+      linearInput.buffer,
+      ...boards.map((it) => it.buffer),
+      policyBoard.buffer,
+      valueOutput.buffer,
+      policyOutput.buffer,
+    ],
+  };
+}
+
+function transferableBatchToTensors(
+  batch: KingdominoTransferableBatch
+): KingdominoTensorsBatch {
+  const linearInputTensor = toTensor(batch.linearInput);
+  const boardTensors = batch.boards.map((board) => toTensor(board));
+  const policyBoardTensor = toTensor(batch.policyBoard);
+  const valueOutputTensor = toTensor(batch.valueOutput);
+  const policyOutputTensor = toTensor(batch.policyOutput);
+  return new KingdominoTensorsBatch(
+    linearInputTensor,
+    boardTensors,
+    policyBoardTensor,
+    valueOutputTensor,
+    policyOutputTensor
+  );
+}
+
+// Visible for testing
 export class EncodedSample {
   constructor(
     readonly state: EncodedState,
     /** Encoded using {@link playerValuesCodec} */
     readonly valueOutput: Float32Array,
-    /** Encoding using {@link linearPolicyCodec} */
+    /** Encoded using {@link policyCodec} */
     readonly policyOutput: Float32Array
   ) {}
 }
@@ -286,7 +353,7 @@ export class KingdominoModel
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction,
-      EncodedSample
+      KingdominoTransferableBatch
     >
 {
   static maxPlayerCount = requireDefined(
@@ -401,7 +468,12 @@ export class KingdominoModel
 
     const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
 
-    return new KingdominoModel(model, metadata, sampleToNewPolicy);
+    return new KingdominoModel(
+      "randomly initialized",
+      model,
+      metadata,
+      sampleToNewPolicy
+    );
   }
 
   /**
@@ -414,10 +486,11 @@ export class KingdominoModel
     // Loading metadata from URLs is not supported
     const metadata = { trainingSampleCount: 0 } satisfies ModelMetadata;
 
-    return new KingdominoModel(layersModel, metadata);
+    return new KingdominoModel(url, layersModel, metadata);
   }
 
   constructor(
+    readonly description: string,
     readonly model: tf.LayersModel,
     readonly metadata: ModelMetadata | undefined,
     readonly sampleToNewPolicy: SamplePolicyFunction = sampleToCompletedActionValuePolicy
@@ -442,213 +515,15 @@ export class KingdominoModel
     return result;
   }
 
-  /**
-   * Returns the vector-encoded representation of {@link snapshot}.
-   *
-   * By default does not mirror and rotate boards.
-   *
-   * @param playerIdToTransform can be used to apply separate mirroring and
-   * rotation to each player board
-   */
-  encodeState(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
-    playerIdToTransform: (player: Player) => BoardTransformation = () =>
-      NO_TRANSFORM
-  ): EncodedState {
-    const linearInput = this.encodeLinearState(snapshot);
-
-    const boardInputs = Range(0, Kingdomino.INSTANCE.maxPlayerCount)
-      .map((playerIndex) => {
-        if (
-          playerIndex >= snapshot.episodeConfiguration.players.players.count()
-        ) {
-          // The zero board is fully symmetrical and doesn't need to be transformed
-          return BoardInputTensor.boardZeros;
-        } else {
-          const player = requireDefined(
-            snapshot.episodeConfiguration.players.players.get(playerIndex)
-          );
-          const transform = playerIdToTransform(player);
-          return KingdominoModel.encodeBoard(
-            snapshot.state
-              .requirePlayerState(player.id)
-              .board.transform(transform)
-          );
-        }
-      })
-      .toArray();
-
-    const currentPlayerId = snapshot.state.requireCurrentPlayerId();
-    const currentPlayerIndex =
-      snapshot.episodeConfiguration.players.players.findIndex(
-        (player) => player.id == currentPlayerId
-      );
-    if (currentPlayerIndex == -1) {
-      throw new Error("No current player index");
-    }
-
-    return new EncodedState(linearInput, boardInputs, currentPlayerIndex);
-  }
-
-  // Visible for testing
-  encodeLinearState(
-    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
-  ): Float32Array {
-    const currentPlayer = requireDefined(
-      Kingdomino.INSTANCE.currentPlayer(snapshot)
-    );
-    if (currentPlayer == undefined) {
-      throw new Error("Model invoked with snapshot with no current player");
-    }
-    const nextAction = snapshot.state.nextAction;
-    if (nextAction == undefined) {
-      throw new Error("Model invoked with snapshot with no next action");
-    }
-    const currentPlayerIndex =
-      snapshot.episodeConfiguration.players.players.indexOf(currentPlayer);
-    const stateValue: StateCodecValue = {
-      currentPlayerIndex: currentPlayerIndex,
-      nextAction: nextAction,
-      remainingTilesCount:
-        snapshot.gameConfiguration.tileCount -
-        snapshot.state.props.drawnTileNumbers.count(),
-      nextOffers: this.encodeTileOffers(
-        snapshot.episodeConfiguration,
-        snapshot.state.props.nextOffers
-      ),
-      previousOffers: this.encodeTileOffers(
-        snapshot.episodeConfiguration,
-        snapshot.state.props.previousOffers
-      ),
-      playerState: _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
-        (playerIndex) => {
-          if (
-            playerIndex >= snapshot.episodeConfiguration.players.players.count()
-          ) {
-            return undefined;
-          }
-          const player = requireDefined(
-            snapshot.episodeConfiguration.players.players.get(playerIndex)
-          );
-          const playerState = snapshot.state.requirePlayerState(player.id);
-          return {
-            score: playerState.score,
-          };
-        }
-      ),
-    };
-    const result = new Float32Array(linearStateCodec.columnCount);
-    linearStateCodec.encode(stateValue, result, 0);
-    return result;
-  }
-
-  private encodeTileOffers(
-    episodeConfig: EpisodeConfiguration,
-    offers: TileOffers | undefined
-  ): ReadonlyArray<TileOfferValue> | undefined {
-    if (offers == undefined) {
-      return undefined;
-    }
-    return offers.offers
-      .map((offer) => {
-        const claim = offer.claim;
-        const claimPlayerIndex =
-          claim == undefined
-            ? undefined
-            : episodeConfig.players.players.findIndex(
-                (player) => player.id == claim.playerId
-              );
-        if (claimPlayerIndex == -1) {
-          throw new Error(`Claim player was not found`);
-        }
-        return {
-          locationProperties:
-            offer.tileNumber == undefined
-              ? undefined
-              : Tile.withNumber(offer.tileNumber).properties,
-          claimPlayerIndex: claimPlayerIndex,
-        };
-      })
-      .toArray();
-  }
-
-  // Visible for testing
-  static encodeBoard(board: PlayerBoard): Float32Array {
-    const result = new Float32Array(BoardInputTensor.size);
-
-    boardCodec.encode(board.locationStates, result, 0);
-
-    return result;
-  }
-
-  /**
-   * Returns the batch of states encoded as one linear input tensor and an
-   * array of player board input tensors
-   */
-  stateBatchToTensors(states: ReadonlyArray<EncodedState>): {
-    linearTensor: tf.Tensor;
-    boardAnalysisTensors: ReadonlyArray<tf.Tensor>;
-    boardPolicyTensor: tf.Tensor;
-  } {
-    // Allocate a single Float32Array for each output tensor and encode the
-    // batch into each of those arrays
-
-    // Flattened indices: sample, linear state column
-    const linearStateArray = new Float32Array(
-      states.length * linearStateCodec.columnCount
-    );
-    // Flattened indices: player, sample, x, y, feature
-    const boardSize = BoardInputTensor.size;
-    const playerBoardArrays = _.range(
-      0,
-      Kingdomino.INSTANCE.maxPlayerCount
-    ).map(() => new Float32Array(states.length * boardSize));
-
-    const boardPolicyArray = new Float32Array(states.length * boardSize);
-
-    for (const [sampleIndex, encodedState] of states.entries()) {
-      // TODO try to use generators to encapsulate offset arithmetic
-      linearStateArray.set(
-        encodedState.linearState,
-        sampleIndex * linearStateCodec.columnCount
-      );
-      for (const [playerIndex, playerBoard] of encodedState.boards.entries()) {
-        playerBoardArrays[playerIndex].set(
-          playerBoard,
-          sampleIndex * boardSize
-        );
-      }
-      boardPolicyArray.set(
-        encodedState.boards[encodedState.currentPlayerIndex],
-        sampleIndex * boardSize
-      );
-    }
-
-    const linearInputTensor = tf.tensor(linearStateArray, [
-      states.length,
-      linearStateCodec.columnCount,
-    ]);
-    const boardAnalysisTensors = playerBoardArrays.map((boards) =>
-      tf.tensor(boards, [states.length, 9, 9, 9])
-    );
-    const boardPolicyTensor = tf.tensor(boardPolicyArray, [
-      states.length,
-      9,
-      9,
-      9,
-    ]);
-    return {
-      linearTensor: linearInputTensor,
-      boardAnalysisTensors: boardAnalysisTensors,
-      boardPolicyTensor: boardPolicyTensor,
-    };
-  }
-
   toJson(): Promise<ModelCodecType> {
     return new Promise((resolve) =>
       this.model.save({
         save: (modelArtifacts: tf.io.ModelArtifacts) => {
-          resolve({ modelArtifacts: modelArtifacts, metadata: this.metadata });
+          resolve({
+            description: this.description,
+            modelArtifacts: modelArtifacts,
+            metadata: this.metadata,
+          });
 
           return Promise.resolve({
             modelArtifactsInfo: {
@@ -667,7 +542,7 @@ export class KingdominoModel
         return Promise.resolve(encoded.modelArtifacts);
       },
     });
-    return new KingdominoModel(model, encoded.metadata);
+    return new KingdominoModel(encoded.description, model, encoded.metadata);
   }
 }
 
@@ -687,15 +562,21 @@ export class KingdominoInferenceModel
     }
 
     const encodedInputs = snapshots.map((snapshot) =>
-      this.model.encodeState(snapshot)
+      KingdominoModelEncoder.INSTANCE.encodeState(snapshot)
     );
-    const inputTensors = this.model.stateBatchToTensors(encodedInputs);
+    const inputMatrices =
+      KingdominoModelEncoder.INSTANCE.stateBatchToMatrices(encodedInputs);
+    const linearTensor = toTensor(inputMatrices.linearMatrix);
+    const boardAnalysisTensors = inputMatrices.boardAnalysisMatrices.map((it) =>
+      toTensor(it)
+    );
+    const boardPolicyTensor = toTensor(inputMatrices.boardPolicyMatrix);
 
     try {
       let outputTensors = this.model.model.predict([
-        inputTensors.linearTensor,
-        ...inputTensors.boardAnalysisTensors,
-        inputTensors.boardPolicyTensor,
+        linearTensor,
+        ...boardAnalysisTensors,
+        boardPolicyTensor,
       ]) as tf.Tensor[];
       try {
         if (!Array.isArray(outputTensors)) {
@@ -717,11 +598,11 @@ export class KingdominoInferenceModel
         }
       }
     } finally {
-      inputTensors.linearTensor.dispose();
-      for (const boardTensor of inputTensors.boardAnalysisTensors) {
+      linearTensor.dispose();
+      for (const boardTensor of boardAnalysisTensors) {
         boardTensor.dispose();
       }
-      inputTensors.boardPolicyTensor.dispose();
+      boardPolicyTensor.dispose();
     }
   }
 
@@ -755,7 +636,6 @@ export class KingdominoInferenceModel
         decodedValues
       );
 
-      // console.log(`policy=${JSON.stringify(decodedPolicy, undefined, 2)}`);
       let policy = decodePolicy(snapshot, decodedPolicy);
       if (policy.isEmpty()) {
         throw new Error(`Empty policy!`);
@@ -788,10 +668,6 @@ export function decodePolicy(
   snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
   decodedPolicy: PolicyOutput
 ): Map<KingdominoAction, number> {
-  // console.log(
-  //   `claim policy logits=${decodedPolicy.linearPolicy.claimProbabilities}`
-  // );
-
   let result = Map<KingdominoAction, number>();
   const nextAction = snapshot.state.props.nextAction;
 
@@ -1067,38 +943,68 @@ function scaledMse(target: tf.Tensor, predicted: tf.Tensor): tf.Tensor {
   });
 }
 
-export class KingdominoTrainingModel
+export class KingdominoModelEncoder
   implements
-    TrainingModel<
+    ModelEncoder<
       KingdominoConfiguration,
       KingdominoState,
       KingdominoAction,
-      EncodedSample
+      KingdominoTransferableBatch
     >
 {
-  private readonly optimizer: tf.Optimizer;
+  static INSTANCE = new KingdominoModelEncoder();
 
-  constructor(
-    private readonly model: KingdominoModel,
-    private readonly batchSize: number = 128
-  ) {
-    this.optimizer = tf.train.adam();
+  encodeTrainingBatch(
+    samples: readonly StateTrainingData<
+      KingdominoConfiguration,
+      KingdominoState,
+      KingdominoAction
+    >[]
+  ): KingdominoTransferableBatch {
+    const encodedSamples = samples.map((it) => this.encodeSample(it));
 
-    this.model.model.compile({
-      optimizer: this.optimizer,
-      // MSE for value and KL divergence for policy
-      loss: [scaledMse, selectiveKlDivergenceWithLogits],
-    });
+    const inputMatrices = this.stateBatchToMatrices(
+      encodedSamples.map((it) => it.state)
+    );
+
+    const valuesArray = this.flatten(
+      Seq(encodedSamples).map((sample) => sample.valueOutput),
+      playerValuesCodec.columnCount,
+      samples.length
+    );
+    const policyArray = this.flatten(
+      Seq(encodedSamples).map((sample) => sample.policyOutput),
+      policyCodec.columnCount,
+      samples.length
+    );
+    return createTransferableBatch(
+      samples.length,
+      inputMatrices.linearMatrix,
+      inputMatrices.boardAnalysisMatrices,
+      inputMatrices.boardPolicyMatrix,
+      valuesArray,
+      policyArray
+    );
+  }
+
+  flatten(
+    segments: Iterable<Float32Array>,
+    itemLength: number,
+    itemCount: number
+  ): TransferableMatrix {
+    const result = new Float32Array(itemLength * itemCount);
+    let offset = 0;
+    for (const segment of segments) {
+      result.set(segment, offset);
+      offset += itemLength;
+    }
+    return { buffer: result.buffer, shape: [itemCount, itemLength] };
   }
 
   /**
-   * Returns the vector-encoded representation of {@link sample}.
+   * Convert raw sample data to vectors.
    *
-   * By default randomly mirrors and rotates player boards and the current
-   * player's policy.
-   *
-   * @param playerToBoardTransform can be used to apply separate board mirroring
-   * and rotation to each player's board
+   * This stage is obsolete and should now be inlined into TransferableBatch construction.
    */
   encodeSample(
     sample: StateTrainingData<
@@ -1129,7 +1035,7 @@ export class KingdominoTrainingModel
         requireDefined(playerIdToRandomBoardTransform.get(player.id));
     })();
 
-    const state = this.model.encodeState(
+    const state = this.encodeState(
       sample.snapshot,
       innerPlayerToBoardTransform
     );
@@ -1142,116 +1048,147 @@ export class KingdominoTrainingModel
     );
     const currentPlayerBoardTransform =
       innerPlayerToBoardTransform(currentPlayer);
-    const linearPolicy = encodePolicy(
-      sample,
-      // this.model.sampleToNewPolicy(sample),
-      currentPlayerBoardTransform
-    );
-    // console.log(`linearPolicy=${JSON.stringify(linearPolicy, undefined, 2)}`);
+    const linearPolicy = encodePolicy(sample, currentPlayerBoardTransform);
     return new EncodedSample(state, value, linearPolicy);
   }
 
   /**
-   * Encodes the list of samples as a set of input and output tensors
+   * Returns the vector-encoded representation of {@link snapshot}.
+   *
+   * By default does not mirror and rotate boards.
+   *
+   * @param playerIdToTransform can be used to apply separate mirroring and
+   * rotation to each player board
    */
-  encodeBatch(dataPoints: ReadonlyArray<EncodedSample>): KingdominoBatch {
-    const start = performance.now();
-    // Flattened indices: sample, linear state column
-    const linearStateArray = new Float32Array(
-      this.batchSize * linearStateCodec.columnCount
-    );
-    // Flattened indices: player, sample, x, y, feature
-    const boardSize = BoardInputTensor.size;
-    const playerBoardArrays = _.range(
-      0,
-      Kingdomino.INSTANCE.maxPlayerCount
-    ).map(() => new Float32Array(this.batchSize * boardSize));
-    const policyBoardArray = new Float32Array(this.batchSize * boardSize);
-    for (const [sampleIndex, encodedSample] of dataPoints.entries()) {
-      const encodedState = encodedSample.state;
-      linearStateArray.set(
-        encodedState.linearState,
-        sampleIndex * linearStateCodec.columnCount
+  encodeState(
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>,
+    playerIdToTransform: (player: Player) => BoardTransformation = () =>
+      NO_TRANSFORM
+  ): EncodedState {
+    const linearInput = this.encodeLinearState(snapshot);
+
+    const boardInputs = Range(0, Kingdomino.INSTANCE.maxPlayerCount)
+      .map((playerIndex) => {
+        if (
+          playerIndex >= snapshot.episodeConfiguration.players.players.count()
+        ) {
+          // The zero board is fully symmetrical and doesn't need to be transformed
+          return BoardInputTensor.boardZeros;
+        } else {
+          const player = requireDefined(
+            snapshot.episodeConfiguration.players.players.get(playerIndex)
+          );
+          const transform = playerIdToTransform(player);
+          return KingdominoModelEncoder.encodeBoard(
+            snapshot.state
+              .requirePlayerState(player.id)
+              .board.transform(transform)
+          );
+        }
+      })
+      .toArray();
+
+    const currentPlayerId = snapshot.state.requireCurrentPlayerId();
+    const currentPlayerIndex =
+      snapshot.episodeConfiguration.players.players.findIndex(
+        (player) => player.id == currentPlayerId
       );
-      for (const [
-        playerIndex,
-        playerBoard,
-      ] of encodedSample.state.boards.entries()) {
-        playerBoardArrays[playerIndex].set(
-          playerBoard,
-          sampleIndex * boardSize
-        );
-      }
-      policyBoardArray.set(
-        encodedState.boards[encodedState.currentPlayerIndex],
-        sampleIndex * boardSize
-      );
+    if (currentPlayerIndex == -1) {
+      throw new Error("No current player index");
     }
-    const valuesMatrix = Seq(dataPoints)
-      .map((sample) => sample.valueOutput)
-      .toArray();
-    const policyMatrix = Seq(dataPoints)
-      .map((sample) => sample.policyOutput)
-      .toArray();
-    console.log(
-      `Encoding batch as arrays took ${decimalFormat.format(
-        performance.now() - start
-      )} ms`
-    );
-    const linearInputTensor = tf.tensor(linearStateArray, [
-      dataPoints.length,
-      linearStateCodec.columnCount,
-    ]);
-    const boardTensors = playerBoardArrays.map((boards) =>
-      tf.tensor(boards, [dataPoints.length, 9, 9, 9])
-    );
-    const policyBoardTensor = tf.tensor(policyBoardArray, [
-      dataPoints.length,
-      9,
-      9,
-      9,
-    ]);
-    const valueOutputTensor = tf.tensor(valuesMatrix);
-    const policyOutputTensor = tf.tensor(policyMatrix);
-    console.log(
-      `Encoding batch as tensors took ${decimalFormat.format(
-        performance.now() - start
-      )} ms`
-    );
-    return new KingdominoBatch(
-      linearInputTensor,
-      boardTensors,
-      policyBoardTensor,
-      valueOutputTensor,
-      policyOutputTensor
-    );
+
+    return new EncodedState(linearInput, boardInputs, currentPlayerIndex);
   }
 
-  async train(dataPoints: ReadonlyArray<EncodedSample>): Promise<number> {
-    if (dataPoints.length != this.batchSize) {
-      throw new Error(`Number of samples did not equal batch size`);
+  // Visible for testing
+  encodeLinearState(
+    snapshot: EpisodeSnapshot<KingdominoConfiguration, KingdominoState>
+  ): Float32Array {
+    const currentPlayer = requireDefined(
+      Kingdomino.INSTANCE.currentPlayer(snapshot)
+    );
+    if (currentPlayer == undefined) {
+      throw new Error("Model invoked with snapshot with no current player");
     }
-    const batch = this.encodeBatch(dataPoints);
-    try {
-      const fitResult = await this.model.model.trainOnBatch(
-        [batch.linearInput, ...batch.boards, batch.policyBoard],
-        [batch.valueOutput, batch.policyOutput]
-      );
-      console.log(fitResult);
-
-      const metadata = this.model.metadata;
-      if (metadata != undefined) {
-        metadata.trainingSampleCount += dataPoints.length;
-      }
-
-      const result = (fitResult as number[])[0];
-      if (isNaN(result)) {
-        throw new Error(`Loss was NaN`);
-      }
-      return result;
-    } finally {
-      batch.dispose();
+    const nextAction = snapshot.state.nextAction;
+    if (nextAction == undefined) {
+      throw new Error("Model invoked with snapshot with no next action");
     }
+    const currentPlayerIndex =
+      snapshot.episodeConfiguration.players.players.indexOf(currentPlayer);
+    const stateValue: StateCodecValue = {
+      currentPlayerIndex: currentPlayerIndex,
+      nextAction: nextAction,
+      remainingTilesCount:
+        snapshot.gameConfiguration.tileCount -
+        snapshot.state.props.drawnTileNumbers.count(),
+      nextOffers: this.encodeTileOffers(
+        snapshot.episodeConfiguration,
+        snapshot.state.props.nextOffers
+      ),
+      previousOffers: this.encodeTileOffers(
+        snapshot.episodeConfiguration,
+        snapshot.state.props.previousOffers
+      ),
+      playerState: _.range(0, Kingdomino.INSTANCE.maxPlayerCount).map(
+        (playerIndex) => {
+          if (
+            playerIndex >= snapshot.episodeConfiguration.players.players.count()
+          ) {
+            return undefined;
+          }
+          const player = requireDefined(
+            snapshot.episodeConfiguration.players.players.get(playerIndex)
+          );
+          const playerState = snapshot.state.requirePlayerState(player.id);
+          return {
+            score: playerState.score,
+          };
+        }
+      ),
+    };
+    const result = new Float32Array(linearStateCodec.columnCount);
+    linearStateCodec.encode(stateValue, result, 0);
+    return result;
+  }
+
+  private encodeTileOffers(
+    episodeConfig: EpisodeConfiguration,
+    offers: TileOffers | undefined
+  ): ReadonlyArray<TileOfferValue> | undefined {
+    if (offers == undefined) {
+      return undefined;
+    }
+    return offers.offers
+      .map((offer) => {
+        const claim = offer.claim;
+        const claimPlayerIndex =
+          claim == undefined
+            ? undefined
+            : episodeConfig.players.players.findIndex(
+                (player) => player.id == claim.playerId
+              );
+        if (claimPlayerIndex == -1) {
+          throw new Error(`Claim player was not found`);
+        }
+        return {
+          locationProperties:
+            offer.tileNumber == undefined
+              ? undefined
+              : Tile.withNumber(offer.tileNumber).properties,
+          claimPlayerIndex: claimPlayerIndex,
+        };
+      })
+      .toArray();
+  }
+
+  // Visible for testing
+  static encodeBoard(board: PlayerBoard): Float32Array {
+    const result = new Float32Array(BoardInputTensor.size);
+
+    boardCodec.encode(board.locationStates, result, 0);
+
+    return result;
   }
 
   encodeValues(players: Players, terminalValues: PlayerValues): Float32Array {
@@ -1272,6 +1209,118 @@ export class KingdominoTrainingModel
     playerValuesCodec.encode(valuesArray, result, 0);
     return result;
   }
+
+  /**
+   * Returns the batch of states encoded as a set of transferable batch
+   * input matrices
+   */
+  stateBatchToMatrices(states: ReadonlyArray<EncodedState>): {
+    linearMatrix: TransferableMatrix;
+    boardAnalysisMatrices: ReadonlyArray<TransferableMatrix>;
+    boardPolicyMatrix: TransferableMatrix;
+  } {
+    // Allocate a single Float32Array for each output tensor and encode the
+    // batch into each of those arrays
+
+    // Flattened indices: sample, linear state column
+    const linearStateArray = new Float32Array(
+      states.length * linearStateCodec.columnCount
+    );
+    // Flattened indices: player, sample, x, y, feature
+    const boardSize = BoardInputTensor.size;
+    const playerBoardArrays = _.range(
+      0,
+      Kingdomino.INSTANCE.maxPlayerCount
+    ).map(() => new Float32Array(states.length * boardSize));
+
+    const boardPolicyArray = new Float32Array(states.length * boardSize);
+
+    for (const [sampleIndex, encodedState] of states.entries()) {
+      // TODO try to use generators to encapsulate offset arithmetic
+      linearStateArray.set(
+        encodedState.linearState,
+        sampleIndex * linearStateCodec.columnCount
+      );
+      for (const [playerIndex, playerBoard] of encodedState.boards.entries()) {
+        playerBoardArrays[playerIndex].set(
+          playerBoard,
+          sampleIndex * boardSize
+        );
+      }
+      boardPolicyArray.set(
+        encodedState.boards[encodedState.currentPlayerIndex],
+        sampleIndex * boardSize
+      );
+    }
+
+    const linearInputMatrix = {
+      buffer: linearStateArray.buffer,
+      shape: [states.length, linearStateCodec.columnCount],
+    };
+    const boardAnalysisMatrices = playerBoardArrays.map((boards) => {
+      return { buffer: boards.buffer, shape: [states.length, 9, 9, 9] };
+    });
+    const boardPolicyMatrix = {
+      buffer: boardPolicyArray.buffer,
+      shape: [states.length, 9, 9, 9],
+    };
+    return {
+      linearMatrix: linearInputMatrix,
+      boardAnalysisMatrices: boardAnalysisMatrices,
+      boardPolicyMatrix: boardPolicyMatrix,
+    };
+  }
+}
+
+export class KingdominoTrainingModel
+  implements TrainingModel<KingdominoTransferableBatch>
+{
+  private readonly optimizer: tf.Optimizer;
+
+  constructor(
+    private readonly model: KingdominoModel,
+    private readonly batchSize: number = 128
+  ) {
+    this.optimizer = tf.train.adam();
+
+    this.model.model.compile({
+      optimizer: this.optimizer,
+      // MSE for value and KL divergence for policy
+      loss: [scaledMse, selectiveKlDivergenceWithLogits],
+    });
+  }
+
+  async train(
+    transferableBatch: KingdominoTransferableBatch
+  ): Promise<ReadonlyArray<number>> {
+    if (transferableBatch.count != this.batchSize) {
+      throw new Error(`Number of samples did not equal batch size`);
+    }
+    const tensorsBatch = transferableBatchToTensors(transferableBatch);
+    try {
+      const fitResult = (await this.model.model.trainOnBatch(
+        [
+          tensorsBatch.linearInput,
+          ...tensorsBatch.boards,
+          tensorsBatch.policyBoard,
+        ],
+        [tensorsBatch.valueOutput, tensorsBatch.policyOutput]
+      )) as ReadonlyArray<number>;
+
+      const metadata = this.model.metadata;
+      if (metadata != undefined) {
+        metadata.trainingSampleCount += transferableBatch.count;
+      }
+
+      const overallLoss = fitResult[0];
+      if (isNaN(overallLoss)) {
+        throw new Error(`Loss was NaN`);
+      }
+      return fitResult;
+    } finally {
+      tensorsBatch.dispose();
+    }
+  }
 }
 
 const invalidActionValue = -1;
@@ -1287,7 +1336,6 @@ export function encodePolicy(
     KingdominoState,
     KingdominoAction
   >,
-  // policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const claimProbabilities = new Float32Array(
@@ -1349,20 +1397,11 @@ export function encodePolicy(
 export function encodePlacementPolicy(
   actionToStatistics: Map<KingdominoAction, ActionStatistics>,
   currentPlayer: Player,
-  // sample: StateTrainingData<
-  //   KingdominoConfiguration,
-  //   KingdominoState,
-  //   KingdominoAction
-  // >,
-  // policy: ProbabilityDistribution<KingdominoAction>,
   boardTransform: BoardTransformation
 ): Float32Array {
   const result = new Float32Array(placeProbabilitiesCodec.columnCount);
   result.fill(invalidActionValue);
 
-  // const currentPlayer = requireDefined(
-  //   Kingdomino.INSTANCE.currentPlayer(sample.snapshot)
-  // );
   for (const [action, actionStatistics] of actionToStatistics) {
     if (actionStatistics.visitCount == 0) {
       continue;
@@ -1417,14 +1456,10 @@ export function sampleToVisitCountPolicy(
   const actionToVisitCount = sample.actionToStatistics.map(
     (stats) => stats.visitCount
   );
-  // const totalVisitCount = sum(actionToVisitCount.valueSeq());
-  return ProbabilityDistribution.normalize(
-    actionToVisitCount
-    // actionToVisitCount.map((visitCount) => visitCount / totalVisitCount)
-  );
+  return ProbabilityDistribution.normalize(actionToVisitCount);
 }
 
-class KingdominoBatch {
+class KingdominoTensorsBatch {
   constructor(
     readonly linearInput: tf.Tensor,
     readonly boards: ReadonlyArray<tf.Tensor>,

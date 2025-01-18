@@ -4,16 +4,25 @@ import { KingdominoModel } from "kingdomino-agent";
 import { Range } from "immutable";
 import * as tf from "@tensorflow/tfjs-node-gpu";
 import { kingdominoExperiment } from "./config.js";
-import { ModelCodecType, ModelMetadata } from "agent";
-import { LogDirectory } from "training";
+import { ModelMetadata } from "agent";
+import {
+  ControllerMessage,
+  EvalWorkerMessage,
+  LogDirectory,
+  TypedMessagePort,
+} from "training";
 import { AgentResult, evalEpisodeBatch } from "./eval-concurrent-2.js";
 import gzip from "node-gzip";
+import { SettablePromise } from "game";
+import { createModel } from "./model.js";
 
 // No more than one eval worker should run at a time since this code
 // assumes it's the only writer to the log file and eval episodes
 // directory
 
-const messagePort = worker_threads.workerData as worker_threads.MessagePort;
+const messagePort = new TypedMessagePort<EvalWorkerMessage, ControllerMessage>(
+  worker_threads.workerData as worker_threads.MessagePort
+);
 
 let modelNumber = 0;
 
@@ -24,7 +33,6 @@ const episodesDir = new LogDirectory(
   episodesPath,
   kingdominoExperiment.evalMaxEpisodeBytes
 );
-const textEncoder = new TextEncoder();
 
 export type EvalLogEntry = {
   time: string;
@@ -40,35 +48,65 @@ try {
       encoding: "utf-8",
     })
   );
-  console.log(`Loaded ${log.length} existing logs`);
 } catch (e) {
-  console.log(`Error loading prior logs: ${e}`);
   log = new Array<EvalLogEntry>();
 }
 
-let evalsInProgress = 0;
-
-messagePort.on("message", async (message: any) => {
-  evalsInProgress++;
-  const typedMessage = message as ModelCodecType;
-  const model = await KingdominoModel.fromJson(typedMessage);
-  modelNumber++;
-  console.log(
-    `Eval worker model #${modelNumber} with metadata ${JSON.stringify(
-      model.metadata
-    )}`
-  );
-
-  try {
-    await evaluate(model);
-  } finally {
-    model.dispose();
-    // https://github.com/tensorflow/tfjs/issues/8471
-    tf.disposeVariables();
+/**
+ * A box that can hold a value and allows a caller to wait for and consume
+ * the current or next value. Equivalent to a semaphore with one permit plus
+ * a variable.
+ */
+class Rendezvous<T> {
+  value: T | undefined;
+  promise: SettablePromise<T> | undefined;
+  constructor(initialValue?: T) {
+    this.value = initialValue;
   }
+  set(value: T) {
+    if (this.promise != undefined) {
+      this.promise.fulfill(value);
+      this.promise = undefined;
+    } else {
+      this.value = value;
+    }
+  }
+  consume(): Promise<T> {
+    if (this.value != undefined) {
+      const result = Promise.resolve(this.value);
+      this.value = undefined;
+      return result;
+    }
+    if (this.promise == undefined) {
+      this.promise = new SettablePromise<T>();
+    }
+    return this.promise.promise;
+  }
+}
 
-  messagePort.postMessage(undefined);
+const newModelAvailable = new Rendezvous<boolean>();
+
+messagePort.onMessage(async (message) => {
+  switch (message.type) {
+    case "new_model_available":
+      newModelAvailable.set(true);
+      break;
+    default:
+      messagePort.postMessage({
+        type: "log",
+        message: `Unexpected message type ${message.type}`,
+      });
+  }
 });
+
+async function main() {
+  while (true) {
+    await newModelAvailable.consume();
+    const model = await createModel(kingdominoExperiment);
+    messagePort.postMessage({ type: "log", message: "loaded new model" });
+    await evaluate(model);
+  }
+}
 
 async function evaluate(model: KingdominoModel) {
   console.log(`Eval TFJS backend is ${tf.getBackend()}`);
@@ -89,9 +127,6 @@ async function evaluate(model: KingdominoModel) {
         result.value / kingdominoExperiment.evalBatchCount;
       cumulativeResult.timeMs += result.timeMs;
     }
-    console.log(
-      `Eval thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
-    );
 
     for (const episode of batchResult.episodeTrainingData) {
       const episodeString = JSON.stringify(episode.encode(), undefined, 2);
@@ -107,17 +142,21 @@ async function evaluate(model: KingdominoModel) {
   } satisfies EvalLogEntry;
   log.push(logEntry);
   const logString = JSON.stringify(log, undefined, 4);
-  console.log(
-    `Eval worker completed batch for ${modelNumber}: ${JSON.stringify(
+  fs.writeFileSync(logFilePath, logString);
+
+  messagePort.postMessage({
+    type: "log",
+    message: `completed evaluation for "${model.description}": ${JSON.stringify(
       logEntry,
       undefined,
       2
-    )}`
-  );
-  fs.writeFileSync(logFilePath, logString);
+    )}`,
+  });
 
-  evalsInProgress--;
-  if (evalsInProgress > 0) {
-    console.log(`${evalsInProgress} evals in progress`);
-  }
+  messagePort.postMessage({
+    type: "log",
+    message: `memory: ${JSON.stringify(tf.memory(), undefined, 2)}`,
+  });
 }
+
+main();

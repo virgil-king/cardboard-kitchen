@@ -1,4 +1,3 @@
-import * as tf from "@tensorflow/tfjs-node-gpu";
 import {
   Action,
   Game,
@@ -6,10 +5,9 @@ import {
   GameState,
   requireDefined,
   SettablePromise,
-  sleep,
 } from "game";
 import { List, Map } from "immutable";
-import { Model, TrainingModel } from "agent/model.js";
+import { ModelEncoder, TransferableBatch } from "agent/model.js";
 import { EpisodeBuffer } from "./episodebuffer.js";
 import * as worker_threads from "node:worker_threads";
 import fs from "node:fs/promises";
@@ -17,28 +15,26 @@ import { EpisodeTrainingData, StateTrainingData } from "agent";
 import { LogDirectory } from "./logdirectory.js";
 import gzip from "node-gzip";
 import zlib from "node:zlib";
+import {
+  ControllerMessage,
+  createPorts,
+  EvalWorkerMessage,
+  LogMessage,
+  NewModelAvailableMessage,
+  SelfPlayWorkerMessage,
+  TrainingWorkerMessage,
+  TypedMessagePort,
+} from "./messaging.js";
 
-// This file provides the logic for the main thread of the training system
+// This file provides the logic for the main thread of the training system.
+// The main thread is response for preparing training batches, collecting
+// and saving self-play episodes, and distributing messages between workers.
 
 const decimalFormat = Intl.NumberFormat(undefined, {
   maximumFractionDigits: 2,
 });
 
-const textEncoder = new TextEncoder();
-
-// When true, generated data like self-play episodes and models won't
-// be saved to persistent storage
-const testing = false;
-
-const timeBetweenModelSavesMs = 15 * 60 * 1_000;
-
-/**
- * How many self-play episode batches to receive from all self-play
- * workers between issuing updated models. The goal of this mechanism
- * is to avoid sending models faster than self-play workers can use
- * them.
- */
-const selfPlayBatchesBetweenModelUpdates = 1;
+const saveSelfPlayEpisodes = true;
 
 /**
  * @param batchSize number of state samples to use per batch
@@ -47,25 +43,18 @@ export async function train_parallel<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action,
-  EncodedSampleT,
-  ModelT extends Model<C, S, A, EncodedSampleT>
+  T extends TransferableBatch
 >(
   game: Game<C, S, A>,
-  model: ModelT,
+  encoder: ModelEncoder<C, S, A, T>,
   batchSize: number,
   sampleBufferSize: number,
+  trainingWorkerScript: string,
   selfPlayWorkerScript: string,
   selfPlayWorkerCount: number,
   evalWorkerScript: string,
-  modelsDir: LogDirectory,
-  saveModel: (model: ModelT, path: string) => Promise<void>,
   episodesDir: LogDirectory
 ) {
-  console.log(`Training TFJS backend is ${tf.getBackend()}`);
-
-  const trainingModel = model.trainingModel(batchSize);
-  const encodedModel = await model.toJson();
-
   const buffer = new EpisodeBuffer<
     StateTrainingData<C, S, A>,
     EpisodeTrainingData<C, S, A>
@@ -90,19 +79,17 @@ export async function train_parallel<
       break;
     }
   }
-  console.log(
-    `Loaded ${initialEpisodeCount} episodes; sample buffer size is ${buffer.sampleCount()} with maximum ${sampleBufferSize}`
+  log(
+    `loaded ${initialEpisodeCount} episodes; sample buffer size is ${buffer.sampleCount()} with maximum ${sampleBufferSize}`
   );
 
-  let episodesReceived = 0;
-  let episodeBatchesReceived = 0;
   let samplesReceived = 0;
-
+  let episodesReceived = 0;
   const workersStartedMs = performance.now();
-  function receiveEpisodeBatch(episodes: Array<any>) {
+  function receiveEpisodeBatch(episodes: ReadonlyArray<any>) {
     for (const episodeJson of episodes) {
       const decoded = addEpisodeToBuffer(episodeJson);
-      if (!testing) {
+      if (saveSelfPlayEpisodes) {
         const episodeString = JSON.stringify(episodeJson, undefined, 1);
         const episodeBlob = zlib.gzipSync(episodeString);
         episodesDir.writeData(episodeBlob);
@@ -110,128 +97,136 @@ export async function train_parallel<
       episodesReceived++;
       samplesReceived += decoded.count();
     }
-    episodeBatchesReceived++;
-    const sinceWorkersStartedMs = performance.now() - workersStartedMs;
-    console.log(
-      `Received self-play batch; seconds per episode: ${decimalFormat.format(
-        sinceWorkersStartedMs / 1_000 / episodesReceived
-      )}`
-    );
     const elapsed = performance.now() - workersStartedMs;
-    console.log(
-      `Samples generated per second: ${samplesReceived / (elapsed / 1000)}`
+    log(
+      `received self-play batch; samples generated per second: ${
+        samplesReceived / (elapsed / 1000)
+      }`
     );
   }
 
-  const workers = new Array<worker_threads.Worker>();
-  const workerPorts = new Array<worker_threads.MessagePort>();
+  const selfPlayWorkerPorts = new Array<
+    TypedMessagePort<ControllerMessage, SelfPlayWorkerMessage>
+  >();
   for (let i = 0; i < selfPlayWorkerCount; i++) {
-    const channel = new worker_threads.MessageChannel();
-    channel.port1.on("message", receiveEpisodeBatch);
-    const worker = new worker_threads.Worker(selfPlayWorkerScript, {
-      workerData: channel.port2,
-      transferList: [channel.port2],
+    const ports = createPorts<ControllerMessage, SelfPlayWorkerMessage>();
+    ports.localPort.onMessage((message) => {
+      switch (message.type) {
+        case "episode_batch": {
+          receiveEpisodeBatch(message.batch);
+          break;
+        }
+        case "log": {
+          handleLogMessage(`self-play worker #${i}`, message);
+          break;
+        }
+        default:
+          log(`unsupported message type ${message.type}`);
+      }
     });
-    channel.port1.postMessage(encodedModel);
-    workers.push(worker);
-    workerPorts.push(channel.port1);
+    new worker_threads.Worker(selfPlayWorkerScript, {
+      workerData: ports.remotePort,
+      transferList: [ports.remotePort],
+    });
+    selfPlayWorkerPorts.push(ports.localPort);
   }
-  console.log(`Spawned ${selfPlayWorkerCount} self play workers`);
+  log(`spawned ${selfPlayWorkerCount} self play workers`);
 
-  const evalWorkerChannel = new worker_threads.MessageChannel();
+  const evalWorkerPorts = createPorts<ControllerMessage, EvalWorkerMessage>();
   new worker_threads.Worker(evalWorkerScript, {
-    workerData: evalWorkerChannel.port2,
-    transferList: [evalWorkerChannel.port2],
+    workerData: evalWorkerPorts.remotePort,
+    transferList: [evalWorkerPorts.remotePort],
   });
-  evalWorkerChannel.port1.on("message", async (_) => {
-    console.log(`Received completion from eval worker; sending new model`);
-    const encodedModel = await model.toJson();
-    evalWorkerChannel.port1.postMessage(encodedModel);
-    console.log(
-      `Main thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
-    );
+  evalWorkerPorts.localPort.onMessage((message) => {
+    switch (message.type) {
+      case "log": {
+        handleLogMessage("eval worker", message);
+        break;
+      }
+      default:
+        log(`Unexpected message type ${message.type}`);
+        break;
+    }
   });
 
+  // Don't start the training worker until we have a sufficient sample buffer,
+  // to avoid having to handle batch requests when we can't produce a batch
   await bufferReady.promise;
 
-  // Kick off first eval loop
-  evalWorkerChannel.port1.postMessage(await model.toJson());
-
-  let episodeBatchesBetweenModelUpdates =
-    selfPlayWorkerCount * selfPlayBatchesBetweenModelUpdates;
-  let episodeBatchesReceivedAtLastModelUpdate = 0;
-  let lastSaveTime = performance.now();
+  // Training worker
+  let samplesTrained = 0;
   let trailingLosses = List<number>();
-
-  const trainingStartedMs = performance.now();
-  let trainedSampleCount = 0;
-
-  let batch = await sampleBatch(game, buffer, trainingModel, batchSize);
-  while (true) {
-    const beforeStep = performance.now();
-    const stepResult = await generateBatchAndTrain(
-      game,
-      buffer,
-      trainingModel,
-      batch
-    );
-    batch = stepResult.batch;
-    const loss = stepResult.loss;
-    trailingLosses = trailingLosses.push(loss);
-    if (trailingLosses.count() > 100) {
-      trailingLosses = trailingLosses.shift();
-    }
-    const trailingLoss =
-      trailingLosses.reduce((reduction, next) => reduction + next, 0) /
-      trailingLosses.count();
-    console.log(`Sliding window loss: ${trailingLoss}`);
-    console.log(
-      `Training step took ${decimalFormat.format(
-        performance.now() - beforeStep
-      )} ms`
-    );
-    trainedSampleCount += batch.length;
-    await sleep(0);
-    const episodeBatchesReceivedSinceLastModelUpdate =
-      episodeBatchesReceived - episodeBatchesReceivedAtLastModelUpdate;
-    if (
-      episodeBatchesReceivedSinceLastModelUpdate >=
-      episodeBatchesBetweenModelUpdates
-    ) {
-      console.log(
-        `Broadcasting updated model after ${episodeBatchesReceived} episode batches`
-      );
-      console.log(
-        `Main thread memory: ${JSON.stringify(tf.memory(), undefined, 2)}`
-      );
-      const elapsed = performance.now() - trainingStartedMs;
-      console.log(
-        `Samples trained per second: ${trainedSampleCount / (elapsed / 1000)}`
-      );
-      episodeBatchesReceivedAtLastModelUpdate = episodeBatchesReceived;
-      const encodedModel = await model.toJson();
-      for (const port of workerPorts) {
-        port.postMessage(encodedModel);
+  const start = performance.now();
+  let lastBatchCompletionReceived = start;
+  const trainingWorkerPorts = createPorts<
+    ControllerMessage,
+    TrainingWorkerMessage<T>
+  >();
+  new worker_threads.Worker(trainingWorkerScript, {
+    workerData: trainingWorkerPorts.remotePort,
+    transferList: [trainingWorkerPorts.remotePort],
+  });
+  trainingWorkerPorts.localPort.onMessage((message: ControllerMessage) => {
+    switch (message.type) {
+      case "log": {
+        handleLogMessage(`training worker`, message);
+        break;
       }
+      case "batch_request": {
+        const batch = sampleBatch(buffer, encoder, batchSize);
+        trainingWorkerPorts.localPort.postMessage(
+          { type: "training_batch", batch },
+          batch.transfers
+        );
+        break;
+      }
+      case "training_batch_complete": {
+        samplesTrained += batchSize;
+        const now = performance.now();
+        const batchElapsed = now - lastBatchCompletionReceived;
+        lastBatchCompletionReceived = now;
+        const totalElapsed = now - start;
+        const overallLoss = message.loss[0];
+        trailingLosses = trailingLosses.push(overallLoss);
+        if (trailingLosses.count() > 100) {
+          trailingLosses = trailingLosses.shift();
+        }
+        const trailingLoss =
+          trailingLosses.reduce((reduction, next) => reduction + next, 0) /
+          trailingLosses.count();
+        log(
+          `training batch complete:\ntime: ${Math.round(
+            batchElapsed
+          )} ms\nlosses: ${JSON.stringify(
+            message.loss
+          )}\nsliding window loss: ${trailingLoss}\nsamples trained per second: ${decimalFormat.format(
+            samplesTrained / (totalElapsed / 1000)
+          )}\n`
+        );
+        break;
+      }
+      case "new_model_available": {
+        const message = {
+          type: "new_model_available",
+        } satisfies NewModelAvailableMessage;
+        for (const port of selfPlayWorkerPorts) {
+          port.postMessage(message);
+        }
+        evalWorkerPorts.localPort.postMessage(message);
+        break;
+      }
+      default:
+        log(`unsupported message type ${message.type}`);
     }
-    const now = performance.now();
-    const timeSinceLastSave = now - lastSaveTime;
+  });
+}
 
-    if (
-      modelsDir != undefined &&
-      timeSinceLastSave > timeBetweenModelSavesMs &&
-      !testing
-    ) {
-      await modelsDir.write(async (path) => {
-        await fs.mkdir(path);
-        return saveModel(model, path);
-      });
-      lastSaveTime = now;
-      console.log(
-        `Saved model after ${decimalFormat.format(timeSinceLastSave)} ms`
-      );
-    }
-  }
+function handleLogMessage(workerLabel: string, message: LogMessage) {
+  log(`${workerLabel}: ${message.message}`);
+}
+
+function log(message: string) {
+  console.log(`${new Date().toISOString()}: ${message}`);
 }
 
 async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
@@ -259,57 +254,19 @@ async function readGzippedJson(path: string): Promise<any> {
   return JSON.parse(decompressedBytes.toString("utf-8"));
 }
 
-type StepResult<T> = {
-  loss: number;
-  batch: ReadonlyArray<T>;
-};
-
-async function sampleBatch<
+function sampleBatch<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action,
-  EncodedSampleT
+  T extends TransferableBatch
 >(
-  game: Game<C, S, A>,
   buffer: EpisodeBuffer<
     StateTrainingData<C, S, A>,
     EpisodeTrainingData<C, S, A>
   >,
-  trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
+  encoder: ModelEncoder<C, S, A, T>,
   batchSize: number
-): Promise<ReadonlyArray<EncodedSampleT>> {
+): T {
   const samples = buffer.sample(batchSize);
-  const result = new Array<EncodedSampleT>();
-  for (let i = 0; i < samples.length; i++) {
-    result.push(trainingModel.encodeSample(samples[i]));
-    if (i % 32 == 0) {
-      await sleep(0);
-    }
-  }
-  return result;
-}
-
-/**
- * Concurrently trains {@link model} on {@link batch} and samples a new batch
- */
-async function generateBatchAndTrain<
-  C extends GameConfiguration,
-  S extends GameState,
-  A extends Action,
-  EncodedSampleT
->(
-  game: Game<C, S, A>,
-  buffer: EpisodeBuffer<
-    StateTrainingData<C, S, A>,
-    EpisodeTrainingData<C, S, A>
-  >,
-  trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
-  batch: ReadonlyArray<EncodedSampleT>
-) {
-  const trainingResult = trainingModel.train(batch);
-  const newBatch = sampleBatch(game, buffer, trainingModel, batch.length);
-  return {
-    loss: await trainingResult,
-    batch: await newBatch,
-  } as StepResult<EncodedSampleT>;
+  return encoder.encodeTrainingBatch(samples);
 }

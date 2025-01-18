@@ -13,13 +13,11 @@ export async function createModel(
     return freshModel();
   }
   const result = await loadModelFromFile(modelPath);
-  console.log(`Loaded model from ${modelPath}`);
   return result;
 }
 
 function freshModel() {
   const result = KingdominoModel.fresh();
-  console.log("Created randomly initialized model");
   return result;
 }
 
@@ -29,16 +27,9 @@ function freshModel() {
 export async function loadModelFromFile(
   path: string
 ): Promise<KingdominoModel> {
-  console.log(`Loading model from ${path}`);
   const layersModel = await tf.loadLayersModel(`file://${path}/model.json`);
-  console.log(
-    `Input shape is ${(layersModel.input as tf.SymbolicTensor[]).map(
-      (t) => t.shape
-    )}`
-  );
-
   const metadata = await loadMetadata(path);
-  return new KingdominoModel(layersModel, metadata);
+  return new KingdominoModel(path, layersModel, metadata);
 }
 
 async function loadMetadata(dir: string): Promise<ModelMetadata | undefined> {
@@ -47,10 +38,8 @@ async function loadMetadata(dir: string): Promise<ModelMetadata | undefined> {
       encoding: "utf-8",
     });
     const result = decodeOrThrow(modelMetadataCodec, JSON.parse(metadataJson));
-    console.log(`Loaded model metadata ${JSON.stringify(result)}`);
     return result;
   } catch (e) {
-    console.log(`Error loading model metadata: ${e}`);
     return undefined;
   }
 }

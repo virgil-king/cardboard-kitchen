@@ -5,7 +5,6 @@ import {
   Player,
   PlayerValues,
   Players,
-  ProbabilityDistribution,
   Vector2,
   requireDefined,
 } from "game";
@@ -18,6 +17,7 @@ import {
   boardCodec,
   encodePlacementPolicy,
   KingdominoModel,
+  KingdominoModelEncoder,
   locationPropertiesCodec,
   placementPolicyLinearization,
   POLICY_TEMPERATURE,
@@ -41,7 +41,7 @@ const episodeConfig = new EpisodeConfiguration(players);
 const model = KingdominoModel.fresh();
 
 test("encodeValues: two players: result has length four", () => {
-  const vector = model.trainingModel().encodeValues(
+  const vector = KingdominoModelEncoder.INSTANCE.encodeValues(
     players,
     new PlayerValues(
       Map([
@@ -201,9 +201,10 @@ test("encodeSample: returns expected board and policy vectors", () => {
     1
   );
 
-  const encodedSample = model
-    .trainingModel()
-    .encodeSample(sample, () => NO_TRANSFORM);
+  const encodedSample = KingdominoModelEncoder.INSTANCE.encodeSample(
+    sample,
+    () => NO_TRANSFORM
+  );
 
   const aliceBoard = encodedSample.state.boards[0];
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
@@ -309,11 +310,12 @@ test("encodeSample: with transformation: returns expected board and policy vecto
     1
   );
 
-  const encodedSample = model
-    .trainingModel()
-    .encodeSample(sample, (player: Player) => {
+  const encodedSample = KingdominoModelEncoder.INSTANCE.encodeSample(
+    sample,
+    (player: Player) => {
       return { mirror: true, quarterTurns: 1 };
-    });
+    }
+  );
 
   const aliceBoard = encodedSample.state.boards[0];
   for (const x of Range(-playAreaRadius, playAreaRadius + 1)) {
