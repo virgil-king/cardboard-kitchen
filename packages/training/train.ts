@@ -166,7 +166,7 @@ export async function train_parallel<
   const trainingStartedMs = performance.now();
   let trainedSampleCount = 0;
 
-  let batch = sampleBatch(game, buffer, trainingModel, batchSize);
+  let batch = await sampleBatch(game, buffer, trainingModel, batchSize);
   while (true) {
     const beforeStep = performance.now();
     const stepResult = await generateBatchAndTrain(
@@ -236,15 +236,15 @@ export async function train_parallel<
 
 async function* loadEpisodesJson(episodesDir: string): AsyncGenerator<any> {
   const files = await fs.readdir(episodesDir);
-  let filenameToModeTime = Map<string, number>();
+  let filenameToModTime = Map<string, number>();
   for (const filename of files) {
     const stat = await fs.stat(episodesDir + "/" + filename);
-    filenameToModeTime = filenameToModeTime.set(filename, stat.mtimeMs);
+    filenameToModTime = filenameToModTime.set(filename, stat.mtimeMs);
   }
   const filesByDescendingModTime = files.sort(
     (a, b) =>
-      requireDefined(filenameToModeTime.get(b)) -
-      requireDefined(filenameToModeTime.get(a))
+      requireDefined(filenameToModTime.get(b)) -
+      requireDefined(filenameToModTime.get(a))
   );
   for (const filename of filesByDescendingModTime) {
     const path = episodesDir + "/" + filename;
@@ -264,7 +264,7 @@ type StepResult<T> = {
   batch: ReadonlyArray<T>;
 };
 
-function sampleBatch<
+async function sampleBatch<
   C extends GameConfiguration,
   S extends GameState,
   A extends Action,
@@ -277,10 +277,16 @@ function sampleBatch<
   >,
   trainingModel: TrainingModel<C, S, A, EncodedSampleT>,
   batchSize: number
-): ReadonlyArray<EncodedSampleT> {
-  return buffer.sample(batchSize).map((sample) => {
-    return trainingModel.encodeSample(sample);
-  });
+): Promise<ReadonlyArray<EncodedSampleT>> {
+  const samples = buffer.sample(batchSize);
+  const result = new Array<EncodedSampleT>();
+  for (let i = 0; i < samples.length; i++) {
+    result.push(trainingModel.encodeSample(samples[i]));
+    if (i % 32 == 0) {
+      await sleep(0);
+    }
+  }
+  return result;
 }
 
 /**
@@ -301,11 +307,9 @@ async function generateBatchAndTrain<
   batch: ReadonlyArray<EncodedSampleT>
 ) {
   const trainingResult = trainingModel.train(batch);
-  const batchStart = performance.now();
   const newBatch = sampleBatch(game, buffer, trainingModel, batch.length);
-  console.log(`Batch preparation took ${performance.now() - batchStart} ms`);
   return {
     loss: await trainingResult,
-    batch: newBatch,
+    batch: await newBatch,
   } as StepResult<EncodedSampleT>;
 }
